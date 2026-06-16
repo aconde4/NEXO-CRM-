@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "mcp__mcp-registry__search_mcp_registry",
+      "PowerShell(pnpm env use --global lts)",
+      "PowerShell(\"node: \" + \\(node -v\\); \"npm:  \" + \\(npm -v\\); \"pnpm: \" + \\(pnpm -v\\))",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}

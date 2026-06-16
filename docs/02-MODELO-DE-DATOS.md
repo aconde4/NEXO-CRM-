@@ -1,0 +1,236 @@
+# 02 · Modelo de Datos
+
+Diseño de entidades para PostgreSQL (vía Drizzle). Pensado para cubrir todo el CRM
+sin rehacer el esquema más adelante. Convenciones:
+
+- Toda tabla tiene `id` (uuid), `created_at`, `updated_at`.
+- `owner_id` apunta al usuario propietario (preparado para multiusuario futuro,
+  aunque al inicio seas solo tú).
+- Campos flexibles → `JSONB` (`custom_fields`) para no migrar cada vez que añadas un
+  campo personalizado.
+- Borrados → `deleted_at` (soft delete) en entidades importantes.
+
+---
+
+## 1. Identidad y configuración
+
+### `users`
+Usuarios de la app (al inicio, solo tú). `id`, `email`, `name`, `image`,
+`role` (`owner`/`member`), timestamps. (Auth.js gestiona sesiones/cuentas.)
+
+### `accounts` / `sessions` / `verification_tokens`
+Tablas estándar de Auth.js. En `accounts` guardamos el **refresh_token de Google**
+para llamar a la Gmail API.
+
+### `mailboxes`
+Buzones conectados para envío 1:1. `user_id`, `provider` (`gmail`), `email`,
+`access_token`, `refresh_token`, `daily_limit` (warm-up), `sent_today`,
+`signature` (HTML), `status`.
+
+### `settings`
+Ajustes globales del workspace: zona horaria, horario de envío permitido (sending
+window), datos del remitente para RGPD (dirección física en el pie), etc.
+
+---
+
+## 2. CRM nuclear (Fases 1–2)
+
+### `organizations` (empresas)
+`name`, `domain`, `website`, `phone`, `address`, `industry`, `size`,
+`owner_id`, `custom_fields` (JSONB), `deleted_at`.
+
+### `persons` (contactos)
+`first_name`, `last_name`, `org_id` (→ organizations), `title` (cargo),
+`emails` (JSONB: lista con etiqueta work/home + flag de baja),
+`phones` (JSONB), `owner_id`, `source` (origen del lead),
+`marketing_status` (`subscribed`/`unsubscribed`/`bounced`/`complained`),
+`custom_fields` (JSONB), `deleted_at`.
+
+### `labels` (etiquetas/segmentos rápidos)
+`name`, `color`, `entity_type` (`person`/`org`/`deal`). Tabla puente
+`entity_labels` (polimórfica) para asignaciones N:N.
+
+### `custom_field_defs`
+Definición de campos personalizados: `entity_type`, `key`, `label`,
+`type` (`text`/`number`/`date`/`select`/`multiselect`/`checkbox`/`url`/`monetary`),
+`options` (JSONB), `order`, `required`. Los **valores** viven en el `custom_fields`
+JSONB de cada entidad.
+
+### `pipelines`
+Embudos. `name`, `order`, `is_default`.
+
+### `stages` (etapas)
+`pipeline_id`, `name`, `order`, `probability` (% para previsión ponderada),
+`rotting_days` (días para marcar un negocio como "estancado").
+
+### `deals` (negocios)
+`title`, `value`, `currency`, `pipeline_id`, `stage_id`, `org_id`, `person_id`
+(contacto principal), `owner_id`, `status` (`open`/`won`/`lost`),
+`expected_close_date`, `won_at`, `lost_at`, `lost_reason`,
+`stage_changed_at` (para detectar estancamiento), `custom_fields` (JSONB).
+
+### `deal_contacts`
+Participantes de un negocio (N:N entre deals y persons) con `role`.
+
+### `products` *(opcional, Fase 10)*
+Catálogo: `name`, `code`, `unit_price`, `currency`, `tax`. Tabla `deal_products`
+(líneas de un negocio: cantidad, precio, descuento) para presupuestos.
+
+---
+
+## 3. Actividades y notas (Fase 1)
+
+### `activities`
+`type` (`call`/`meeting`/`task`/`email`/`deadline`/`lunch`...), `subject`,
+`notes`, `due_at`, `duration`, `done` (bool), `done_at`,
+`person_id`, `org_id`, `deal_id` (cualquiera puede ser null), `owner_id`.
+
+### `notes`
+`body` (rich text), `person_id`/`org_id`/`deal_id`, `owner_id`.
+
+### `files`
+Adjuntos (Supabase Storage): `name`, `url`, `size`, `mime`, enlace a entidad.
+
+### `activity_log` (timeline / auditoría)
+Eventos del sistema para la línea de tiempo de cada ficha y auditoría:
+`actor_id`, `verb` (`created`/`updated`/`stage_changed`/`emailed`...),
+`entity_type`, `entity_id`, `payload` (JSONB), `created_at`.
+
+---
+
+## 4. Email (Fases 3–4)
+
+### `email_threads`
+Hilos sincronizados: `gmail_thread_id`, `subject`, `person_id`, `deal_id`,
+`last_message_at`, `snippet`.
+
+### `email_messages`
+Mensajes individuales: `thread_id`, `gmail_message_id`, `direction`
+(`inbound`/`outbound`), `from`, `to`, `cc`, `subject`, `body_html`, `body_text`,
+`sent_at`, `provider` (`gmail`/`resend`), `tracking_id`,
+`opened_at`, `clicked_at`, `replied`, `bounced`, `status`.
+
+### `email_templates`
+Plantillas reutilizables: `name`, `subject`, `body_html`, `variables` (merge tags
+como `{{first_name}}`), `category`.
+
+### `email_events`
+Eventos crudos de tracking/webhooks: `message_id`, `type`
+(`delivered`/`open`/`click`/`bounce`/`complaint`/`unsubscribe`), `meta` (JSONB),
+`created_at`. Alimenta las métricas.
+
+### `suppressions` (lista de supresión global — RGPD)
+`email`, `reason` (`unsubscribe`/`bounce`/`complaint`/`manual`), `created_at`.
+**Antes de cualquier envío masivo se comprueba aquí.**
+
+---
+
+## 5. Campañas (Fase 4)
+
+### `campaigns`
+`name`, `subject`, `from_name`, `from_email`, `body_html` (o referencia a plantilla),
+`status` (`draft`/`scheduled`/`sending`/`sent`/`paused`),
+`scheduled_at`, `segment_id` (audiencia), `provider` (`resend`),
+`stats` (JSONB: enviados, entregados, aperturas, clics, rebotes, bajas).
+
+### `campaign_recipients`
+`campaign_id`, `person_id`, `email`, `status`
+(`pending`/`sent`/`delivered`/`opened`/`clicked`/`bounced`/`unsubscribed`),
+`sent_at`, `message_id`.
+
+### `segments` (audiencias)
+`name`, `definition` (JSONB con filtros: p.ej. "etiqueta = cliente AND país = ES").
+Pueden ser dinámicos (se recalculan) o estáticos.
+
+---
+
+## 6. Secuencias / Drip (Fase 5)
+
+### `sequences`
+`name`, `status` (`active`/`paused`/`archived`), `channel`
+(`gmail_1to1`/`resend`), `settings` (límite diario, ventana de envío,
+parar al responder bool).
+
+### `sequence_steps`
+`sequence_id`, `order`, `type` (`email`/`wait`/`condition`/`task`),
+`wait_days`/`wait_hours` (para `wait`), `template_id` o cuerpo inline,
+`condition` (JSONB, p.ej. "si abrió"/"si respondió"), variantes A/B.
+
+### `enrollments` (inscripciones)
+`sequence_id`, `person_id`, `current_step`, `status`
+(`active`/`completed`/`stopped`/`bounced`/`replied`), `enrolled_at`,
+`next_run_at`, `inngest_run_id` (para correlacionar con el workflow duradero).
+
+---
+
+## 7. Automatizaciones (Fase 6)
+
+### `automations`
+`name`, `enabled` (bool), `trigger` (JSONB: tipo + config),
+`graph` (JSONB: nodos y aristas del canvas visual), `version`.
+
+### `automation_runs` (registro de ejecuciones)
+`automation_id`, `entity_type`, `entity_id`, `status`
+(`running`/`completed`/`failed`/`waiting`), `log` (JSONB pasos ejecutados),
+`started_at`, `finished_at`. Observabilidad de qué hizo cada automatización.
+
+**Disparadores soportados:** registro creado/actualizado/borrado, negocio cambia de
+etapa, cambia un campo concreto, email abierto/respondido, formulario enviado,
+programado (cron), inscripción a secuencia.
+
+**Acciones soportadas:** crear/actualizar registro, enviar email, inscribir en
+secuencia, crear actividad/tarea, añadir etiqueta, mover de etapa, llamar webhook,
+notificar (Slack/email), **acción de IA** (p.ej. "resume y puntúa este lead").
+
+---
+
+## 8. Captación (Fase 7)
+
+### `forms`
+`name`, `fields` (JSONB), `redirect_url`, `embed_settings`, `mappings`
+(qué campo del formulario va a qué campo de persona/negocio), `automation_id`
+(qué disparar al recibir).
+
+### `form_submissions`
+`form_id`, `data` (JSONB), `person_id` (creado/encontrado), `ip`, `created_at`.
+
+### `leads`
+Bandeja previa a negocio: `person_id`, `source`, `status`
+(`new`/`qualified`/`converted`/`junk`), `score`, `converted_deal_id`.
+
+---
+
+## 9. IA (Fase 8)
+
+### `ai_runs`
+Trazas de uso de Claude: `feature` (`draft`/`summary`/`score`/`nl_automation`...),
+`input` (resumen), `output`, `model`, `tokens`, `cost`, `created_at`. Para control
+de gasto y depuración.
+
+### Campos derivados de IA
+- `persons.score` / `leads.score` (lead scoring).
+- `deals.ai_summary`, `deals.next_best_action`.
+- `email_messages.sentiment` (en respuestas).
+
+---
+
+## 10. Diagrama de relaciones (alto nivel)
+
+```
+organizations 1───* persons 1───* deals *───1 stages *───1 pipelines
+      │               │            │
+      │               │            └──* activities / notes / files / email_threads
+      │               └──* enrollments ─* sequences ─* sequence_steps
+      └──* deals
+persons *──* labels (entity_labels)        campaigns 1──* campaign_recipients
+persons 1──* email_messages                segments 1──* campaigns
+automations 1──* automation_runs           forms 1──* form_submissions ─* leads
+suppressions (global)                      ai_runs (transversal)
+```
+
+> Este esquema es el **objetivo**. No se crea entero en la Fase 1: cada fase añade
+> solo sus tablas. Pero diseñarlo completo ahora evita rehacer relaciones después.
+
+---
+
+➡️ Siguiente lectura: [`03-PARIDAD-PIPEDRIVE-Y-MEJORAS.md`](03-PARIDAD-PIPEDRIVE-Y-MEJORAS.md)
