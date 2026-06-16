@@ -10,14 +10,16 @@ termines, dímelo y conecto la base de datos, el login y el despliegue.
 
 ## 1. Supabase (base de datos) — necesario
 
-1. Entra en https://supabase.com → **New project**. Elige una contraseña de BD y
-   una región europea (p. ej. *West EU (Ireland)*).
-2. Cuando esté listo: **Project Settings → Database → Connection string**.
+1. Entra en https://supabase.com → **New project**. Elige una contraseña de BD
+   (apúntala) y una región europea (p. ej. *Central EU (Frankfurt)*).
+2. Cuando esté listo, pulsa el botón **Connect** (arriba del todo) → pestaña
+   **App Frameworks** o **ORMs** (también vale **Database → Connection**).
 3. Copia DOS cadenas y pégalas en `.env.local`:
-   - **`DATABASE_URL`** → la del **pooler** (modo *Transaction*, puerto **6543**).
-     Añade `?pgbouncer=true` al final si no lo trae.
-   - **`DIRECT_URL`** → la **directa** (puerto **5432**).
-4. Sustituye `[YOUR-PASSWORD]` por la contraseña que pusiste.
+   - **`DATABASE_URL`** → **Transaction pooler** (puerto **6543**). Añade
+     `?pgbouncer=true` al final si no lo trae. (La usa la app en producción.)
+   - **`DIRECT_URL`** → **Session pooler** (puerto **5432**). (La usan las
+     migraciones; el Session pooler funciona por IPv4, evita errores de conexión.)
+4. Sustituye `[YOUR-PASSWORD]` por la contraseña que pusiste en el paso 1.
 
 ## 2. Google OAuth (inicio de sesión + futuro Gmail) — necesario
 
@@ -34,6 +36,26 @@ termines, dímelo y conecto la base de datos, el login y el despliegue.
 
 > `AUTH_SECRET` ya está generado en tu `.env.local`. `ALLOWED_EMAILS` ya tiene tu
 > correo (solo tú podrás entrar).
+
+## 2 bis. Usar tu correo de empresa (@miempresa.com)
+
+Sí se puede, y suele ser lo ideal. Depende de quién aloje ese correo:
+
+- **Si es Google Workspace** (Gmail de empresa con @miempresa.com): funciona
+  exactamente igual que con Gmail. Inicias sesión con esa cuenta y las **secuencias
+  1:1** salen desde tu buzón de empresa (máxima entregabilidad). Solo añade tu
+  correo de empresa a `ALLOWED_EMAILS`.
+- **Si es Microsoft 365 / Outlook:** se conecta con Microsoft Graph (equivalente a
+  la Gmail API). Lo añadimos como integración aparte cuando lleguemos a la Fase 3.
+- **Otro proveedor (IMAP/SMTP genérico, cPanel…):** se conecta por SMTP (envío) +
+  IMAP (lectura). También se puede; requiere host/usuario/contraseña del correo.
+- **Campañas masivas** desde @miempresa.com: independientemente del correo, se
+  hacen con **Resend verificando tu dominio** (registros SPF/DKIM/DMARC en el DNS).
+  Así envías "desde" tu dominio con buena entregabilidad. (Fase 4.)
+
+> Para decidir bien, dime **quién aloja el correo de tu empresa** (Google Workspace,
+> Microsoft 365 u otro). No bloquea nada ahora: el login inicial puede ser tu Gmail
+> y luego conectamos el de empresa.
 
 ## 3. GitHub (repositorio) — recomendado
 
