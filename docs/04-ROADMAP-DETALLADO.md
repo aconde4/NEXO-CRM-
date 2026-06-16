@@ -52,27 +52,30 @@ se apoya.
 notas e importación CSV. El núcleo de datos del CRM.
 
 ### Tareas
-- [ ] **1.1** Migración: `organizations`, `persons`, `labels`, `entity_labels`,
-      `custom_field_defs`, `activities`, `notes`, `files`, `activity_log`.
-- [ ] **1.2** Server Actions CRUD de `organizations` (crear/editar/borrar/listar) con
-      validación Zod.
-- [ ] **1.3** Server Actions CRUD de `persons` (incluye múltiples emails/teléfonos).
-- [ ] **1.4** Listado de contactos con TanStack Table: orden, búsqueda, paginación,
-      filtros por etiqueta/campo.
+- [x] **1.1** Migración: `organizations`, `persons`, `labels`, `entity_labels`,
+      `activities`, `notes`, `activity_log` (con índices y relaciones). *(campos
+      personalizados y `files` se añaden con sus funciones, 1.8/1.12.)*
+- [x] **1.2** Server Actions CRUD de `organizations` con validación Zod.
+- [x] **1.3** Server Actions CRUD de `persons`. *(email/teléfono únicos por ahora;
+      múltiples valores más adelante.)*
+- [x] **1.4** Listado de contactos con búsqueda (tabla propia). *(orden/paginación
+      avanzada y filtros por etiqueta → cuando lleguen etiquetas 1.9.)*
 - [ ] **1.5** Vistas guardadas (saved views) de filtros.
-- [ ] **1.6** Ficha de contacto: datos + edición inline + línea de tiempo (timeline).
-- [ ] **1.7** Listado y ficha de empresas (con sus contactos asociados).
-- [ ] **1.8** Motor de campos personalizados: definir campos (UI de ajustes) y
-      renderizarlos dinámicamente en fichas y formularios.
+- [x] **1.6** Ficha de contacto: datos + edición (diálogo) + línea de tiempo.
+- [x] **1.7** Listado y ficha de empresas (con sus contactos asociados).
+- [ ] **1.8** Motor de campos personalizados (UI de ajustes + render dinámico).
 - [ ] **1.9** Sistema de etiquetas con colores y asignación.
-- [ ] **1.10** Actividades/tareas: crear, completar, fechas de vencimiento, vista de
-      "pendientes de hoy".
-- [ ] **1.11** Notas con editor Tiptap.
+- [ ] **1.10** Actividades/tareas: crear, completar, vencimiento, "pendientes de hoy".
+- [x] **1.11** Notas (compositor en la ficha). *(editor Tiptap enriquecido más tarde.)*
 - [ ] **1.12** Adjuntos de archivos (Supabase Storage).
-- [ ] **1.13** Importación CSV con papaparse: subir, mapear columnas, previsualizar,
-      deduplicar por email, importar.
+- [ ] **1.13** Importación CSV con papaparse (mapeo + deduplicación).
 - [ ] **1.14** Exportación a CSV (RGPD + respaldo).
-- [ ] **1.15** Registro en `activity_log` de las acciones (para timeline/auditoría).
+- [x] **1.15** Registro en `activity_log` de las mutaciones (creado/editado/borrado/nota).
+
+> **Estado Fase 1 (~60%):** Contactos y Empresas operativos (crear/editar/borrar,
+> buscar, fichas con contactos/notas/timeline). Verificado end-to-end con datos de
+> ejemplo vía login de desarrollo. Pendiente: campos personalizados, etiquetas,
+> actividades/tareas, adjuntos, import/export CSV y vistas guardadas.
 
 ### Criterios de aceptación
 - Importas un CSV de contactos, los ves en una tabla filtrable, abres una ficha,

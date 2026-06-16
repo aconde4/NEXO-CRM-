@@ -1,0 +1,136 @@
+import "server-only";
+
+import { and, desc, eq, ilike, isNull, or } from "drizzle-orm";
+
+import { requireUser } from "@/lib/session";
+import { db } from "@/server/db";
+import {
+  activities,
+  notes,
+  organizations,
+  persons,
+} from "@/server/db/schema";
+
+// --- Contactos --------------------------------------------------------------
+export async function listPersons(search?: string) {
+  const user = await requireUser();
+  const filters = [eq(persons.ownerId, user.id), isNull(persons.deletedAt)];
+
+  if (search && search.trim()) {
+    const q = `%${search.trim()}%`;
+    const match = or(
+      ilike(persons.firstName, q),
+      ilike(persons.lastName, q),
+      ilike(persons.email, q),
+    );
+    if (match) filters.push(match);
+  }
+
+  return db.query.persons.findMany({
+    where: and(...filters),
+    with: { organization: { columns: { id: true, name: true } } },
+    orderBy: [desc(persons.createdAt)],
+    limit: 200,
+  });
+}
+
+export async function getPerson(id: string) {
+  const user = await requireUser();
+  return db.query.persons.findFirst({
+    where: and(
+      eq(persons.id, id),
+      eq(persons.ownerId, user.id),
+      isNull(persons.deletedAt),
+    ),
+    with: {
+      organization: true,
+      notes: { orderBy: [desc(notes.createdAt)], limit: 50 },
+      activities: { orderBy: [desc(activities.createdAt)], limit: 50 },
+    },
+  });
+}
+
+export type PersonListItem = Awaited<ReturnType<typeof listPersons>>[number];
+export type PersonDetail = Awaited<ReturnType<typeof getPerson>>;
+
+// --- Empresas ---------------------------------------------------------------
+export async function listOrganizations(search?: string) {
+  const user = await requireUser();
+  const filters = [
+    eq(organizations.ownerId, user.id),
+    isNull(organizations.deletedAt),
+  ];
+
+  if (search && search.trim()) {
+    const q = `%${search.trim()}%`;
+    const match = or(
+      ilike(organizations.name, q),
+      ilike(organizations.domain, q),
+      ilike(organizations.industry, q),
+    );
+    if (match) filters.push(match);
+  }
+
+  return db.query.organizations.findMany({
+    where: and(...filters),
+    with: { persons: { columns: { id: true }, where: isNull(persons.deletedAt) } },
+    orderBy: [desc(organizations.createdAt)],
+    limit: 200,
+  });
+}
+
+export async function getOrganization(id: string) {
+  const user = await requireUser();
+  return db.query.organizations.findFirst({
+    where: and(
+      eq(organizations.id, id),
+      eq(organizations.ownerId, user.id),
+      isNull(organizations.deletedAt),
+    ),
+    with: {
+      persons: {
+        where: isNull(persons.deletedAt),
+        orderBy: [desc(persons.createdAt)],
+      },
+      notes: { orderBy: [desc(notes.createdAt)], limit: 50 },
+    },
+  });
+}
+
+export type OrganizationListItem = Awaited<
+  ReturnType<typeof listOrganizations>
+>[number];
+export type OrganizationDetail = Awaited<ReturnType<typeof getOrganization>>;
+
+// --- Contadores -------------------------------------------------------------
+export async function countPersons() {
+  const user = await requireUser();
+  return db.$count(
+    persons,
+    and(eq(persons.ownerId, user.id), isNull(persons.deletedAt)),
+  );
+}
+
+export async function countOrganizations() {
+  const user = await requireUser();
+  return db.$count(
+    organizations,
+    and(eq(organizations.ownerId, user.id), isNull(organizations.deletedAt)),
+  );
+}
+
+/** Opciones (id + nombre) para selectores de empresa en formularios. */
+export async function listOrganizationOptions() {
+  const user = await requireUser();
+  return db
+    .select({ id: organizations.id, name: organizations.name })
+    .from(organizations)
+    .where(
+      and(
+        eq(organizations.ownerId, user.id),
+        isNull(organizations.deletedAt),
+      ),
+    )
+    .orderBy(organizations.name)
+    .limit(500);
+}

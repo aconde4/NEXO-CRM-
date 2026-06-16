@@ -1,9 +1,5 @@
 /**
- * Esquema de base de datos (Drizzle ORM, PostgreSQL).
- *
- * Fase 0: tablas de autenticación requeridas por @auth/drizzle-adapter.
- * Las tablas del CRM (organizations, persons, deals, …) se añaden en la Fase 1+.
- * Ver el modelo completo en docs/02-MODELO-DE-DATOS.md.
+ * Tablas de autenticación requeridas por @auth/drizzle-adapter (Auth.js v5).
  */
 import {
   boolean,

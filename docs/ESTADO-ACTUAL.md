@@ -8,32 +8,39 @@
 
 ## 📍 Dónde estamos
 
-- **Fase activa:** FASE 0 · Fundaciones — **~95% hecho**.
-- **Hecho:** scaffold Next.js 16, diseño (claro/oscuro), app shell completo,
-  Drizzle + Inngest, **Supabase conectado y migración aplicada (5 tablas)**, y
-  **Auth.js v5 con Google montado**: `src/auth.ts`, endpoint `/api/auth`, página
-  `/login`, `src/proxy.ts` (gate edge por cookie), gate real con `auth()` en
-  `(app)/layout.tsx`, allowlist y logout.
-- **Estado del repo:** git, varios commits. Sin remoto en GitHub todavía.
-- **Compila:** `pnpm build` ✅ y `pnpm typecheck` ✅. `/login` renderiza y la
-  redirección a login funciona (verificado).
+- **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
+  Google verificado por el usuario ("funciona").
+- **Fase 1 · Contactos y Empresas:** **~60% hecho** y verificado.
+  - Tablas CRM creadas (migración `0001`): organizations, persons, labels,
+    entity_labels, activities, notes, activity_log (con índices y relaciones).
+  - **Contactos:** listado con búsqueda, crear/editar (diálogo), borrar (reversible),
+    ficha con detalles + línea de tiempo + notas.
+  - **Empresas:** listado, crear/editar/borrar, ficha con sus contactos.
+  - Dashboard con contadores reales. `activity_log` registra las mutaciones.
+  - **Login de desarrollo** `GET /api/dev-login` (solo dev) para probar sin Google.
+  - Datos de ejemplo: `pnpm db:seed` (4 empresas, 10 contactos).
+- **Compila:** `pnpm build` ✅ y `pnpm typecheck` ✅. Verificado end-to-end en
+  navegador vía login de desarrollo (listados, fichas y creación de notas).
+- **Repo:** git, varios commits. Sin remoto en GitHub todavía.
 
 ## ⏭️ Siguiente paso concreto
 
-**Prueba del login (la haces tú, requiere el clic real en Google):**
-1. `pnpm dev` → abre http://localhost:3000 → te lleva a `/login`.
-2. Pulsa **Continuar con Google**, elige tu cuenta (`acondeuceda@gmail.com`).
-3. Debes acabar en `/dashboard` con tu nombre/foto en el menú inferior.
-   - Si Google da error "acceso bloqueado": añade tu correo como **usuario de
-     prueba** en la pantalla de consentimiento (SETUP.md §2, paso 2).
+Continuar la **Fase 1** por la primera tarea sin marcar en
+[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) → FASE 1. Orden sugerido:
+1. **1.9 Etiquetas** (colores + asignación + filtro por etiqueta en el listado).
+2. **1.10 Actividades/tareas** (crear/completar/vencimiento + "pendientes de hoy").
+3. **1.13/1.14 Importación/exportación CSV**.
+4. **1.8 Campos personalizados** y **1.5 vistas guardadas**.
 
-Cuando el login funcione, las opciones son:
-- **Seguir a FASE 1 · Contactos** (recomendado), o
-- **Desplegar a la nube** (GitHub + Vercel + Inngest; tareas 0.5 remoto/0.15/0.16,
-  guía en SETUP.md §3-5). Recordar añadir la redirect URI de producción en Google.
+Alternativa: saltar a **Fase 2 · Pipeline** (negocios) si se prefiere completar antes
+el MVP visual, y volver a los extras de la Fase 1 después.
 
-> Seguridad: las credenciales se pegaron en el chat. Cuando todo funcione, conviene
-> **rotar** la contraseña de Supabase y el secreto de Google.
+> **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
+> (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
+> `/login`. Solo funciona en local.
+
+> Seguridad: las credenciales se pegaron en el chat. Conviene **rotar** la contraseña
+> de Supabase y el secreto de Google.
 
 ## 🔁 Cómo retomar (resumen)
 
@@ -67,6 +74,18 @@ Cuando el login funcione, las opciones son:
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-16 (4) — Revisión + Fase 1 (Contactos y Empresas)
+- Revisión de seguridad/rendimiento → `docs/05-SEGURIDAD-Y-RENDIMIENTO.md`.
+- Login de desarrollo `/api/dev-login` (solo dev) + enlace en `/login`.
+- Esquema CRM (carpeta `schema/`: auth.ts + crm.ts) con índices y relaciones;
+  migración `0001` aplicada (7 tablas).
+- Capa de datos: validaciones Zod, queries y server actions (personas, empresas,
+  notas) con autorización por propietario y registro en `activity_log`.
+- UI Contactos y Empresas: listados con búsqueda, diálogos de crear/editar, borrado
+  reversible, fichas con detalles/contactos/notas/timeline. Dashboard con contadores.
+- `pnpm db:seed` con datos de ejemplo. Verificado end-to-end vía login de desarrollo.
+- Pendiente Fase 1: etiquetas, actividades, CSV import/export, campos personalizados.
 
 ### 2026-06-16 (3) — Fase 0: base de datos + login
 - Conectado Supabase (credenciales en `.env.local`, contraseña con `@`→`%40`).

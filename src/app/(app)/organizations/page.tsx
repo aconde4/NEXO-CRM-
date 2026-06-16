@@ -1,23 +1,29 @@
-import { Building2 } from "lucide-react";
 import type { Metadata } from "next";
 
-import { ComingSoon } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
+import { OrganizationsView } from "@/components/organizations/organizations-view";
+import { listOrganizations } from "@/server/queries/contacts";
 
 export const metadata: Metadata = { title: "Empresas" };
 
-export default function OrganizationsPage() {
+export default async function OrganizationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+  const query = q ?? "";
+  const organizations = await listOrganizations(query);
+
   return (
-    <ComingSoon
-      icon={Building2}
-      title="Empresas"
-      description="Organiza las empresas y vincúlalas con sus contactos y negocios."
-      phase="Fase 1"
-      features={[
-        "Ficha de empresa con sus contactos asociados",
-        "Campos personalizados y etiquetas",
-        "Negocios y actividad relacionados",
-        "Detección de duplicados por dominio",
-      ]}
-    />
+    <>
+      <PageHeader
+        title="Empresas"
+        description={`${organizations.length} ${
+          organizations.length === 1 ? "empresa" : "empresas"
+        } en tu CRM.`}
+      />
+      <OrganizationsView organizations={organizations} query={query} />
+    </>
   );
 }

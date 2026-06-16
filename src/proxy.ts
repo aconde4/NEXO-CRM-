@@ -8,7 +8,12 @@ import type { NextRequest } from "next/server";
  *
  * En Next.js 16 este archivo se llama "proxy" (antes "middleware").
  */
-const PUBLIC_PREFIXES = ["/login", "/api/auth", "/api/inngest"];
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/api/auth",
+  "/api/inngest",
+  "/api/dev-login",
+];
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;

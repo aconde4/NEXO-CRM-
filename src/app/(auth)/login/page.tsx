@@ -67,6 +67,15 @@ export default async function LoginPage() {
           <p className="text-muted-foreground mt-4 text-center text-xs">
             Acceso restringido. Solo las cuentas autorizadas pueden entrar.
           </p>
+
+          {process.env.NODE_ENV !== "production" ? (
+            <a
+              href="/api/dev-login"
+              className="text-muted-foreground/70 hover:text-foreground mt-4 block border-t pt-3 text-center text-xs transition-colors"
+            >
+              Entrar como desarrollador (solo local)
+            </a>
+          ) : null}
         </div>
 
         <p className="text-muted-foreground/70 mt-6 text-center text-xs">

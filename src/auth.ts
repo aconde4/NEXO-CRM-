@@ -45,5 +45,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const email = user.email?.toLowerCase();
       return Boolean(email && allowedEmails.includes(email));
     },
+    session({ session, user }) {
+      if (session.user) session.user.id = user.id;
+      return session;
+    },
   },
 });

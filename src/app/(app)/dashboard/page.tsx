@@ -1,16 +1,16 @@
 import {
+  ArrowRight,
   Building2,
   CircleDot,
   Handshake,
-  Plus,
   TrendingUp,
   Users,
 } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,61 +19,63 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { countOrganizations, countPersons } from "@/server/queries/contacts";
 
 export const metadata: Metadata = { title: "Panel" };
 
-const stats = [
-  { label: "Contactos", value: "—", hint: "Disponible en la Fase 1", icon: Users },
+const quickLinks = [
   {
-    label: "Empresas",
-    value: "—",
-    hint: "Disponible en la Fase 1",
+    title: "Gestionar contactos",
+    description: "Crea, busca y organiza personas.",
+    href: "/contacts",
+    icon: Users,
+  },
+  {
+    title: "Gestionar empresas",
+    description: "Agrupa contactos por empresa.",
+    href: "/organizations",
     icon: Building2,
   },
-  {
-    label: "Negocios abiertos",
-    value: "—",
-    hint: "Disponible en la Fase 2",
-    icon: Handshake,
-  },
-  {
-    label: "Valor del pipeline",
-    value: "—",
-    hint: "Disponible en la Fase 2",
-    icon: TrendingUp,
-  },
 ];
 
-const setupSteps = [
-  {
-    title: "Conectar la base de datos (Supabase)",
-    detail: "Crear el proyecto y pegar DATABASE_URL en el entorno.",
-    done: false,
-  },
-  {
-    title: "Activar el inicio de sesión con Google",
-    detail: "Crear credenciales OAuth y proteger la app.",
-    done: false,
-  },
-  {
-    title: "Desplegar en Vercel",
-    detail: "Publicar la app y dejar el push-to-deploy activo.",
-    done: false,
-  },
-];
+export default async function DashboardPage() {
+  const [contactCount, orgCount] = await Promise.all([
+    countPersons(),
+    countOrganizations(),
+  ]);
 
-export default function DashboardPage() {
+  const stats = [
+    {
+      label: "Contactos",
+      value: String(contactCount),
+      hint: "En tu CRM",
+      icon: Users,
+    },
+    {
+      label: "Empresas",
+      value: String(orgCount),
+      hint: "En tu CRM",
+      icon: Building2,
+    },
+    {
+      label: "Negocios abiertos",
+      value: "—",
+      hint: "Disponible en la Fase 2",
+      icon: Handshake,
+    },
+    {
+      label: "Valor del pipeline",
+      value: "—",
+      hint: "Disponible en la Fase 2",
+      icon: TrendingUp,
+    },
+  ];
+
   return (
     <>
       <PageHeader
         title="Panel"
         description="Bienvenido a Nexo CRM. Aquí verás un resumen de tu actividad comercial."
-        actions={
-          <Button disabled>
-            <Plus />
-            Nuevo negocio
-          </Button>
-        }
       />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -85,29 +87,27 @@ export default function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Primeros pasos</CardTitle>
-            <CardDescription>
-              Completa la configuración inicial (Fase 0) para dejar el CRM en
-              producción.
-            </CardDescription>
+            <CardTitle>Accesos rápidos</CardTitle>
+            <CardDescription>Empieza por aquí.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {setupSteps.map((step, index) => (
-              <div
-                key={step.title}
-                className="flex items-start gap-3 rounded-lg border p-3"
+          <CardContent className="grid gap-3 sm:grid-cols-2">
+            {quickLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="hover:border-primary/40 hover:bg-accent/40 group flex items-center gap-3 rounded-lg border p-4 transition-colors"
               >
-                <span className="bg-muted text-muted-foreground mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
-                  {index + 1}
-                </span>
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium">{step.title}</p>
-                  <p className="text-muted-foreground text-xs">{step.detail}</p>
+                <div className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-lg">
+                  <link.icon className="size-[1.15rem]" />
                 </div>
-                <Badge variant="outline" className="ml-auto">
-                  Pendiente
-                </Badge>
-              </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">{link.title}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {link.description}
+                  </p>
+                </div>
+                <ArrowRight className="text-muted-foreground group-hover:text-foreground size-4 transition-colors" />
+              </Link>
             ))}
           </CardContent>
         </Card>
@@ -123,15 +123,15 @@ export default function DashboardPage() {
           <CardContent className="space-y-3 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Fase</span>
-              <span className="font-medium">0 · Fundaciones</span>
+              <span className="font-medium">1 · Contactos y Empresas</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Siguiente</span>
-              <span className="font-medium">1 · Contactos</span>
+              <span className="font-medium">2 · Pipeline</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Email</span>
-              <span className="font-medium">Gmail + Resend</span>
+              <span className="text-muted-foreground">Login</span>
+              <span className="font-medium">Google ✓</span>
             </div>
             <p className="text-muted-foreground/80 border-t pt-3 text-xs">
               El plan completo está en <code>docs/</code>. Retoma siempre por{" "}

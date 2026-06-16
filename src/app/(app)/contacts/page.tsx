@@ -1,24 +1,37 @@
-import { Users } from "lucide-react";
 import type { Metadata } from "next";
 
-import { ComingSoon } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
+import { ContactsView } from "@/components/contacts/contacts-view";
+import { listOrganizationOptions, listPersons } from "@/server/queries/contacts";
 
 export const metadata: Metadata = { title: "Contactos" };
 
-export default function ContactsPage() {
+export default async function ContactsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+  const query = q ?? "";
+
+  const [contacts, organizations] = await Promise.all([
+    listPersons(query),
+    listOrganizationOptions(),
+  ]);
+
   return (
-    <ComingSoon
-      icon={Users}
-      title="Contactos"
-      description="Gestiona personas con campos personalizados, etiquetas, actividades, notas e importación desde CSV."
-      phase="Fase 1"
-      features={[
-        "Listado con búsqueda, filtros y vistas guardadas",
-        "Ficha con edición en línea y línea de tiempo",
-        "Campos personalizados (texto, fecha, selección, monetario…)",
-        "Importación CSV con mapeo y deduplicación",
-        "Actividades, notas y adjuntos",
-      ]}
-    />
+    <>
+      <PageHeader
+        title="Contactos"
+        description={`${contacts.length} ${
+          contacts.length === 1 ? "contacto" : "contactos"
+        } en tu CRM.`}
+      />
+      <ContactsView
+        contacts={contacts}
+        organizations={organizations}
+        query={query}
+      />
+    </>
   );
 }
