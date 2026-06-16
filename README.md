@@ -5,8 +5,20 @@ contactos y empresas, embudos visuales de ventas, envío de correos 1:1 y campa�
 masivas, secuencias/drip, un motor de automatizaciones visual y IA integrada
 (Claude) en todo el flujo.
 
-> **Estado del proyecto:** en fase de planificación. Aún no se ha escrito código de
-> la aplicación. Todo el plan está en la carpeta [`docs/`](docs/).
+> **Estado del proyecto:** FASE 0 (fundaciones) ~80% hecha — app Next.js con diseño,
+> app shell, base de datos y jobs ya montados y compilando. Falta conectar Supabase y
+> el login de Google (ver [`docs/SETUP.md`](docs/SETUP.md)). El plan completo está en
+> [`docs/`](docs/); retoma siempre por [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md).
+
+## 🚀 Arrancar en local
+
+```bash
+pnpm install
+pnpm dev        # http://localhost:3000
+```
+
+Antes de conectar BD y login, copia `.env.example` a `.env.local` y rellena los
+valores siguiendo [`docs/SETUP.md`](docs/SETUP.md).
 
 ## 📚 Documentación (léela en este orden)
 

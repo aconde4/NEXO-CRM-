@@ -17,26 +17,26 @@ UI, base de datos conectada e Inngest funcionando. Base sobre la que todo lo dem
 se apoya.
 
 ### Tareas
-- [ ] **0.1** Instalar Node LTS (`pnpm env use --global lts`) y verificar `node -v`.
-- [ ] **0.2** Crear proyecto Next.js 15 + TypeScript + App Router con pnpm.
-- [ ] **0.3** Configurar Tailwind CSS + shadcn/ui (tema base, modo claro/oscuro).
-- [ ] **0.4** ESLint + Prettier + `tsconfig` estricto + scripts de `package.json`.
-- [ ] **0.5** `git init`, primer commit, crear repo en GitHub y subirlo.
-- [ ] **0.6** Crear proyecto en Supabase; obtener `DATABASE_URL` y `DIRECT_URL`.
-- [ ] **0.7** Instalar y configurar Drizzle + drizzle-kit; conexión a la BD.
-- [ ] **0.8** Primera migración: tablas de Auth.js (`users`, `accounts`, `sessions`).
-- [ ] **0.9** Configurar Auth.js v5 con proveedor Google (crear credenciales OAuth en
-      Google Cloud Console).
-- [ ] **0.10** Allowlist monousuario: solo `ALLOWED_EMAILS` puede entrar.
-- [ ] **0.11** Layout de la app protegida: sidebar de navegación + topbar + área de
-      contenido. Rutas vacías para contacts/deals/inbox/etc.
-- [ ] **0.12** Página de login y middleware de protección de rutas.
-- [ ] **0.13** Configurar Inngest (cliente + endpoint `/api/inngest`) con una función
-      "hello world" de prueba.
-- [ ] **0.14** Crear `.env.example`; documentar todas las variables.
-- [ ] **0.15** Desplegar en Vercel; configurar variables de entorno de producción;
-      push-to-deploy activo.
-- [ ] **0.16** Verificar OAuth en producción (redirect URIs correctas).
+- [x] **0.1** Instalar Node LTS (`pnpm env use --global lts`) y verificar `node -v`. → Node 24.16.
+- [x] **0.2** Crear proyecto Next.js + TypeScript + App Router con pnpm. → Next.js 16.2.9.
+- [x] **0.3** Configurar Tailwind CSS + shadcn/ui (tema base, modo claro/oscuro). → Tailwind v4, shadcn (Base UI), paleta slate+índigo.
+- [x] **0.4** ESLint + Prettier + `tsconfig` estricto + scripts de `package.json`.
+- [~] **0.5** `git init`, primer commit ✅ — falta crear repo en GitHub y subirlo (necesita el usuario, ver SETUP.md §3).
+- [ ] **0.6** Crear proyecto en Supabase; obtener `DATABASE_URL` y `DIRECT_URL`. → **lo hace el usuario** (SETUP.md §1).
+- [x] **0.7** Instalar y configurar Drizzle + drizzle-kit; cliente de BD y esquema Auth.js escritos.
+- [ ] **0.8** Ejecutar la primera migración (`pnpm db:push`). → tras 0.6 (necesita DATABASE_URL).
+- [ ] **0.9** Configurar Auth.js v5 con Google. → tras credenciales OAuth (SETUP.md §2). Código pendiente de escribir + probar.
+- [ ] **0.10** Allowlist monousuario: solo `ALLOWED_EMAILS` puede entrar. → junto con 0.9.
+- [x] **0.11** App shell: sidebar de navegación + topbar + rutas de todas las secciones. → verificado en claro y oscuro.
+- [ ] **0.12** Página de login y middleware de protección de rutas. → junto con 0.9.
+- [x] **0.13** Configurar Inngest (cliente + endpoint `/api/inngest` + función demo).
+- [x] **0.14** Crear `.env.example` y `.env.local` (con `AUTH_SECRET` generado); variables documentadas.
+- [ ] **0.15** Desplegar en Vercel; variables de producción; push-to-deploy. → SETUP.md §4.
+- [ ] **0.16** Verificar OAuth en producción (redirect URIs correctas). → tras 0.15.
+
+> **Estado:** todo el código autónomo de la Fase 0 está hecho, compila y está
+> desplegable. Lo que queda (0.6, 0.8, 0.9, 0.10, 0.12, 0.15, 0.16) depende de que el
+> usuario cree las cuentas externas. Guía: [`SETUP.md`](SETUP.md).
 
 ### Criterios de aceptación
 - Entras en `https://<tu-app>.vercel.app`, inicias sesión con tu Google y ves el

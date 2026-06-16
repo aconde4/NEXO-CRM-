@@ -8,17 +8,30 @@
 
 ## 📍 Dónde estamos
 
-- **Fase activa:** FASE 0 · Fundaciones — **aún no iniciada** (solo planificación hecha).
-- **Última tarea completada:** ninguna (código de la app sin empezar).
-- **Estado del repo:** sin inicializar git todavía; solo existen los documentos de
-  `docs/` y el `README.md`.
+- **Fase activa:** FASE 0 · Fundaciones — **en curso (~80% hecho)**.
+- **Hecho:** scaffold Next.js 16, sistema de diseño (claro/oscuro), app shell
+  completo (sidebar + topbar + todas las secciones), Drizzle + esquema Auth.js,
+  Inngest (cliente + función demo + endpoint), entorno y primer commit.
+- **Estado del repo:** git inicializado, 1 commit (`Fase 0: fundaciones…`). Sin
+  remoto en GitHub todavía.
+- **Compila:** `pnpm build` ✅ y `pnpm typecheck` ✅. App previsualizada OK.
 
 ## ⏭️ Siguiente paso concreto
 
-**Empezar la tarea 0.1 del roadmap:** instalar Node LTS con
-`pnpm env use --global lts` y verificar `node -v`. Después seguir con 0.2 (crear el
-proyecto Next.js). Ver detalle en
-[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) → FASE 0.
+**Bloqueado a la espera del usuario:** crear las cuentas externas siguiendo
+[`SETUP.md`](SETUP.md) (Supabase §1 y Google OAuth §2 son las imprescindibles) y
+pegar los valores en `.env.local`.
+
+Cuando el usuario diga **“ya tengo Supabase y Google”**, Claude hará (en este orden):
+1. `pnpm db:push` → crear las tablas (tarea 0.8).
+2. Escribir y conectar Auth.js v5 + Google + allowlist + login + middleware
+   (tareas 0.9, 0.10, 0.12): `src/auth.ts`, `src/app/api/auth/[...nextauth]/route.ts`,
+   `src/app/(auth)/login/page.tsx`, `src/middleware.ts`, y sustituir el
+   `placeholderUser` de `src/app/(app)/layout.tsx` por la sesión real.
+3. Probar el login en local.
+4. (Opcional) Desplegar en Vercel + GitHub (tareas 0.5 remoto, 0.15, 0.16).
+
+Después → **FASE 1 · Contactos y Empresas**.
 
 ## 🔁 Cómo retomar (resumen)
 
@@ -27,32 +40,46 @@ proyecto Next.js). Ver detalle en
 3. Continúa por la primera tarea `[ ]` sin marcar.
 4. Al terminar: marca el checkbox, commit, y actualiza este archivo.
 
-(Protocolo completo en [`00-VISION-Y-PLAN-MAESTRO.md`](00-VISION-Y-PLAN-MAESTRO.md) §4.)
+## ✅ Prerrequisitos del entorno
 
-## ✅ Prerrequisitos del entorno (verificar antes de la Fase 0)
+- [x] `pnpm` (v10.33), `git` (v2.54), Node.js (v24.16 vía pnpm).
+- [ ] Proyecto Supabase creado → `.env.local` (DATABASE_URL, DIRECT_URL).
+- [ ] Credenciales OAuth de Google → `.env.local` (GOOGLE_CLIENT_ID/SECRET).
+- [ ] Repo en GitHub (opcional ahora).
+- [ ] Cuenta Vercel + Inngest (al desplegar).
 
-- [x] `pnpm` instalado (v10.33).
-- [x] `git` instalado (v2.54).
-- [ ] Node.js instalado (pendiente — tarea 0.1).
-- [ ] Cuenta GitHub lista.
-- [ ] Cuenta Vercel lista.
-- [ ] Proyecto Supabase creado.
-- [ ] Credenciales OAuth de Google creadas.
-- [ ] Cuenta Inngest lista.
+## ⚠️ Notas del entorno
+
+- El proyecto está dentro de **OneDrive**. Recomendado excluir `node_modules` y
+  `.next` de la sincronización de OneDrive para evitar lentitud y bloqueos de
+  archivos (clic derecho en la carpeta → "Liberar espacio"/"Always keep on device"
+  según convenga, o mover el proyecto fuera de OneDrive si da problemas).
+- Marca/nombre de la app: **"Nexo CRM"** (fácil de cambiar en `layout.tsx`,
+  `app-sidebar.tsx` y `package.json`).
 
 ## 🚧 Decisiones pendientes / dudas abiertas
 
-- (ninguna por ahora — las 4 decisiones de producto están cerradas, ver
-  `00-VISION-Y-PLAN-MAESTRO.md` §2.)
+- (ninguna) — las 4 decisiones de producto están cerradas (ver
+  `00-VISION-Y-PLAN-MAESTRO.md` §2).
 
 ---
 
 ## 🗒️ Changelog por sesión
 
-### 2026-06-16 — Planificación inicial
-- Investigadas las funcionalidades de Pipedrive (incl. add-ons) y definidas mejoras.
-- Comprobado que no hay conectores/MCP en el registro para email/BD: se resuelve con
-  librerías en el código.
-- Cerradas las 4 decisiones de producto (modo de trabajo, email doble, nube, MVP).
-- Creada toda la documentación del plan en `docs/` + `README.md`.
-- **Pendiente:** empezar Fase 0 (tarea 0.1).
+### 2026-06-16 (2) — Fase 0: fundaciones
+- Instalado Node 24.16; scaffold Next.js 16 + TS + Tailwind v4 + shadcn (Base UI).
+- Sistema de diseño propio (slate + índigo) en claro/oscuro; `ThemeProvider`.
+- App shell completo: `AppSidebar`, `AppTopbar`, panel con métricas y "primeros
+  pasos", y páginas de todas las secciones (placeholder "próximamente").
+- Drizzle ORM: `drizzle.config.ts`, cliente `src/server/db`, esquema Auth.js.
+- Inngest: cliente, función demo y endpoint `/api/inngest`.
+- Entorno: `.env.example`, `.env.local` (con `AUTH_SECRET`), `.gitattributes`,
+  scripts de calidad y migraciones. `CLAUDE.md` con guía del proyecto.
+- `git init` + primer commit (`f097101`). Build y typecheck en verde.
+- **Pendiente:** que el usuario cree Supabase + Google OAuth (ver `SETUP.md`) para
+  conectar BD y login.
+
+### 2026-06-16 (1) — Planificación inicial
+- Investigadas las funcionalidades de Pipedrive y definidas mejoras.
+- Cerradas las 4 decisiones de producto (modo, email doble, nube, MVP).
+- Creada la documentación del plan en `docs/` + `README.md`.
