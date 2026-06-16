@@ -2,6 +2,7 @@
 
 import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -92,8 +93,7 @@ export function UserMenu({ user }: { user: SessionUser }) {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
-          disabled
-          title="Disponible al conectar el inicio de sesión (tarea 0.9)"
+          onClick={() => signOut({ redirectTo: "/login" })}
         >
           <LogOut />
           Cerrar sesión

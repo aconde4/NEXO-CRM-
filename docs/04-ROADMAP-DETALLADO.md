@@ -22,21 +22,22 @@ se apoya.
 - [x] **0.3** Configurar Tailwind CSS + shadcn/ui (tema base, modo claro/oscuro). → Tailwind v4, shadcn (Base UI), paleta slate+índigo.
 - [x] **0.4** ESLint + Prettier + `tsconfig` estricto + scripts de `package.json`.
 - [~] **0.5** `git init`, primer commit ✅ — falta crear repo en GitHub y subirlo (necesita el usuario, ver SETUP.md §3).
-- [ ] **0.6** Crear proyecto en Supabase; obtener `DATABASE_URL` y `DIRECT_URL`. → **lo hace el usuario** (SETUP.md §1).
+- [x] **0.6** Crear proyecto en Supabase; obtener `DATABASE_URL` y `DIRECT_URL`. → conectado (eu-west-1).
 - [x] **0.7** Instalar y configurar Drizzle + drizzle-kit; cliente de BD y esquema Auth.js escritos.
-- [ ] **0.8** Ejecutar la primera migración (`pnpm db:push`). → tras 0.6 (necesita DATABASE_URL).
-- [ ] **0.9** Configurar Auth.js v5 con Google. → tras credenciales OAuth (SETUP.md §2). Código pendiente de escribir + probar.
-- [ ] **0.10** Allowlist monousuario: solo `ALLOWED_EMAILS` puede entrar. → junto con 0.9.
+- [x] **0.8** Primera migración aplicada (`db:generate` + `db:migrate`) → 5 tablas creadas en Supabase.
+- [x] **0.9** Configurar Auth.js v5 con Google (`src/auth.ts`, endpoint `/api/auth`, refresh_token para Gmail futuro).
+- [x] **0.10** Allowlist monousuario: solo `ALLOWED_EMAILS` puede entrar (callback `signIn`).
 - [x] **0.11** App shell: sidebar de navegación + topbar + rutas de todas las secciones. → verificado en claro y oscuro.
-- [ ] **0.12** Página de login y middleware de protección de rutas. → junto con 0.9.
+- [x] **0.12** Página de login + protección de rutas (`proxy.ts` edge + gate con `auth()` en el layout) + logout. → falta solo la prueba E2E con Google (la hace el usuario).
 - [x] **0.13** Configurar Inngest (cliente + endpoint `/api/inngest` + función demo).
 - [x] **0.14** Crear `.env.example` y `.env.local` (con `AUTH_SECRET` generado); variables documentadas.
 - [ ] **0.15** Desplegar en Vercel; variables de producción; push-to-deploy. → SETUP.md §4.
 - [ ] **0.16** Verificar OAuth en producción (redirect URIs correctas). → tras 0.15.
 
-> **Estado:** todo el código autónomo de la Fase 0 está hecho, compila y está
-> desplegable. Lo que queda (0.6, 0.8, 0.9, 0.10, 0.12, 0.15, 0.16) depende de que el
-> usuario cree las cuentas externas. Guía: [`SETUP.md`](SETUP.md).
+> **Estado:** Fase 0 casi completa. BD conectada, login con Google montado y
+> protegido, build en verde. Queda: (a) prueba E2E del login con Google (la hace el
+> usuario en el navegador), y (b) despliegue 0.5(remoto)/0.15/0.16. Guía:
+> [`SETUP.md`](SETUP.md).
 
 ### Criterios de aceptación
 - Entras en `https://<tu-app>.vercel.app`, inicias sesión con tu Google y ves el

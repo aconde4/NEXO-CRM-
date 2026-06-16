@@ -8,30 +8,32 @@
 
 ## 📍 Dónde estamos
 
-- **Fase activa:** FASE 0 · Fundaciones — **en curso (~80% hecho)**.
-- **Hecho:** scaffold Next.js 16, sistema de diseño (claro/oscuro), app shell
-  completo (sidebar + topbar + todas las secciones), Drizzle + esquema Auth.js,
-  Inngest (cliente + función demo + endpoint), entorno y primer commit.
-- **Estado del repo:** git inicializado, 1 commit (`Fase 0: fundaciones…`). Sin
-  remoto en GitHub todavía.
-- **Compila:** `pnpm build` ✅ y `pnpm typecheck` ✅. App previsualizada OK.
+- **Fase activa:** FASE 0 · Fundaciones — **~95% hecho**.
+- **Hecho:** scaffold Next.js 16, diseño (claro/oscuro), app shell completo,
+  Drizzle + Inngest, **Supabase conectado y migración aplicada (5 tablas)**, y
+  **Auth.js v5 con Google montado**: `src/auth.ts`, endpoint `/api/auth`, página
+  `/login`, `src/proxy.ts` (gate edge por cookie), gate real con `auth()` en
+  `(app)/layout.tsx`, allowlist y logout.
+- **Estado del repo:** git, varios commits. Sin remoto en GitHub todavía.
+- **Compila:** `pnpm build` ✅ y `pnpm typecheck` ✅. `/login` renderiza y la
+  redirección a login funciona (verificado).
 
 ## ⏭️ Siguiente paso concreto
 
-**Bloqueado a la espera del usuario:** crear las cuentas externas siguiendo
-[`SETUP.md`](SETUP.md) (Supabase §1 y Google OAuth §2 son las imprescindibles) y
-pegar los valores en `.env.local`.
+**Prueba del login (la haces tú, requiere el clic real en Google):**
+1. `pnpm dev` → abre http://localhost:3000 → te lleva a `/login`.
+2. Pulsa **Continuar con Google**, elige tu cuenta (`acondeuceda@gmail.com`).
+3. Debes acabar en `/dashboard` con tu nombre/foto en el menú inferior.
+   - Si Google da error "acceso bloqueado": añade tu correo como **usuario de
+     prueba** en la pantalla de consentimiento (SETUP.md §2, paso 2).
 
-Cuando el usuario diga **“ya tengo Supabase y Google”**, Claude hará (en este orden):
-1. `pnpm db:push` → crear las tablas (tarea 0.8).
-2. Escribir y conectar Auth.js v5 + Google + allowlist + login + middleware
-   (tareas 0.9, 0.10, 0.12): `src/auth.ts`, `src/app/api/auth/[...nextauth]/route.ts`,
-   `src/app/(auth)/login/page.tsx`, `src/middleware.ts`, y sustituir el
-   `placeholderUser` de `src/app/(app)/layout.tsx` por la sesión real.
-3. Probar el login en local.
-4. (Opcional) Desplegar en Vercel + GitHub (tareas 0.5 remoto, 0.15, 0.16).
+Cuando el login funcione, las opciones son:
+- **Seguir a FASE 1 · Contactos** (recomendado), o
+- **Desplegar a la nube** (GitHub + Vercel + Inngest; tareas 0.5 remoto/0.15/0.16,
+  guía en SETUP.md §3-5). Recordar añadir la redirect URI de producción en Google.
 
-Después → **FASE 1 · Contactos y Empresas**.
+> Seguridad: las credenciales se pegaron en el chat. Cuando todo funcione, conviene
+> **rotar** la contraseña de Supabase y el secreto de Google.
 
 ## 🔁 Cómo retomar (resumen)
 
@@ -43,8 +45,8 @@ Después → **FASE 1 · Contactos y Empresas**.
 ## ✅ Prerrequisitos del entorno
 
 - [x] `pnpm` (v10.33), `git` (v2.54), Node.js (v24.16 vía pnpm).
-- [ ] Proyecto Supabase creado → `.env.local` (DATABASE_URL, DIRECT_URL).
-- [ ] Credenciales OAuth de Google → `.env.local` (GOOGLE_CLIENT_ID/SECRET).
+- [x] Proyecto Supabase creado y conectado (eu-west-1); migración aplicada.
+- [x] Credenciales OAuth de Google en `.env.local`.
 - [ ] Repo en GitHub (opcional ahora).
 - [ ] Cuenta Vercel + Inngest (al desplegar).
 
@@ -65,6 +67,16 @@ Después → **FASE 1 · Contactos y Empresas**.
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-16 (3) — Fase 0: base de datos + login
+- Conectado Supabase (credenciales en `.env.local`, contraseña con `@`→`%40`).
+- Migración aplicada con `db:generate` + `db:migrate` (5 tablas de Auth.js).
+- Auth.js v5 + Google: `src/auth.ts` (adapter Drizzle, sesión en BD, allowlist,
+  refresh_token para Gmail futuro), endpoint `/api/auth`, página `/login` con diseño,
+  `src/proxy.ts` (gate edge por cookie), gate con `auth()` en `(app)/layout.tsx`,
+  logout funcional. Renombrado middleware→proxy (convención Next 16).
+- Build y typecheck en verde; `/login` verificado.
+- **Pendiente:** prueba E2E del login con Google (la hace el usuario) y despliegue.
 
 ### 2026-06-16 (2) — Fase 0: fundaciones
 - Instalado Node 24.16; scaffold Next.js 16 + TS + Tailwind v4 + shadcn (Base UI).
