@@ -107,6 +107,7 @@ export async function getOrganization(id: string) {
         orderBy: [desc(persons.createdAt)],
       },
       notes: { orderBy: [desc(notes.createdAt)], limit: 50 },
+      activities: { orderBy: [desc(activities.createdAt)], limit: 100 },
     },
   });
 }
@@ -148,3 +149,24 @@ export async function listOrganizationOptions() {
     .orderBy(organizations.name)
     .limit(500);
 }
+
+/** Opciones (id + nombre completo) para selectores de contacto en formularios. */
+export async function listPersonOptions() {
+  const user = await requireUser();
+  const rows = await db
+    .select({
+      id: persons.id,
+      firstName: persons.firstName,
+      lastName: persons.lastName,
+    })
+    .from(persons)
+    .where(and(eq(persons.ownerId, user.id), isNull(persons.deletedAt)))
+    .orderBy(persons.firstName, persons.lastName)
+    .limit(500);
+  return rows.map((p) => ({
+    id: p.id,
+    name: [p.firstName, p.lastName].filter(Boolean).join(" ").trim(),
+  }));
+}
+
+export type EntityOption = { id: string; name: string };

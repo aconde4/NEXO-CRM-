@@ -10,7 +10,7 @@ config({ path: ".env.local" });
 async function main() {
   const { eq } = await import("drizzle-orm");
   const { db } = await import("./index");
-  const { users, organizations, persons, notes, labels, entityLabels } =
+  const { users, organizations, persons, notes, labels, entityLabels, activities } =
     await import("./schema");
 
   const email =
@@ -151,8 +151,27 @@ async function main() {
     await db.insert(entityLabels).values(labelAssignments);
   }
 
+  // Actividades de ejemplo: una vencida, una para hoy, próximas y una hecha.
+  const at = (days: number, hour = 10, minute = 0) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    d.setHours(hour, minute, 0, 0);
+    return d;
+  };
+  const firstOrgId = insertedOrgs[0]?.id ?? null;
+  const activitiesData = [
+    { type: "call", subject: "Llamar para confirmar la demo", dueAt: at(-1, 11), personId: insertedPeople[0]?.id ?? null, orgId: null, done: false, doneAt: null },
+    { type: "meeting", subject: "Reunión de seguimiento", dueAt: at(0, 16), personId: insertedPeople[2]?.id ?? null, orgId: null, done: false, doneAt: null },
+    { type: "task", subject: "Enviar propuesta revisada", dueAt: at(1, 9, 30), personId: insertedPeople[4]?.id ?? null, orgId: null, done: false, doneAt: null },
+    { type: "email", subject: "Hacer seguimiento del presupuesto", dueAt: at(3, 12), personId: null, orgId: firstOrgId, done: false, doneAt: null },
+    { type: "task", subject: "Preparar materiales de la presentación", dueAt: at(-3, 10), personId: insertedPeople[1]?.id ?? null, orgId: null, done: true, doneAt: at(-2, 15) },
+  ] as const;
+  await db
+    .insert(activities)
+    .values(activitiesData.map((a) => ({ ...a, ownerId: user.id })));
+
   console.log(
-    `✓ Sembrados ${insertedOrgs.length} empresas, ${insertedPeople.length} contactos y ${createdLabels.length} etiquetas para ${email}.`,
+    `✓ Sembrados ${insertedOrgs.length} empresas, ${insertedPeople.length} contactos, ${createdLabels.length} etiquetas y ${activitiesData.length} actividades para ${email}.`,
   );
 }
 

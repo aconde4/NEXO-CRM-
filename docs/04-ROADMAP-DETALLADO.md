@@ -70,7 +70,10 @@ notas e importación CSV. El núcleo de datos del CRM.
       [`06-CAMPOS-Y-PERSONALIZACION.md`](06-CAMPOS-Y-PERSONALIZACION.md).
 - [x] **1.9** Sistema de etiquetas con colores: crear, asignar/quitar (selector en
       la ficha), chips en el listado y **filtro por etiqueta**.
-- [ ] **1.10** Actividades/tareas: crear, completar, vencimiento, "pendientes de hoy".
+- [x] **1.10** Actividades/tareas: crear, completar, vencimiento, "pendientes de hoy".
+      Tipos (tarea/llamada/reunión/email/vencimiento/comida), página `/activities`
+      con filtros (Hoy/Pendientes/Hechas/Todas), panel en fichas de contacto/empresa,
+      y agenda + contadores en el panel.
 - [x] **1.11** Notas (compositor en la ficha). *(editor Tiptap enriquecido más tarde.)*
 - [ ] **1.12** Adjuntos de archivos (Supabase Storage).
 - [ ] **1.13** Importación **Excel (.xlsx) y CSV**: leer columnas, **mapearlas** a
@@ -79,12 +82,12 @@ notas e importación CSV. El núcleo de datos del CRM.
 - [ ] **1.14** Exportación a CSV (RGPD + respaldo).
 - [x] **1.15** Registro en `activity_log` de las mutaciones (creado/editado/borrado/nota).
 
-> **Estado Fase 1 (~70%):** Contactos y Empresas operativos (crear/editar/borrar,
-> buscar, fichas con contactos/notas/timeline) + **etiquetas con colores y filtro**.
+> **Estado Fase 1 (~80%):** Contactos y Empresas operativos (crear/editar/borrar,
+> buscar, fichas con contactos/notas/timeline) + **etiquetas con colores y filtro** +
+> **actividades/tareas** (página con filtros, panel en fichas, agenda en el panel).
 > Front pulido a nivel profesional: **paleta de comandos (⌘K)**, skeletons de carga,
 > página 404 cuidada, chips de etiquetas. Verificado vía login de desarrollo.
-> Pendiente: campos personalizados, actividades/tareas, adjuntos, import/export CSV
-> y vistas guardadas.
+> Pendiente: campos personalizados, adjuntos, import/export CSV y vistas guardadas.
 
 ### Criterios de aceptación
 - Importas un CSV de contactos, los ves en una tabla filtrable, abres una ficha,

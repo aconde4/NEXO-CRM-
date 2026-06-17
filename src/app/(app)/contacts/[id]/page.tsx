@@ -15,6 +15,7 @@ import { notFound } from "next/navigation";
 import { fullName, formatDate, relativeDate } from "@/lib/format";
 import { getPerson, listOrganizationOptions } from "@/server/queries/contacts";
 import { getLabelsForPerson, listLabels } from "@/server/queries/labels";
+import { ActivitiesPanel } from "@/components/activities/activities-panel";
 import { EditContactButton } from "@/components/contacts/edit-contact-button";
 import { EntityAvatar } from "@/components/entity-avatar";
 import { LabelPicker } from "@/components/contacts/label-picker";
@@ -54,21 +55,9 @@ export default async function ContactDetailPage({
   const assignedLabels = await getLabelsForPerson(person.id);
   const name = fullName(person.firstName, person.lastName);
 
-  const events = [
-    ...person.notes.map((n) => ({
-      kind: "note" as const,
-      id: n.id,
-      at: n.createdAt,
-      text: n.body,
-    })),
-    ...person.activities.map((a) => ({
-      kind: "activity" as const,
-      id: a.id,
-      at: a.createdAt,
-      text: a.subject,
-      done: a.done,
-    })),
-  ].sort((a, b) => b.at.getTime() - a.at.getTime());
+  const notesTimeline = person.notes
+    .map((n) => ({ id: n.id, at: n.createdAt, text: n.body }))
+    .sort((a, b) => b.at.getTime() - a.at.getTime());
 
   return (
     <>
@@ -160,42 +149,45 @@ export default async function ContactDetailPage({
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Actividad</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <NoteComposer personId={person.id} />
+        <div className="space-y-4 lg:col-span-2">
+          <ActivitiesPanel
+            activities={person.activities}
+            lockedPersonId={person.id}
+          />
 
-            {events.length === 0 ? (
-              <p className="text-muted-foreground py-6 text-center text-sm">
-                Aún no hay actividad. Añade una nota para empezar.
-              </p>
-            ) : (
-              <ol className="space-y-4">
-                {events.map((event) => (
-                  <li key={`${event.kind}-${event.id}`} className="flex gap-3">
-                    <div className="bg-muted text-muted-foreground mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full">
-                      {event.kind === "note" ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Notas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <NoteComposer personId={person.id} />
+
+              {notesTimeline.length === 0 ? (
+                <p className="text-muted-foreground py-6 text-center text-sm">
+                  Aún no hay notas. Añade una para empezar.
+                </p>
+              ) : (
+                <ol className="space-y-4">
+                  {notesTimeline.map((event) => (
+                    <li key={event.id} className="flex gap-3">
+                      <div className="bg-muted text-muted-foreground mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full">
                         <StickyNote className="size-3.5" />
-                      ) : (
-                        <MessageSquare className="size-3.5" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm break-words whitespace-pre-wrap">
-                        {event.text}
-                      </p>
-                      <p className="text-muted-foreground mt-0.5 text-xs">
-                        {relativeDate(event.at)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </CardContent>
-        </Card>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm break-words whitespace-pre-wrap">
+                          {event.text}
+                        </p>
+                        <p className="text-muted-foreground mt-0.5 text-xs">
+                          {relativeDate(event.at)}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </>
   );

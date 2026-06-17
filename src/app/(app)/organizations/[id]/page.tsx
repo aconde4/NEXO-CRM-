@@ -4,6 +4,7 @@ import {
   Globe,
   MapPin,
   Phone,
+  StickyNote,
   Tag,
   Users,
 } from "lucide-react";
@@ -11,10 +12,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { fullName, formatDate } from "@/lib/format";
+import { fullName, formatDate, relativeDate } from "@/lib/format";
 import { getOrganization } from "@/server/queries/contacts";
+import { ActivitiesPanel } from "@/components/activities/activities-panel";
 import { EditOrganizationButton } from "@/components/organizations/edit-organization-button";
 import { EntityAvatar } from "@/components/entity-avatar";
+import { NoteComposer } from "@/components/note-composer";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,6 +36,10 @@ export default async function OrganizationDetailPage({
   const { id } = await params;
   const organization = await getOrganization(id);
   if (!organization) notFound();
+
+  const notesTimeline = organization.notes
+    .map((n) => ({ id: n.id, at: n.createdAt, text: n.body }))
+    .sort((a, b) => b.at.getTime() - a.at.getTime());
 
   return (
     <>
@@ -111,44 +118,84 @@ export default async function OrganizationDetailPage({
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">
-              Contactos ({organization.persons.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {organization.persons.length === 0 ? (
-              <p className="text-muted-foreground py-6 text-center text-sm">
-                Esta empresa aún no tiene contactos asociados.
-              </p>
-            ) : (
-              <ul className="divide-y">
-                {organization.persons.map((person) => (
-                  <li key={person.id}>
-                    <Link
-                      href={`/contacts/${person.id}`}
-                      className="hover:bg-muted/40 -mx-2 flex items-center gap-3 rounded-md px-2 py-2 transition-colors"
-                    >
-                      <EntityAvatar
-                        name={fullName(person.firstName, person.lastName)}
-                        className="size-8 text-[10px]"
-                      />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">
-                          {fullName(person.firstName, person.lastName)}
+        <div className="space-y-4 lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                Contactos ({organization.persons.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {organization.persons.length === 0 ? (
+                <p className="text-muted-foreground py-6 text-center text-sm">
+                  Esta empresa aún no tiene contactos asociados.
+                </p>
+              ) : (
+                <ul className="divide-y">
+                  {organization.persons.map((person) => (
+                    <li key={person.id}>
+                      <Link
+                        href={`/contacts/${person.id}`}
+                        className="hover:bg-muted/40 -mx-2 flex items-center gap-3 rounded-md px-2 py-2 transition-colors"
+                      >
+                        <EntityAvatar
+                          name={fullName(person.firstName, person.lastName)}
+                          className="size-8 text-[10px]"
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {fullName(person.firstName, person.lastName)}
+                          </p>
+                          <p className="text-muted-foreground truncate text-xs">
+                            {person.title ?? person.email ?? "—"}
+                          </p>
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          <ActivitiesPanel
+            activities={organization.activities}
+            lockedOrgId={organization.id}
+          />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Notas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <NoteComposer orgId={organization.id} />
+
+              {notesTimeline.length === 0 ? (
+                <p className="text-muted-foreground py-6 text-center text-sm">
+                  Aún no hay notas. Añade una para empezar.
+                </p>
+              ) : (
+                <ol className="space-y-4">
+                  {notesTimeline.map((event) => (
+                    <li key={event.id} className="flex gap-3">
+                      <div className="bg-muted text-muted-foreground mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full">
+                        <StickyNote className="size-3.5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm break-words whitespace-pre-wrap">
+                          {event.text}
                         </p>
-                        <p className="text-muted-foreground truncate text-xs">
-                          {person.title ?? person.email ?? "—"}
+                        <p className="text-muted-foreground mt-0.5 text-xs">
+                          {relativeDate(event.at)}
                         </p>
                       </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </>
   );

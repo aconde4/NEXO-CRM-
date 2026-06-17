@@ -51,6 +51,13 @@ export function CommandMenu({
             <Plus />
             Nueva empresa
           </CommandItem>
+          <CommandItem
+            value="nueva actividad tarea crear"
+            onSelect={() => go("/activities")}
+          >
+            <Plus />
+            Nueva actividad
+          </CommandItem>
         </CommandGroup>
 
         {navGroups.map((group) => (
