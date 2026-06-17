@@ -64,7 +64,8 @@ notas e importación CSV. El núcleo de datos del CRM.
 - [x] **1.6** Ficha de contacto: datos + edición (diálogo) + línea de tiempo.
 - [x] **1.7** Listado y ficha de empresas (con sus contactos asociados).
 - [ ] **1.8** Motor de campos personalizados (UI de ajustes + render dinámico).
-- [ ] **1.9** Sistema de etiquetas con colores y asignación.
+- [x] **1.9** Sistema de etiquetas con colores: crear, asignar/quitar (selector en
+      la ficha), chips en el listado y **filtro por etiqueta**.
 - [ ] **1.10** Actividades/tareas: crear, completar, vencimiento, "pendientes de hoy".
 - [x] **1.11** Notas (compositor en la ficha). *(editor Tiptap enriquecido más tarde.)*
 - [ ] **1.12** Adjuntos de archivos (Supabase Storage).
@@ -72,10 +73,12 @@ notas e importación CSV. El núcleo de datos del CRM.
 - [ ] **1.14** Exportación a CSV (RGPD + respaldo).
 - [x] **1.15** Registro en `activity_log` de las mutaciones (creado/editado/borrado/nota).
 
-> **Estado Fase 1 (~60%):** Contactos y Empresas operativos (crear/editar/borrar,
-> buscar, fichas con contactos/notas/timeline). Verificado end-to-end con datos de
-> ejemplo vía login de desarrollo. Pendiente: campos personalizados, etiquetas,
-> actividades/tareas, adjuntos, import/export CSV y vistas guardadas.
+> **Estado Fase 1 (~70%):** Contactos y Empresas operativos (crear/editar/borrar,
+> buscar, fichas con contactos/notas/timeline) + **etiquetas con colores y filtro**.
+> Front pulido a nivel profesional: **paleta de comandos (⌘K)**, skeletons de carga,
+> página 404 cuidada, chips de etiquetas. Verificado vía login de desarrollo.
+> Pendiente: campos personalizados, actividades/tareas, adjuntos, import/export CSV
+> y vistas guardadas.
 
 ### Criterios de aceptación
 - Importas un CSV de contactos, los ves en una tabla filtrable, abres una ficha,

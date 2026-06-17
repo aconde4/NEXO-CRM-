@@ -10,7 +10,8 @@ config({ path: ".env.local" });
 async function main() {
   const { eq } = await import("drizzle-orm");
   const { db } = await import("./index");
-  const { users, organizations, persons, notes } = await import("./schema");
+  const { users, organizations, persons, notes, labels, entityLabels } =
+    await import("./schema");
 
   const email =
     (process.env.ALLOWED_EMAILS ?? "dev@nexo.local").split(",")[0]?.trim() ||
@@ -129,8 +130,29 @@ async function main() {
     ]);
   }
 
+  // Etiquetas de ejemplo + asignaciones a los primeros contactos.
+  const createdLabels = await db
+    .insert(labels)
+    .values([
+      { name: "Cliente", color: "#10b981", ownerId: user.id },
+      { name: "Lead", color: "#6366f1", ownerId: user.id },
+      { name: "VIP", color: "#f59e0b", ownerId: user.id },
+    ])
+    .returning({ id: labels.id });
+
+  const labelAssignments = insertedPeople
+    .slice(0, 6)
+    .map((p, i) => ({
+      labelId: createdLabels[i % createdLabels.length]!.id,
+      entityType: "person" as const,
+      entityId: p.id,
+    }));
+  if (labelAssignments.length) {
+    await db.insert(entityLabels).values(labelAssignments);
+  }
+
   console.log(
-    `✓ Sembrados ${insertedOrgs.length} empresas y ${insertedPeople.length} contactos para ${email}.`,
+    `✓ Sembrados ${insertedOrgs.length} empresas, ${insertedPeople.length} contactos y ${createdLabels.length} etiquetas para ${email}.`,
   );
 }
 

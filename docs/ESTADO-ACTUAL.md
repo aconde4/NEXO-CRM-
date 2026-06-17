@@ -10,15 +10,16 @@
 
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
-- **Fase 1 · Contactos y Empresas:** **~60% hecho** y verificado.
-  - Tablas CRM creadas (migración `0001`): organizations, persons, labels,
-    entity_labels, activities, notes, activity_log (con índices y relaciones).
+- **Fase 1 · Contactos y Empresas:** **~70% hecho** y verificado.
+  - Tablas CRM (migración `0001`) con índices y relaciones.
   - **Contactos:** listado con búsqueda, crear/editar (diálogo), borrar (reversible),
-    ficha con detalles + línea de tiempo + notas.
+    ficha con detalles + línea de tiempo + notas, **etiquetas con color y filtro**.
   - **Empresas:** listado, crear/editar/borrar, ficha con sus contactos.
+  - **Front pulido (nivel profesional):** paleta de comandos **⌘K**, skeletons de
+    carga (`loading.tsx`), página 404 cuidada, chips de etiquetas, microinteracciones.
   - Dashboard con contadores reales. `activity_log` registra las mutaciones.
   - **Login de desarrollo** `GET /api/dev-login` (solo dev) para probar sin Google.
-  - Datos de ejemplo: `pnpm db:seed` (4 empresas, 10 contactos).
+  - Datos de ejemplo: `pnpm db:seed` (4 empresas, 10 contactos, 3 etiquetas).
 - **Compila:** `pnpm build` ✅ y `pnpm typecheck` ✅. Verificado end-to-end en
   navegador vía login de desarrollo (listados, fichas y creación de notas).
 - **Repo:** git, varios commits. Sin remoto en GitHub todavía.
@@ -27,10 +28,10 @@
 
 Continuar la **Fase 1** por la primera tarea sin marcar en
 [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) → FASE 1. Orden sugerido:
-1. **1.9 Etiquetas** (colores + asignación + filtro por etiqueta en el listado).
-2. **1.10 Actividades/tareas** (crear/completar/vencimiento + "pendientes de hoy").
-3. **1.13/1.14 Importación/exportación CSV**.
-4. **1.8 Campos personalizados** y **1.5 vistas guardadas**.
+1. **1.10 Actividades/tareas** (crear/completar/vencimiento + "pendientes de hoy").
+2. **1.13/1.14 Importación/exportación CSV**.
+3. **1.8 Campos personalizados** y **1.5 vistas guardadas**.
+4. (Opcional) etiquetas también en empresas; editor de notas enriquecido (Tiptap).
 
 Alternativa: saltar a **Fase 2 · Pipeline** (negocios) si se prefiere completar antes
 el MVP visual, y volver a los extras de la Fase 1 después.
@@ -74,6 +75,18 @@ el MVP visual, y volver a los extras de la Fase 1 después.
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-16 (5) — Pulido premium + etiquetas
+- **Paleta de comandos (⌘K)**: navegación y acciones rápidas (`command-menu.tsx`,
+  integrada en el topbar).
+- **Estados de carga**: `loading.tsx` con skeletons en listados/fichas/dashboard;
+  `not-found.tsx` cuidado.
+- **Etiquetas (Fase 1.9)**: queries/actions (`labels`), chips de color, selector en
+  la ficha (crear/asignar/quitar) y **filtro por etiqueta** en el listado.
+- Verificado vía login de desarrollo (chips se muestran en 6 contactos). Nota: las
+  superposiciones Base UI (popover/paleta) no responden a clics sintéticos del
+  navegador headless de la vista previa → usar `preview_eval` para leer estado.
+- Build y typecheck en verde. Seed incluye 3 etiquetas de ejemplo.
 
 ### 2026-06-16 (4) — Revisión + Fase 1 (Contactos y Empresas)
 - Revisión de seguridad/rendimiento → `docs/05-SEGURIDAD-Y-RENDIMIENTO.md`.

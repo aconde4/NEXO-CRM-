@@ -14,8 +14,10 @@ import { notFound } from "next/navigation";
 
 import { fullName, formatDate, relativeDate } from "@/lib/format";
 import { getPerson, listOrganizationOptions } from "@/server/queries/contacts";
+import { getLabelsForPerson, listLabels } from "@/server/queries/labels";
 import { EditContactButton } from "@/components/contacts/edit-contact-button";
 import { EntityAvatar } from "@/components/entity-avatar";
+import { LabelPicker } from "@/components/contacts/label-picker";
 import { NoteComposer } from "@/components/note-composer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,13 +43,15 @@ export default async function ContactDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [person, organizations] = await Promise.all([
+  const [person, organizations, allLabels] = await Promise.all([
     getPerson(id),
     listOrganizationOptions(),
+    listLabels(),
   ]);
 
   if (!person) notFound();
 
+  const assignedLabels = await getLabelsForPerson(person.id);
   const name = fullName(person.firstName, person.lastName);
 
   const events = [
@@ -101,6 +105,12 @@ export default async function ContactDetailPage({
           }}
         />
       </div>
+
+      <LabelPicker
+        personId={person.id}
+        allLabels={allLabels}
+        assigned={assignedLabels}
+      />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">

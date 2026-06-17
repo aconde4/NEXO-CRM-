@@ -1,18 +1,19 @@
 import "server-only";
 
-import { and, desc, eq, ilike, isNull, or } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
 
 import { requireUser } from "@/lib/session";
 import { db } from "@/server/db";
 import {
   activities,
+  entityLabels,
   notes,
   organizations,
   persons,
 } from "@/server/db/schema";
 
 // --- Contactos --------------------------------------------------------------
-export async function listPersons(search?: string) {
+export async function listPersons(search?: string, labelId?: string) {
   const user = await requireUser();
   const filters = [eq(persons.ownerId, user.id), isNull(persons.deletedAt)];
 
@@ -24,6 +25,19 @@ export async function listPersons(search?: string) {
       ilike(persons.email, q),
     );
     if (match) filters.push(match);
+  }
+
+  if (labelId) {
+    const labeled = db
+      .select({ id: entityLabels.entityId })
+      .from(entityLabels)
+      .where(
+        and(
+          eq(entityLabels.entityType, "person"),
+          eq(entityLabels.labelId, labelId),
+        ),
+      );
+    filters.push(inArray(persons.id, labeled));
   }
 
   return db.query.persons.findMany({
