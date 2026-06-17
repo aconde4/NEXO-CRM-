@@ -36,8 +36,9 @@ window), datos del remitente para RGPD (dirección física en el pie), etc.
 ## 2. CRM nuclear (Fases 1–2)
 
 ### `organizations` (empresas)
-`name`, `domain`, `website`, `phone`, `address`, `industry`, `size`,
-`owner_id`, `custom_fields` (JSONB), `deleted_at`.
+`name` (nombre **legal**), `trade_name` (nombre **comercial**, de serie), `domain`,
+`website`, `phone`, `address`, `industry`, `size`, `owner_id`,
+`custom_fields` (JSONB), `deleted_at`.
 
 ### `persons` (contactos)
 `first_name`, `last_name`, `org_id` (→ organizations), `title` (cargo),
@@ -54,7 +55,9 @@ window), datos del remitente para RGPD (dirección física en el pie), etc.
 Definición de campos personalizados: `entity_type`, `key`, `label`,
 `type` (`text`/`number`/`date`/`select`/`multiselect`/`checkbox`/`url`/`monetary`),
 `options` (JSONB), `order`, `required`. Los **valores** viven en el `custom_fields`
-JSONB de cada entidad.
+JSONB de cada entidad. Estos campos se usan también como **variables (merge tags)**
+en correos de secuencias y campañas — ver
+[`06-CAMPOS-Y-PERSONALIZACION.md`](06-CAMPOS-Y-PERSONALIZACION.md).
 
 ### `pipelines`
 Embudos. `name`, `order`, `is_default`.

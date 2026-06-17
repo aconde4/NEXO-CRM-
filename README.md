@@ -33,7 +33,11 @@ valores siguiendo [`docs/SETUP.md`](docs/SETUP.md).
    — Matriz de funcionalidades de Pipedrive y nuestras mejoras.
 5. [`docs/04-ROADMAP-DETALLADO.md`](docs/04-ROADMAP-DETALLADO.md) — El plan de
    construcción fase por fase, tarea por tarea, con checklists.
-6. [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md) — **El archivo vivo**: en qué
+6. [`docs/05-SEGURIDAD-Y-RENDIMIENTO.md`](docs/05-SEGURIDAD-Y-RENDIMIENTO.md) —
+   Revisión de seguridad, rendimiento y calidad.
+7. [`docs/06-CAMPOS-Y-PERSONALIZACION.md`](docs/06-CAMPOS-Y-PERSONALIZACION.md) —
+   Campos personalizados, importación Excel/CSV y personalización de email.
+8. [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md) — **El archivo vivo**: en qué
    fase y tarea exacta estamos ahora mismo. Se actualiza en cada sesión.
 
 ## 🧭 Decisiones tomadas (16/06/2026)

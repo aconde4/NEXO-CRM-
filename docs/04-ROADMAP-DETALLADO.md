@@ -63,13 +63,19 @@ notas e importación CSV. El núcleo de datos del CRM.
 - [ ] **1.5** Vistas guardadas (saved views) de filtros.
 - [x] **1.6** Ficha de contacto: datos + edición (diálogo) + línea de tiempo.
 - [x] **1.7** Listado y ficha de empresas (con sus contactos asociados).
-- [ ] **1.8** Motor de campos personalizados (UI de ajustes + render dinámico).
+- [ ] **1.8** Motor de **campos personalizados** definidos por el usuario (texto,
+      número, **monetario**, fecha, selección…) en contactos y empresas: UI de
+      ajustes, render dinámico en fichas/formularios/listados y filtros. Añadir
+      **`trade_name` (nombre comercial)** de serie en empresas. → detalle en
+      [`06-CAMPOS-Y-PERSONALIZACION.md`](06-CAMPOS-Y-PERSONALIZACION.md).
 - [x] **1.9** Sistema de etiquetas con colores: crear, asignar/quitar (selector en
       la ficha), chips en el listado y **filtro por etiqueta**.
 - [ ] **1.10** Actividades/tareas: crear, completar, vencimiento, "pendientes de hoy".
 - [x] **1.11** Notas (compositor en la ficha). *(editor Tiptap enriquecido más tarde.)*
 - [ ] **1.12** Adjuntos de archivos (Supabase Storage).
-- [ ] **1.13** Importación CSV con papaparse (mapeo + deduplicación).
+- [ ] **1.13** Importación **Excel (.xlsx) y CSV**: leer columnas, **mapearlas** a
+      campos del CRM (incluidos personalizados, **creables al vuelo**), vista previa y
+      deduplicación por email.
 - [ ] **1.14** Exportación a CSV (RGPD + respaldo).
 - [x] **1.15** Registro en `activity_log` de las mutaciones (creado/editado/borrado/nota).
 
@@ -130,8 +136,12 @@ negocios, con plantillas y seguimiento de aperturas/clics.
 - [ ] **3.4** Sincronización de entrada: leer mensajes nuevos (Gmail history API o
       polling vía Inngest) y vincularlos al contacto por email.
 - [ ] **3.5** Vista de hilo de conversación en la ficha del contacto/negocio.
-- [ ] **3.6** Redactor de email (Tiptap) con plantillas y merge tags
-      (`{{first_name}}`, etc.).
+- [ ] **3.6** Redactor de email (Tiptap) con plantillas y **merge tags**: variables
+      de **campos de serie + personalizados** del contacto y su empresa
+      (`{{nombre}}`, `{{empresa.nombre_comercial}}`, `{{ingresos}}`…), con **valor por
+      defecto** (`{{nombre|"amigo"}}`) y **vista previa por destinatario**. Este motor
+      lo reutilizan campañas (Fase 4) y secuencias (Fase 5) para personalizar cada
+      envío. → [`06-CAMPOS-Y-PERSONALIZACION.md`](06-CAMPOS-Y-PERSONALIZACION.md).
 - [ ] **3.7** Tracking de aperturas (pixel propio) y de clics (redirección propia)
       → `email_events`.
 - [ ] **3.8** Bandeja de ventas unificada (todos los hilos en un sitio).
