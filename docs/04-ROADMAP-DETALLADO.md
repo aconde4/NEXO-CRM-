@@ -76,18 +76,24 @@ notas e importación CSV. El núcleo de datos del CRM.
       y agenda + contadores en el panel.
 - [x] **1.11** Notas (compositor en la ficha). *(editor Tiptap enriquecido más tarde.)*
 - [ ] **1.12** Adjuntos de archivos (Supabase Storage).
-- [ ] **1.13** Importación **Excel (.xlsx) y CSV**: leer columnas, **mapearlas** a
-      campos del CRM (incluidos personalizados, **creables al vuelo**), vista previa y
-      deduplicación por email.
-- [ ] **1.14** Exportación a CSV (RGPD + respaldo).
+- [x] **1.13** Importación **Excel (.xlsx) y CSV**: leer columnas, **mapearlas** a
+      campos del CRM, vista previa y deduplicación por email. Asistente en
+      `/contacts/import` (subir → mapear → previsualizar → resultado), auto-mapeo de
+      cabeceras, creación de empresas al vuelo y dedupe (omitir/actualizar).
+      *(Mapeo a campos personalizados, creables al vuelo, queda para cuando exista
+      1.8.)*
+- [x] **1.14** Exportación a CSV (RGPD + respaldo): contactos y empresas, respetando
+      los filtros activos, con BOM UTF-8 (`/api/contacts/export`,
+      `/api/organizations/export`).
 - [x] **1.15** Registro en `activity_log` de las mutaciones (creado/editado/borrado/nota).
 
-> **Estado Fase 1 (~80%):** Contactos y Empresas operativos (crear/editar/borrar,
+> **Estado Fase 1 (~90%):** Contactos y Empresas operativos (crear/editar/borrar,
 > buscar, fichas con contactos/notas/timeline) + **etiquetas con colores y filtro** +
-> **actividades/tareas** (página con filtros, panel en fichas, agenda en el panel).
-> Front pulido a nivel profesional: **paleta de comandos (⌘K)**, skeletons de carga,
-> página 404 cuidada, chips de etiquetas. Verificado vía login de desarrollo.
-> Pendiente: campos personalizados, adjuntos, import/export CSV y vistas guardadas.
+> **actividades/tareas** (página con filtros, panel en fichas, agenda en el panel) +
+> **importación CSV/Excel con mapeo y dedupe** y **exportación CSV** (contactos y
+> empresas). Front pulido a nivel profesional: **paleta de comandos (⌘K)**, skeletons
+> de carga, página 404 cuidada, chips de etiquetas. Verificado vía login de desarrollo.
+> Pendiente: campos personalizados (1.8), vistas guardadas (1.5) y adjuntos (1.12).
 
 ### Criterios de aceptación
 - Importas un CSV de contactos, los ves en una tabla filtrable, abres una ficha,

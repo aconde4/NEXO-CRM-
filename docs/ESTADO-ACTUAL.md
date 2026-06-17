@@ -10,7 +10,7 @@
 
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
-- **Fase 1 · Contactos y Empresas:** **~80% hecho** y verificado.
+- **Fase 1 · Contactos y Empresas:** **~90% hecho** y verificado.
   - Tablas CRM (migración `0001`) con índices y relaciones.
   - **Contactos:** listado con búsqueda, crear/editar (diálogo), borrar (reversible),
     ficha con detalles + línea de tiempo + notas, **etiquetas con color y filtro**.
@@ -20,6 +20,14 @@
     tipos con icono, vencimientos con formato relativo y resaltado de vencidas,
     **panel de tareas en las fichas** de contacto y empresa, y **agenda de hoy** +
     stats reales en el panel principal. Acción rápida en ⌘K.
+  - **Importación CSV/Excel (1.13):** asistente en `/contacts/import` (subir →
+    mapear → vista previa → resultado), auto-mapeo de cabeceras (sin acentos),
+    creación de empresas al vuelo, **dedupe por email** (omitir/actualizar, dentro
+    del archivo y contra la BD) y validación por fila. Excel con `read-excel-file`,
+    CSV con `papaparse`. Botón "Importar" y ⌘K.
+  - **Exportación CSV (1.14):** contactos y empresas a CSV (botón "Exportar"),
+    respetando los filtros activos, con BOM UTF-8 para acentos en Excel
+    (`/api/contacts/export`, `/api/organizations/export`).
   - **Front pulido (nivel profesional):** paleta de comandos **⌘K**, skeletons de
     carga (`loading.tsx`), página 404 cuidada, chips de etiquetas, microinteracciones.
   - Dashboard con contadores reales (contactos, empresas, tareas hoy, vencidas).
@@ -35,12 +43,17 @@
 
 Continuar la **Fase 1** por la primera tarea sin marcar en
 [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) → FASE 1. Orden sugerido:
-1. **1.13/1.14 Importación/exportación CSV/Excel** (mapeo de columnas, dedupe).
-2. **1.8 Campos personalizados** y **1.5 vistas guardadas**.
+1. **1.8 Campos personalizados** (motor + `trade_name` de serie en empresas). Al
+   hacerlo, ampliar el import (1.13) para mapear a campos personalizados.
+2. **1.5 Vistas guardadas** (saved views de filtros).
 3. **1.12 Adjuntos** (Supabase Storage).
 4. (Opcional) etiquetas también en empresas; editor de notas enriquecido (Tiptap).
 
-> **Hecho en la última sesión:** 1.10 Actividades/tareas (ver changelog abajo).
+Alternativa: saltar a **Fase 2 · Pipeline** (Kanban de negocios) para cerrar el MVP
+prioritario y volver luego a los extras de la Fase 1.
+
+> **Hecho en la última sesión:** 1.13 Importación CSV/Excel y 1.14 Exportación CSV
+> (ver changelog abajo). Antes: 1.10 Actividades/tareas.
 
 Alternativa: saltar a **Fase 2 · Pipeline** (negocios) si se prefiere completar antes
 el MVP visual, y volver a los extras de la Fase 1 después.
@@ -84,6 +97,26 @@ el MVP visual, y volver a los extras de la Fase 1 después.
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-17 (7) — Importación/exportación CSV-Excel (Fases 1.13 y 1.14)
+- **Importación (1.13):** asistente `/contacts/import` de 4 pasos (subir → mapear →
+  vista previa → resultado). Parseo en cliente: CSV con **papaparse**, Excel (.xlsx)
+  con **read-excel-file/universal**. Auto-mapeo de cabeceras (minúsculas + sin
+  acentos). Server action `importContacts` con validación Zod por fila, **dedupe por
+  email** (dentro del archivo y contra la BD: omitir o actualizar), **creación de
+  empresas al vuelo**, inserciones por lotes y registro en `activity_log`.
+- **Exportación (1.14):** route handlers `GET /api/contacts/export` y
+  `/api/organizations/export` con auth, respetando filtros (`q`/`label`), CSV
+  RFC-4180 con **BOM UTF-8** (acentos en Excel) — utilidad `lib/csv.ts`. Botones
+  "Importar"/"Exportar" en los listados y acción en ⌘K.
+- **Dependencias:** `papaparse` (+ tipos) y `read-excel-file` (se evita el `xlsx` de
+  npm por su CVE).
+- **Verificado** vía login de desarrollo: exportación real (cabeceras, BOM a nivel de
+  bytes, filtros) e **importación de extremo a extremo** inyectando un CSV (auto-mapeo,
+  vista previa con estados, y escritura en BD: 2 creados, dedupe de existentes y
+  duplicados del archivo, empresa creada al vuelo, errores por fila). Datos de prueba
+  limpiados después.
+- Build, typecheck y lint (archivos nuevos) en verde.
 
 ### 2026-06-17 (6) — Actividades/tareas (Fase 1.10)
 - **Capa de datos:** `lib/activities.ts` (tipos con icono, formato de vencimientos),

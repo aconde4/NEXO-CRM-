@@ -6,12 +6,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   Building2,
   Check,
+  Download,
   MoreHorizontal,
   Pencil,
   Plus,
   Search,
   Tag,
   Trash2,
+  Upload,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -73,6 +75,13 @@ export function ContactsView({
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeLabelObj = labels.find((l) => l.id === activeLabel);
+
+  const exportParams = new URLSearchParams();
+  if (query) exportParams.set("q", query);
+  if (activeLabel) exportParams.set("label", activeLabel);
+  const exportHref = `/api/contacts/export${
+    exportParams.size ? `?${exportParams}` : ""
+  }`;
 
   function pushParams(next: { q?: string; label?: string }) {
     const params = new URLSearchParams(searchParams.toString());
@@ -170,10 +179,29 @@ export function ContactsView({
           </DropdownMenu>
         </div>
 
-        <Button onClick={openCreate} className="shrink-0">
-          <Plus />
-          Nuevo contacto
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="shrink-0"
+            render={<Link href="/contacts/import" />}
+          >
+            <Upload />
+            <span className="hidden sm:inline">Importar</span>
+          </Button>
+          <Button
+            variant="outline"
+            className="shrink-0"
+            render={<a href={exportHref} />}
+          >
+            <Download />
+            <span className="hidden sm:inline">Exportar</span>
+          </Button>
+          <Button onClick={openCreate} className="shrink-0">
+            <Plus />
+            <span className="hidden sm:inline">Nuevo contacto</span>
+            <span className="sm:hidden">Nuevo</span>
+          </Button>
+        </div>
       </div>
 
       {contacts.length === 0 ? (

@@ -67,6 +67,42 @@ export async function getPerson(id: string) {
 export type PersonListItem = Awaited<ReturnType<typeof listPersons>>[number];
 export type PersonDetail = Awaited<ReturnType<typeof getPerson>>;
 
+/** Contactos completos para exportar a CSV (mismos filtros, sin límite bajo). */
+export async function listPersonsForExport(search?: string, labelId?: string) {
+  const user = await requireUser();
+  const filters = [eq(persons.ownerId, user.id), isNull(persons.deletedAt)];
+
+  if (search && search.trim()) {
+    const q = `%${search.trim()}%`;
+    const match = or(
+      ilike(persons.firstName, q),
+      ilike(persons.lastName, q),
+      ilike(persons.email, q),
+    );
+    if (match) filters.push(match);
+  }
+
+  if (labelId) {
+    const labeled = db
+      .select({ id: entityLabels.entityId })
+      .from(entityLabels)
+      .where(
+        and(
+          eq(entityLabels.entityType, "person"),
+          eq(entityLabels.labelId, labelId),
+        ),
+      );
+    filters.push(inArray(persons.id, labeled));
+  }
+
+  return db.query.persons.findMany({
+    where: and(...filters),
+    with: { organization: { columns: { name: true } } },
+    orderBy: [desc(persons.createdAt)],
+    limit: 50_000,
+  });
+}
+
 // --- Empresas ---------------------------------------------------------------
 export async function listOrganizations(search?: string) {
   const user = await requireUser();
@@ -116,6 +152,34 @@ export type OrganizationListItem = Awaited<
   ReturnType<typeof listOrganizations>
 >[number];
 export type OrganizationDetail = Awaited<ReturnType<typeof getOrganization>>;
+
+/** Empresas completas para exportar a CSV (con nº de contactos). */
+export async function listOrganizationsForExport(search?: string) {
+  const user = await requireUser();
+  const filters = [
+    eq(organizations.ownerId, user.id),
+    isNull(organizations.deletedAt),
+  ];
+
+  if (search && search.trim()) {
+    const q = `%${search.trim()}%`;
+    const match = or(
+      ilike(organizations.name, q),
+      ilike(organizations.domain, q),
+      ilike(organizations.industry, q),
+    );
+    if (match) filters.push(match);
+  }
+
+  return db.query.organizations.findMany({
+    where: and(...filters),
+    with: {
+      persons: { columns: { id: true }, where: isNull(persons.deletedAt) },
+    },
+    orderBy: [desc(organizations.createdAt)],
+    limit: 50_000,
+  });
+}
 
 // --- Contadores -------------------------------------------------------------
 export async function countPersons() {

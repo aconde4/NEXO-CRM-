@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Building2,
+  Download,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -106,10 +107,27 @@ export function OrganizationsView({
             className="pl-9"
           />
         </div>
-        <Button onClick={openCreate}>
-          <Plus />
-          Nueva empresa
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="shrink-0"
+            render={
+              <a
+                href={`/api/organizations/export${
+                  query ? `?q=${encodeURIComponent(query)}` : ""
+                }`}
+              />
+            }
+          >
+            <Download />
+            <span className="hidden sm:inline">Exportar</span>
+          </Button>
+          <Button onClick={openCreate} className="shrink-0">
+            <Plus />
+            <span className="hidden sm:inline">Nueva empresa</span>
+            <span className="sm:hidden">Nueva</span>
+          </Button>
+        </div>
       </div>
 
       {organizations.length === 0 ? (

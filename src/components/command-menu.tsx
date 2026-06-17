@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 
 import { navGroups, settingsNavItem } from "@/lib/navigation";
 import {
@@ -57,6 +57,13 @@ export function CommandMenu({
           >
             <Plus />
             Nueva actividad
+          </CommandItem>
+          <CommandItem
+            value="importar contactos csv excel"
+            onSelect={() => go("/contacts/import")}
+          >
+            <Upload />
+            Importar contactos
           </CommandItem>
         </CommandGroup>
 
