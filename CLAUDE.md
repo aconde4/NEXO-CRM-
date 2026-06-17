@@ -30,3 +30,19 @@ Next.js 16 (App Router, RSC) · TypeScript estricto · Tailwind v4 · shadcn/ui
 - Toda mutación con validación Zod. Idioma de la interfaz: **español**.
 - Secretos solo en `.env.local` (nunca al repo). Plantilla en `.env.example`.
 - shadcn/Base UI: para enlaces usa `render={<Link href=… />}`, no `asChild`.
+
+## Notas de desarrollo (gotchas importantes)
+- **Probar sin Google:** abre `http://localhost:3000/api/dev-login` (solo en dev) o
+  el enlace "Entrar como desarrollador" en `/login`. Crea una sesión real sin OAuth.
+- **Datos de ejemplo:** `pnpm db:seed` (empresas, contactos y etiquetas).
+- **Verificación con Claude Preview:** las **lecturas** del DOM con `preview_eval`
+  funcionan; pero `preview_screenshot` falla por el websocket HMR en dev, y las
+  **superposiciones de Base UI** (popover, dropdown, command/⌘K, dialog) **no se abren
+  con clics sintéticos** del navegador headless. Verifica leyendo el DOM o a nivel de
+  BD con un script `tsx`, no con capturas ni clics en overlays.
+- **Migraciones:** usar `pnpm db:generate` + `pnpm db:migrate` (NO `db:push`, que pide
+  TTY interactiva).
+- **Entorno:** `pnpm` (Node vía `pnpm env`). Contraseña de Supabase con `@` va
+  codificada como `%40` en la URL de conexión.
+- **Tablas/formularios:** tablas propias (no TanStack aún); para selects, `<select>`
+  nativo estilizado. Formularios con react-hook-form + zodResolver.
