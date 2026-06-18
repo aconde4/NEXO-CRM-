@@ -66,7 +66,6 @@ export const settingsNavItem: NavItem = {
   title: "Ajustes",
   href: "/settings",
   icon: Settings,
-  soon: true,
 };
 
 /** Lista plana de todos los ítems, útil para títulos y migas de pan. */

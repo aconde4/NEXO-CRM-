@@ -1,0 +1,64 @@
+"use server";
+
+import { and, eq, sql } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+
+import { requireUser } from "@/lib/session";
+import {
+  savedViewSchema,
+  type SavedViewValues,
+} from "@/lib/validations/saved-view";
+import { db } from "@/server/db";
+import { savedViews } from "@/server/db/schema";
+
+function pathFor(entityType: "person" | "organization") {
+  return entityType === "person" ? "/contacts" : "/organizations";
+}
+
+/** Quita claves vacías de los filtros para no guardar ruido. */
+function cleanFilters(filters: SavedViewValues["filters"]) {
+  const out: SavedViewValues["filters"] = {};
+  if (filters.q?.trim()) out.q = filters.q.trim();
+  if (filters.label?.trim()) out.label = filters.label.trim();
+  if (filters.sort?.trim()) out.sort = filters.sort.trim();
+  return out;
+}
+
+export async function createSavedView(raw: SavedViewValues) {
+  const user = await requireUser();
+  const data = savedViewSchema.parse(raw);
+
+  const [{ max } = { max: 0 }] = await db
+    .select({ max: sql<number>`coalesce(max(${savedViews.position}), 0)` })
+    .from(savedViews)
+    .where(
+      and(
+        eq(savedViews.ownerId, user.id),
+        eq(savedViews.entityType, data.entityType),
+      ),
+    );
+
+  const [row] = await db
+    .insert(savedViews)
+    .values({
+      name: data.name.trim(),
+      entityType: data.entityType,
+      filters: cleanFilters(data.filters),
+      position: Number(max) + 1,
+      ownerId: user.id,
+    })
+    .returning({ id: savedViews.id });
+
+  if (!row) throw new Error("No se pudo guardar la vista");
+  revalidatePath(pathFor(data.entityType));
+  return { id: row.id };
+}
+
+export async function deleteSavedView(id: string) {
+  const user = await requireUser();
+  const [row] = await db
+    .delete(savedViews)
+    .where(and(eq(savedViews.id, id), eq(savedViews.ownerId, user.id)))
+    .returning({ entityType: savedViews.entityType });
+  if (row) revalidatePath(pathFor(row.entityType));
+}

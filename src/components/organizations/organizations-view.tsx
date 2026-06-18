@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import type { CustomFieldDef } from "@/lib/custom-fields";
 import { deleteOrganization } from "@/server/actions/contacts";
 import { EntityAvatar } from "@/components/entity-avatar";
 import {
@@ -45,9 +46,11 @@ export type OrgRow = OrganizationInitial & {
 export function OrganizationsView({
   organizations,
   query,
+  customFieldDefs = [],
 }: {
   organizations: OrgRow[];
   query: string;
+  customFieldDefs?: CustomFieldDef[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -226,6 +229,7 @@ export function OrganizationsView({
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         organization={editing}
+        customFieldDefs={customFieldDefs}
       />
 
       <Dialog

@@ -21,6 +21,7 @@ export type PersonFormValues = z.infer<typeof personFormSchema>;
 
 export const organizationFormSchema = z.object({
   name: z.string().trim().min(1, "El nombre es obligatorio").max(160),
+  tradeName: z.string().max(160).optional(),
   domain: z.string().max(160).optional(),
   website: emptyOrUrl,
   phone: z.string().max(40).optional(),

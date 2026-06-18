@@ -66,7 +66,7 @@ export const IMPORT_FIELDS: ImportField[] = [
 ];
 
 /** Minúsculas + sin acentos + sin espacios sobrantes, para comparar cabeceras. */
-function normalize(value: string): string {
+export function normalizeHeader(value: string): string {
   return value
     .toLowerCase()
     .normalize("NFD")
@@ -77,21 +77,30 @@ function normalize(value: string): string {
 /**
  * Adivina el mapeo columna→campo a partir de las cabeceras del archivo.
  * Devuelve, por cada campo, el índice de columna detectado (o null).
+ * Las claves de campos personalizados van prefijadas con `cf:`.
  */
 export function guessMapping(
   headers: string[],
-): Record<ImportFieldKey, number | null> {
-  const normalized = headers.map(normalize);
+  customLabels: { key: string; label: string }[] = [],
+): Record<string, number | null> {
+  const normalized = headers.map(normalizeHeader);
   const used = new Set<number>();
-  const result = {} as Record<ImportFieldKey, number | null>;
+  const result: Record<string, number | null> = {};
+
+  const match = (candidates: string[]) => {
+    const wanted = candidates.map(normalizeHeader);
+    const index = normalized.findIndex(
+      (h, i) => !used.has(i) && h.length > 0 && wanted.includes(h),
+    );
+    if (index >= 0) used.add(index);
+    return index >= 0 ? index : null;
+  };
 
   for (const field of IMPORT_FIELDS) {
-    const candidates = [field.label, ...field.aliases].map(normalize);
-    const index = normalized.findIndex(
-      (h, i) => !used.has(i) && h.length > 0 && candidates.includes(h),
-    );
-    result[field.key] = index >= 0 ? index : null;
-    if (index >= 0) used.add(index);
+    result[field.key] = match([field.label, ...field.aliases]);
+  }
+  for (const cf of customLabels) {
+    result[`cf:${cf.key}`] = match([cf.label]);
   }
 
   return result;

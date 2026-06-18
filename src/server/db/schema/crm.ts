@@ -7,13 +7,19 @@ import { relations } from "drizzle-orm";
 import {
   boolean,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
+import type {
+  CustomEntityType,
+  CustomFieldType,
+} from "@/lib/custom-fields";
 import { users } from "./auth";
 
 // Tipos reutilizables (validados además con Zod en la capa de datos).
@@ -46,6 +52,7 @@ export const organizations = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
+    tradeName: text("trade_name"),
     domain: text("domain"),
     website: text("website"),
     phone: text("phone"),
@@ -213,6 +220,63 @@ export const activityLog = pgTable(
   (t) => [
     index("activity_log_entity_idx").on(t.entityType, t.entityId),
     index("activity_log_created_idx").on(t.createdAt),
+  ],
+);
+
+// --- Campos personalizados (definiciones) -----------------------------------
+export const customFieldDefs = pgTable(
+  "custom_field_defs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entityType: text("entity_type").$type<CustomEntityType>().notNull(),
+    key: text("key").notNull(),
+    label: text("label").notNull(),
+    type: text("type").$type<CustomFieldType>().default("text").notNull(),
+    options: jsonb("options").$type<string[]>().default([]).notNull(),
+    required: boolean("required").default(false).notNull(),
+    position: integer("position").default(0).notNull(),
+    ownerId: text("owner_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
+    ...timestamps,
+  },
+  (t) => [
+    index("custom_field_defs_owner_idx").on(t.ownerId),
+    index("custom_field_defs_entity_idx").on(t.entityType),
+    uniqueIndex("custom_field_defs_key_unique").on(
+      t.ownerId,
+      t.entityType,
+      t.key,
+    ),
+  ],
+);
+
+// --- Vistas guardadas (saved views) -----------------------------------------
+export type SavedViewFilters = {
+  q?: string;
+  label?: string;
+  sort?: string;
+};
+
+export const savedViews = pgTable(
+  "saved_views",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    entityType: text("entity_type").$type<CustomEntityType>().notNull(),
+    filters: jsonb("filters")
+      .$type<SavedViewFilters>()
+      .default({})
+      .notNull(),
+    position: integer("position").default(0).notNull(),
+    ownerId: text("owner_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
+    ...timestamps,
+  },
+  (t) => [
+    index("saved_views_owner_idx").on(t.ownerId),
+    index("saved_views_entity_idx").on(t.entityType),
   ],
 );
 

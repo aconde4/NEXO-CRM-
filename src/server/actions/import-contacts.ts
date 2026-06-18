@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+import { sanitizeCustomFields } from "@/lib/custom-fields";
 import { requireUser } from "@/lib/session";
 import {
   MAX_IMPORT_ROWS,
@@ -13,6 +14,7 @@ import {
   type ImportRow,
 } from "@/lib/validations/import";
 import { db } from "@/server/db";
+import { listCustomFieldDefs } from "@/server/queries/custom-fields";
 import { activityLog, organizations, persons } from "@/server/db/schema";
 
 export type RawImportRow = {
@@ -23,6 +25,7 @@ export type RawImportRow = {
   title?: string;
   orgName?: string;
   source?: string;
+  customFields?: Record<string, unknown>;
 };
 
 export type ImportSummary = {
@@ -39,7 +42,12 @@ function clean(value: string | undefined): string | undefined {
 }
 
 function isEmptyRow(raw: RawImportRow): boolean {
-  return !Object.values(raw).some((v) => v && v.trim());
+  const { customFields, ...rest } = raw;
+  const hasBuiltin = Object.values(rest).some((v) => v && v.trim());
+  const hasCustom = customFields
+    ? Object.values(customFields).some((v) => v != null && String(v).trim())
+    : false;
+  return !hasBuiltin && !hasCustom;
 }
 
 function chunk<T>(arr: T[], size: number): T[][] {
@@ -54,6 +62,7 @@ export async function importContacts(
 ): Promise<ImportSummary> {
   const user = await requireUser();
   const options = importOptionsSchema.parse(rawOptions);
+  const customDefs = await listCustomFieldDefs("person");
 
   if (rawRows.length > MAX_IMPORT_ROWS) {
     throw new Error(
@@ -62,7 +71,7 @@ export async function importContacts(
   }
 
   const errors: { row: number; message: string }[] = [];
-  const valid: ImportRow[] = [];
+  const valid: { data: ImportRow; custom: Record<string, unknown> }[] = [];
 
   rawRows.forEach((raw, i) => {
     // Nº de fila para el usuario: +1 cabecera, +1 base-1.
@@ -86,12 +95,19 @@ export async function importContacts(
       });
       return;
     }
-    valid.push(parsed.data);
+    valid.push({
+      data: parsed.data,
+      custom: sanitizeCustomFields(customDefs, raw.customFields),
+    });
   });
 
   // Emails existentes (para dedupe contra la BD).
   const existingPersons = await db
-    .select({ id: persons.id, email: persons.email })
+    .select({
+      id: persons.id,
+      email: persons.email,
+      customFields: persons.customFields,
+    })
     .from(persons)
     .where(
       and(
@@ -100,9 +116,16 @@ export async function importContacts(
         isNotNull(persons.email),
       ),
     );
-  const emailToId = new Map<string, string>();
+  const emailToExisting = new Map<
+    string,
+    { id: string; customFields: Record<string, unknown> }
+  >();
   for (const p of existingPersons) {
-    if (p.email) emailToId.set(p.email.toLowerCase(), p.id);
+    if (p.email)
+      emailToExisting.set(p.email.toLowerCase(), {
+        id: p.id,
+        customFields: p.customFields ?? {},
+      });
   }
 
   // Empresas existentes + creación al vuelo de las que falten.
@@ -116,9 +139,9 @@ export async function importContacts(
   for (const o of existingOrgs) orgByName.set(o.name.toLowerCase(), o.id);
 
   const newOrgNames = new Map<string, string>(); // lower → casing original
-  for (const row of valid) {
-    if (row.orgName && !orgByName.has(row.orgName.toLowerCase())) {
-      newOrgNames.set(row.orgName.toLowerCase(), row.orgName);
+  for (const { data } of valid) {
+    if (data.orgName && !orgByName.has(data.orgName.toLowerCase())) {
+      newOrgNames.set(data.orgName.toLowerCase(), data.orgName);
     }
   }
   if (newOrgNames.size > 0) {
@@ -136,11 +159,12 @@ export async function importContacts(
   const seenEmails = new Set<string>();
   const toInsert: (typeof persons.$inferInsert)[] = [];
 
-  for (const row of valid) {
+  for (const { data: row, custom } of valid) {
     const orgId = row.orgName
       ? (orgByName.get(row.orgName.toLowerCase()) ?? null)
       : null;
     const emailLower = row.email?.toLowerCase();
+    const hasCustom = Object.keys(custom).length > 0;
 
     if (emailLower) {
       if (seenEmails.has(emailLower)) {
@@ -149,8 +173,8 @@ export async function importContacts(
       }
       seenEmails.add(emailLower);
 
-      const existingId = emailToId.get(emailLower);
-      if (existingId) {
+      const existing = emailToExisting.get(emailLower);
+      if (existing) {
         if (options.dedupe === "update") {
           await db
             .update(persons)
@@ -161,8 +185,11 @@ export async function importContacts(
               ...(row.title !== undefined ? { title: row.title } : {}),
               ...(row.source !== undefined ? { source: row.source } : {}),
               ...(orgId !== null ? { orgId } : {}),
+              ...(hasCustom
+                ? { customFields: { ...existing.customFields, ...custom } }
+                : {}),
             })
-            .where(and(eq(persons.id, existingId), eq(persons.ownerId, user.id)));
+            .where(and(eq(persons.id, existing.id), eq(persons.ownerId, user.id)));
           updated++;
         } else {
           skipped++;
@@ -179,6 +206,7 @@ export async function importContacts(
       title: row.title ?? null,
       orgId,
       source: row.source ?? null,
+      customFields: custom,
       ownerId: user.id,
     });
   }

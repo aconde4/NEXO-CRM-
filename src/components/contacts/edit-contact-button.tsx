@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Pencil } from "lucide-react";
 
+import type { CustomFieldDef } from "@/lib/custom-fields";
 import { Button } from "@/components/ui/button";
 import {
   ContactFormDialog,
@@ -13,9 +14,11 @@ import {
 export function EditContactButton({
   contact,
   organizations,
+  customFieldDefs = [],
 }: {
   contact: ContactInitial;
   organizations: OrgOption[];
+  customFieldDefs?: CustomFieldDef[];
 }) {
   const [open, setOpen] = React.useState(false);
   return (
@@ -29,6 +32,7 @@ export function EditContactButton({
         onOpenChange={setOpen}
         organizations={organizations}
         contact={contact}
+        customFieldDefs={customFieldDefs}
       />
     </>
   );

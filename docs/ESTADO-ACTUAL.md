@@ -10,7 +10,7 @@
 
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
-- **Fase 1 · Contactos y Empresas:** **~90% hecho** y verificado.
+- **Fase 1 · Contactos y Empresas:** **~95% hecho**.
   - Tablas CRM (migración `0001`) con índices y relaciones.
   - **Contactos:** listado con búsqueda, crear/editar (diálogo), borrar (reversible),
     ficha con detalles + línea de tiempo + notas, **etiquetas con color y filtro**.
@@ -28,6 +28,14 @@
   - **Exportación CSV (1.14):** contactos y empresas a CSV (botón "Exportar"),
     respetando los filtros activos, con BOM UTF-8 para acentos en Excel
     (`/api/contacts/export`, `/api/organizations/export`).
+  - **Campos personalizados (1.8):** motor definido por el usuario (texto, número,
+    monetario, fecha, sí/no, selección, selección múltiple, URL) en contactos y
+    empresas. Gestión en **Ajustes**, render dinámico en **fichas y formularios**,
+    valores en `custom_fields` (JSONB), **mapeo en la importación** y **columnas en la
+    exportación**. Añadido **`trade_name` (nombre comercial)** de serie en empresas.
+  - **Vistas guardadas (1.5):** barra de vistas en Contactos para guardar/aplicar/
+    borrar combinaciones de filtros (búsqueda + etiqueta + **orden**). Tabla
+    `saved_views`.
   - **Front pulido (nivel profesional):** paleta de comandos **⌘K**, skeletons de
     carga (`loading.tsx`), página 404 cuidada, chips de etiquetas, microinteracciones.
   - Dashboard con contadores reales (contactos, empresas, tareas hoy, vencidas).
@@ -42,18 +50,22 @@
 ## ⏭️ Siguiente paso concreto
 
 Continuar la **Fase 1** por la primera tarea sin marcar en
-[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) → FASE 1. Orden sugerido:
-1. **1.8 Campos personalizados** (motor + `trade_name` de serie en empresas). Al
-   hacerlo, ampliar el import (1.13) para mapear a campos personalizados.
-2. **1.5 Vistas guardadas** (saved views de filtros).
-3. **1.12 Adjuntos** (Supabase Storage).
-4. (Opcional) etiquetas también en empresas; editor de notas enriquecido (Tiptap).
+[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) → FASE 1. Queda:
+1. **1.12 Adjuntos** (Supabase Storage) — última tarea para cerrar la Fase 1.
+2. (Mejora) columnas y **filtros por campo personalizado** en los listados,
+   apoyados en las vistas guardadas.
+3. (Opcional) etiquetas también en empresas; editor de notas enriquecido (Tiptap).
 
-Alternativa: saltar a **Fase 2 · Pipeline** (Kanban de negocios) para cerrar el MVP
-prioritario y volver luego a los extras de la Fase 1.
+> **Verificación pendiente:** a petición del usuario, la comprobación en navegador
+> (login de desarrollo) de **1.8 y 1.5** se hará al cerrar **toda** la Fase 1 (tras
+> 1.12). Compila: `pnpm build`, `pnpm typecheck` y `pnpm lint` (archivos nuevos) en
+> verde; migración `0002` aplicada.
 
-> **Hecho en la última sesión:** 1.13 Importación CSV/Excel y 1.14 Exportación CSV
-> (ver changelog abajo). Antes: 1.10 Actividades/tareas.
+Después de la Fase 1 → **Fase 2 · Pipeline** (Kanban de negocios), fin del MVP
+prioritario.
+
+> **Hecho en la última sesión:** 1.8 Campos personalizados (+ `trade_name`) y 1.5
+> Vistas guardadas. Antes: 1.13/1.14 import/export, 1.10 actividades.
 
 Alternativa: saltar a **Fase 2 · Pipeline** (negocios) si se prefiere completar antes
 el MVP visual, y volver a los extras de la Fase 1 después.
@@ -97,6 +109,28 @@ el MVP visual, y volver a los extras de la Fase 1 después.
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-18 (8) — Campos personalizados + vistas guardadas (1.8 y 1.5)
+- **Migración `0002`** aplicada: `custom_field_defs`, `saved_views` y `trade_name`
+  en `organizations`.
+- **Campos personalizados (1.8):** módulo compartido `lib/custom-fields.ts` (tipos,
+  iconos, slugify, coerción y formateo de valores), validación, queries y actions
+  (crear/editar/borrar/reordenar). Gestión en **Ajustes**
+  (`custom-fields-manager.tsx`), sección dinámica de inputs en los formularios de
+  contacto y empresa (`custom-fields-section.tsx`) y filas en las fichas
+  (`custom-fields-list.tsx`). Valores en `custom_fields` (JSONB), saneados por tipo en
+  las mutaciones. **`trade_name`** de serie en empresas (form, ficha, export).
+  **Import** ampliado para mapear columnas a campos personalizados; **export** añade
+  una columna por campo.
+- **Vistas guardadas (1.5):** `saved_views` + validación/queries/actions. Barra de
+  vistas en Contactos (`saved-views-bar.tsx`): guardar la combinación actual
+  (búsqueda + etiqueta + **orden**), aplicarla con un clic y borrarla. Añadido
+  selector de **orden** (recientes/antiguos/nombre) al listado de contactos.
+- Los formularios de contacto/empresa se remontan al abrir (estado limpio sin
+  efectos), evitando avisos de React.
+- Seed con `trade_name` y 2 campos personalizados de ejemplo.
+- Build, typecheck y lint (archivos nuevos) en verde. **Verificación en navegador
+  aplazada** al cierre de la Fase 1 (tras 1.12), por indicación del usuario.
 
 ### 2026-06-17 (7) — Importación/exportación CSV-Excel (Fases 1.13 y 1.14)
 - **Importación (1.13):** asistente `/contacts/import` de 4 pasos (subir → mapear →

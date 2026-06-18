@@ -14,9 +14,11 @@ import { notFound } from "next/navigation";
 
 import { fullName, formatDate, relativeDate } from "@/lib/format";
 import { getPerson, listOrganizationOptions } from "@/server/queries/contacts";
+import { listCustomFieldDefs } from "@/server/queries/custom-fields";
 import { getLabelsForPerson, listLabels } from "@/server/queries/labels";
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
 import { EditContactButton } from "@/components/contacts/edit-contact-button";
+import { CustomFieldsList } from "@/components/custom-fields/custom-fields-list";
 import { EntityAvatar } from "@/components/entity-avatar";
 import { LabelPicker } from "@/components/contacts/label-picker";
 import { NoteComposer } from "@/components/note-composer";
@@ -44,10 +46,11 @@ export default async function ContactDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [person, organizations, allLabels] = await Promise.all([
+  const [person, organizations, allLabels, customFieldDefs] = await Promise.all([
     getPerson(id),
     listOrganizationOptions(),
     listLabels(),
+    listCustomFieldDefs("person"),
   ]);
 
   if (!person) notFound();
@@ -82,6 +85,7 @@ export default async function ContactDetailPage({
         </div>
         <EditContactButton
           organizations={organizations}
+          customFieldDefs={customFieldDefs}
           contact={{
             id: person.id,
             firstName: person.firstName,
@@ -91,6 +95,7 @@ export default async function ContactDetailPage({
             title: person.title,
             orgId: person.orgId,
             source: person.source,
+            customFields: person.customFields,
           }}
         />
       </div>
@@ -146,6 +151,15 @@ export default async function ContactDetailPage({
             <InfoRow icon={CalendarDays} label="Creado">
               {formatDate(person.createdAt)}
             </InfoRow>
+
+            {customFieldDefs.length > 0 ? (
+              <div className="space-y-3 border-t pt-3">
+                <CustomFieldsList
+                  defs={customFieldDefs}
+                  values={person.customFields}
+                />
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 

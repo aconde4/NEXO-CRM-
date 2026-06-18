@@ -10,8 +10,16 @@ config({ path: ".env.local" });
 async function main() {
   const { eq } = await import("drizzle-orm");
   const { db } = await import("./index");
-  const { users, organizations, persons, notes, labels, entityLabels, activities } =
-    await import("./schema");
+  const {
+    users,
+    organizations,
+    persons,
+    notes,
+    labels,
+    entityLabels,
+    activities,
+    customFieldDefs,
+  } = await import("./schema");
 
   const email =
     (process.env.ALLOWED_EMAILS ?? "dev@nexo.local").split(",")[0]?.trim() ||
@@ -41,6 +49,7 @@ async function main() {
   const orgsData = [
     {
       name: "Innovatech Soluciones",
+      tradeName: "Innovatech",
       domain: "innovatech.es",
       website: "https://innovatech.es",
       industry: "Software",
@@ -49,6 +58,7 @@ async function main() {
     },
     {
       name: "Marbella Hoteles",
+      tradeName: "MH Resorts",
       domain: "marbellahoteles.com",
       website: "https://marbellahoteles.com",
       industry: "Turismo",
@@ -170,8 +180,28 @@ async function main() {
     .insert(activities)
     .values(activitiesData.map((a) => ({ ...a, ownerId: user.id })));
 
+  // Campos personalizados de ejemplo (Fase 1.8).
+  await db.insert(customFieldDefs).values([
+    {
+      entityType: "person" as const,
+      key: "linkedin",
+      label: "LinkedIn",
+      type: "url" as const,
+      position: 1,
+      ownerId: user.id,
+    },
+    {
+      entityType: "organization" as const,
+      key: "ingresos_anuales",
+      label: "Ingresos anuales",
+      type: "monetary" as const,
+      position: 1,
+      ownerId: user.id,
+    },
+  ]);
+
   console.log(
-    `✓ Sembrados ${insertedOrgs.length} empresas, ${insertedPeople.length} contactos, ${createdLabels.length} etiquetas y ${activitiesData.length} actividades para ${email}.`,
+    `✓ Sembrados ${insertedOrgs.length} empresas, ${insertedPeople.length} contactos, ${createdLabels.length} etiquetas, ${activitiesData.length} actividades y 2 campos personalizados para ${email}.`,
   );
 }
 

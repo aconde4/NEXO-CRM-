@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Pencil } from "lucide-react";
 
+import type { CustomFieldDef } from "@/lib/custom-fields";
 import { Button } from "@/components/ui/button";
 import {
   OrganizationFormDialog,
@@ -11,8 +12,10 @@ import {
 
 export function EditOrganizationButton({
   organization,
+  customFieldDefs = [],
 }: {
   organization: OrganizationInitial;
+  customFieldDefs?: CustomFieldDef[];
 }) {
   const [open, setOpen] = React.useState(false);
   return (
@@ -25,6 +28,7 @@ export function EditOrganizationButton({
         open={open}
         onOpenChange={setOpen}
         organization={organization}
+        customFieldDefs={customFieldDefs}
       />
     </>
   );

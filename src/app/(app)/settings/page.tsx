@@ -1,24 +1,24 @@
-import { Settings } from "lucide-react";
 import type { Metadata } from "next";
 
-import { ComingSoon } from "@/components/coming-soon";
+import { listAllCustomFieldDefs } from "@/server/queries/custom-fields";
+import { CustomFieldsManager } from "@/components/custom-fields/custom-fields-manager";
+import { PageHeader } from "@/components/page-header";
 
 export const metadata: Metadata = { title: "Ajustes" };
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const defs = await listAllCustomFieldDefs();
+
   return (
-    <ComingSoon
-      icon={Settings}
-      title="Ajustes"
-      description="Configura tu cuenta, buzones de correo, campos personalizados y embudos."
-      phase="Fase 0–1"
-      features={[
-        "Perfil y preferencias (zona horaria, idioma)",
-        "Buzones conectados y firma de correo",
-        "Campos personalizados y etiquetas",
-        "Embudos y etapas",
-        "Datos del remitente para RGPD",
-      ]}
-    />
+    <>
+      <PageHeader
+        title="Ajustes"
+        description="Configura los campos personalizados de tus contactos y empresas."
+      />
+      <CustomFieldsManager
+        personDefs={defs.person}
+        organizationDefs={defs.organization}
+      />
+    </>
   );
 }

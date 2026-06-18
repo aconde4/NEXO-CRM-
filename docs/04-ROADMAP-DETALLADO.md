@@ -60,14 +60,20 @@ notas e importación CSV. El núcleo de datos del CRM.
       múltiples valores más adelante.)*
 - [x] **1.4** Listado de contactos con búsqueda (tabla propia). *(orden/paginación
       avanzada y filtros por etiqueta → cuando lleguen etiquetas 1.9.)*
-- [ ] **1.5** Vistas guardadas (saved views) de filtros.
+- [x] **1.5** Vistas guardadas (saved views) de filtros. Barra de vistas en
+      Contactos: guardar la combinación actual (búsqueda + etiqueta + orden),
+      aplicarla con un clic y borrarla. Tabla `saved_views` (filtros en JSONB).
 - [x] **1.6** Ficha de contacto: datos + edición (diálogo) + línea de tiempo.
 - [x] **1.7** Listado y ficha de empresas (con sus contactos asociados).
-- [ ] **1.8** Motor de **campos personalizados** definidos por el usuario (texto,
-      número, **monetario**, fecha, selección…) en contactos y empresas: UI de
-      ajustes, render dinámico en fichas/formularios/listados y filtros. Añadir
-      **`trade_name` (nombre comercial)** de serie en empresas. → detalle en
+- [x] **1.8** Motor de **campos personalizados** definidos por el usuario (texto,
+      número, **monetario**, fecha, sí/no, selección, selección múltiple, URL) en
+      contactos y empresas: UI en **Ajustes** (crear/editar/borrar), render dinámico
+      en **fichas y formularios**, valores en `custom_fields` (JSONB), y **mapeo en la
+      importación** + **columnas en la exportación**. Añadido **`trade_name` (nombre
+      comercial)** de serie en empresas. → detalle en
       [`06-CAMPOS-Y-PERSONALIZACION.md`](06-CAMPOS-Y-PERSONALIZACION.md).
+      *(Pendiente como mejora: columnas opcionales y filtros por campo personalizado
+      en los listados; se apoyarán en las vistas guardadas 1.5.)*
 - [x] **1.9** Sistema de etiquetas con colores: crear, asignar/quitar (selector en
       la ficha), chips en el listado y **filtro por etiqueta**.
 - [x] **1.10** Actividades/tareas: crear, completar, vencimiento, "pendientes de hoy".
@@ -87,13 +93,13 @@ notas e importación CSV. El núcleo de datos del CRM.
       `/api/organizations/export`).
 - [x] **1.15** Registro en `activity_log` de las mutaciones (creado/editado/borrado/nota).
 
-> **Estado Fase 1 (~90%):** Contactos y Empresas operativos (crear/editar/borrar,
-> buscar, fichas con contactos/notas/timeline) + **etiquetas con colores y filtro** +
-> **actividades/tareas** (página con filtros, panel en fichas, agenda en el panel) +
-> **importación CSV/Excel con mapeo y dedupe** y **exportación CSV** (contactos y
-> empresas). Front pulido a nivel profesional: **paleta de comandos (⌘K)**, skeletons
-> de carga, página 404 cuidada, chips de etiquetas. Verificado vía login de desarrollo.
-> Pendiente: campos personalizados (1.8), vistas guardadas (1.5) y adjuntos (1.12).
+> **Estado Fase 1 (~95%):** Contactos y Empresas operativos (crear/editar/borrar,
+> buscar, fichas con contactos/notas/timeline) + **etiquetas** + **actividades/tareas**
+> + **importación CSV/Excel con mapeo y dedupe** + **exportación CSV** + **campos
+> personalizados** (Ajustes, fichas, formularios, import/export) con `trade_name` de
+> serie + **vistas guardadas** y orden en Contactos. Front pulido a nivel profesional:
+> **paleta de comandos (⌘K)**, skeletons de carga, página 404 cuidada, chips.
+> Pendiente: adjuntos (1.12) y, como mejora, filtros/columnas por campo personalizado.
 
 ### Criterios de aceptación
 - Importas un CSV de contactos, los ves en una tabla filtrable, abres una ficha,

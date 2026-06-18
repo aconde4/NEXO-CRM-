@@ -4,7 +4,6 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Building2,
   Check,
   Download,
   MoreHorizontal,
@@ -18,8 +17,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import type { CustomFieldDef } from "@/lib/custom-fields";
 import { fullName } from "@/lib/format";
 import { deletePerson } from "@/server/actions/contacts";
+import type { SavedView } from "@/server/queries/saved-views";
+import { SavedViewsBar } from "@/components/saved-views/saved-views-bar";
 import { EntityAvatar } from "@/components/entity-avatar";
 import { LabelChips, type LabelChip } from "@/components/label-chips";
 import {
@@ -51,18 +53,33 @@ export type ContactRow = ContactInitial & {
   labels: LabelChip[];
 };
 
+const SORT_OPTIONS: { value: string; label: string }[] = [
+  { value: "recent", label: "Recientes" },
+  { value: "oldest", label: "Más antiguos" },
+  { value: "name", label: "Nombre A–Z" },
+];
+
+const sortSelectClass =
+  "border-input dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 h-9 shrink-0 rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none transition focus-visible:ring-[3px]";
+
 export function ContactsView({
   contacts,
   organizations,
   labels,
   query,
   activeLabel,
+  sort,
+  savedViews,
+  customFieldDefs = [],
 }: {
   contacts: ContactRow[];
   organizations: OrgOption[];
   labels: LabelChip[];
   query: string;
   activeLabel: string;
+  sort: string;
+  savedViews: SavedView[];
+  customFieldDefs?: CustomFieldDef[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -79,11 +96,12 @@ export function ContactsView({
   const exportParams = new URLSearchParams();
   if (query) exportParams.set("q", query);
   if (activeLabel) exportParams.set("label", activeLabel);
+  if (sort && sort !== "recent") exportParams.set("sort", sort);
   const exportHref = `/api/contacts/export${
     exportParams.size ? `?${exportParams}` : ""
   }`;
 
-  function pushParams(next: { q?: string; label?: string }) {
+  function pushParams(next: { q?: string; label?: string; sort?: string }) {
     const params = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(next)) {
       if (value) params.set(key, value);
@@ -125,6 +143,13 @@ export function ContactsView({
 
   return (
     <>
+      <SavedViewsBar
+        entityType="person"
+        basePath="/contacts"
+        views={savedViews}
+        current={{ q: query, label: activeLabel, sort }}
+      />
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 items-center gap-2">
           <div className="relative w-full sm:max-w-xs">
@@ -177,6 +202,23 @@ export function ContactsView({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <select
+            className={sortSelectClass}
+            value={sort || "recent"}
+            onChange={(e) =>
+              pushParams({
+                sort: e.target.value === "recent" ? "" : e.target.value,
+              })
+            }
+            aria-label="Ordenar"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="flex items-center gap-2">
@@ -307,6 +349,7 @@ export function ContactsView({
         onOpenChange={setDialogOpen}
         organizations={organizations}
         contact={editing}
+        customFieldDefs={customFieldDefs}
       />
 
       <Dialog

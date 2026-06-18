@@ -15,11 +15,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  IMPORT_FIELDS,
-  guessMapping,
-  type ImportFieldKey,
-} from "@/lib/import/fields";
+import type { CustomFieldDef } from "@/lib/custom-fields";
+import { IMPORT_FIELDS, guessMapping } from "@/lib/import/fields";
 import { detectFormat, parseFile, type ParsedFile } from "@/lib/import/parse";
 import { importRowSchema } from "@/lib/validations/import";
 import { cn } from "@/lib/utils";
@@ -35,7 +32,7 @@ import { Label } from "@/components/ui/label";
 
 type Step = "upload" | "map" | "preview" | "result";
 
-type Mapping = Record<ImportFieldKey, number | null>;
+type Mapping = Record<string, number | null>;
 
 const selectClass =
   "border-input dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none transition focus-visible:ring-[3px]";
@@ -58,14 +55,29 @@ function clean(value: string | undefined): string | undefined {
 }
 
 function isEmptyRaw(raw: RawImportRow): boolean {
-  return !Object.values(raw).some((v) => v && v.trim());
+  const { customFields, ...rest } = raw;
+  const hasBuiltin = Object.values(rest).some((v) => v && v.trim());
+  const hasCustom = customFields
+    ? Object.values(customFields).some((v) => v != null && String(v).trim())
+    : false;
+  return !hasBuiltin && !hasCustom;
 }
 
-function buildRow(row: string[], mapping: Mapping): RawImportRow {
-  const get = (key: ImportFieldKey) => {
+function buildRow(
+  row: string[],
+  mapping: Mapping,
+  customDefs: CustomFieldDef[],
+): RawImportRow {
+  const get = (key: string) => {
     const idx = mapping[key];
     return idx == null ? undefined : row[idx];
   };
+  const customFields: Record<string, unknown> = {};
+  for (const def of customDefs) {
+    const value = get(`cf:${def.key}`);
+    if (value !== undefined && String(value).trim() !== "")
+      customFields[def.key] = value;
+  }
   return {
     firstName: get("firstName"),
     lastName: get("lastName"),
@@ -74,6 +86,7 @@ function buildRow(row: string[], mapping: Mapping): RawImportRow {
     title: get("title"),
     orgName: get("orgName"),
     source: get("source"),
+    customFields,
   };
 }
 
@@ -116,7 +129,11 @@ function analyze(rows: RawImportRow[]) {
   return { detail, counts };
 }
 
-export function ImportWizard() {
+export function ImportWizard({
+  customFieldDefs = [],
+}: {
+  customFieldDefs?: CustomFieldDef[];
+}) {
   const router = useRouter();
   const [step, setStep] = React.useState<Step>("upload");
   const [fileName, setFileName] = React.useState("");
@@ -130,8 +147,10 @@ export function ImportWizard() {
 
   const mappedRows = React.useMemo(
     () =>
-      parsed && mapping ? parsed.rows.map((r) => buildRow(r, mapping)) : [],
-    [parsed, mapping],
+      parsed && mapping
+        ? parsed.rows.map((r) => buildRow(r, mapping, customFieldDefs))
+        : [],
+    [parsed, mapping, customFieldDefs],
   );
   const analysis = React.useMemo(() => analyze(mappedRows), [mappedRows]);
 
@@ -148,7 +167,12 @@ export function ImportWizard() {
         return;
       }
       setParsed(result);
-      setMapping(guessMapping(result.headers));
+      setMapping(
+        guessMapping(
+          result.headers,
+          customFieldDefs.map((d) => ({ key: d.key, label: d.label })),
+        ),
+      );
       setFileName(file.name);
       setStep("map");
     } catch (error) {
@@ -310,6 +334,35 @@ export function ImportWizard() {
                           ...m!,
                           [field.key]:
                             e.target.value === "" ? null : Number(e.target.value),
+                        }))
+                      }
+                    >
+                      <option value="">— No importar —</option>
+                      {parsed.headers.map((header, i) => (
+                        <option key={i} value={i}>
+                          {header || `Columna ${i + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+
+                {customFieldDefs.map((def) => (
+                  <div
+                    key={def.id}
+                    className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[180px_1fr]"
+                  >
+                    <Label className="text-sm">{def.label}</Label>
+                    <select
+                      className={selectClass}
+                      value={mapping[`cf:${def.key}`] ?? ""}
+                      onChange={(e) =>
+                        setMapping((m) => ({
+                          ...m!,
+                          [`cf:${def.key}`]:
+                            e.target.value === ""
+                              ? null
+                              : Number(e.target.value),
                         }))
                       }
                     >

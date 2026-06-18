@@ -4,6 +4,7 @@ import {
   Globe,
   MapPin,
   Phone,
+  Store,
   StickyNote,
   Tag,
   Users,
@@ -14,8 +15,10 @@ import { notFound } from "next/navigation";
 
 import { fullName, formatDate, relativeDate } from "@/lib/format";
 import { getOrganization } from "@/server/queries/contacts";
+import { listCustomFieldDefs } from "@/server/queries/custom-fields";
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
 import { EditOrganizationButton } from "@/components/organizations/edit-organization-button";
+import { CustomFieldsList } from "@/components/custom-fields/custom-fields-list";
 import { EntityAvatar } from "@/components/entity-avatar";
 import { NoteComposer } from "@/components/note-composer";
 import { Button } from "@/components/ui/button";
@@ -34,7 +37,10 @@ export default async function OrganizationDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const organization = await getOrganization(id);
+  const [organization, customFieldDefs] = await Promise.all([
+    getOrganization(id),
+    listCustomFieldDefs("organization"),
+  ]);
   if (!organization) notFound();
 
   const notesTimeline = organization.notes
@@ -67,15 +73,18 @@ export default async function OrganizationDetailPage({
           </div>
         </div>
         <EditOrganizationButton
+          customFieldDefs={customFieldDefs}
           organization={{
             id: organization.id,
             name: organization.name,
+            tradeName: organization.tradeName,
             domain: organization.domain,
             website: organization.website,
             phone: organization.phone,
             industry: organization.industry,
             size: organization.size,
             address: organization.address,
+            customFields: organization.customFields,
           }}
         />
       </div>
@@ -86,6 +95,9 @@ export default async function OrganizationDetailPage({
             <CardTitle className="text-base">Detalles</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
+            <InfoRow icon={Store} label="Nombre comercial">
+              {organization.tradeName ?? "—"}
+            </InfoRow>
             <InfoRow icon={Globe} label="Sitio web">
               {organization.website ? (
                 <a
@@ -115,6 +127,15 @@ export default async function OrganizationDetailPage({
             <InfoRow icon={CalendarDays} label="Creada">
               {formatDate(organization.createdAt)}
             </InfoRow>
+
+            {customFieldDefs.length > 0 ? (
+              <div className="space-y-3 border-t pt-3">
+                <CustomFieldsList
+                  defs={customFieldDefs}
+                  values={organization.customFields}
+                />
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 

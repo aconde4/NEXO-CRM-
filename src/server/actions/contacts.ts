@@ -3,6 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+import { sanitizeCustomFields } from "@/lib/custom-fields";
 import { requireUser } from "@/lib/session";
 import {
   noteFormSchema,
@@ -13,7 +14,10 @@ import {
   type PersonFormValues,
 } from "@/lib/validations/contact";
 import { db } from "@/server/db";
+import { listCustomFieldDefs } from "@/server/queries/custom-fields";
 import { activityLog, notes, organizations, persons } from "@/server/db/schema";
+
+type CustomFieldsInput = Record<string, unknown> | undefined;
 
 async function logEvent(
   actorId: string,
@@ -28,9 +32,13 @@ async function logEvent(
 }
 
 // --- Contactos --------------------------------------------------------------
-export async function createPerson(raw: PersonFormValues) {
+export async function createPerson(
+  raw: PersonFormValues,
+  customFields?: CustomFieldsInput,
+) {
   const user = await requireUser();
   const data = personFormSchema.parse(raw);
+  const defs = await listCustomFieldDefs("person");
 
   const [row] = await db
     .insert(persons)
@@ -42,6 +50,7 @@ export async function createPerson(raw: PersonFormValues) {
       title: nullify(data.title),
       orgId: nullify(data.orgId),
       source: nullify(data.source),
+      customFields: sanitizeCustomFields(defs, customFields),
       ownerId: user.id,
     })
     .returning({ id: persons.id });
@@ -54,9 +63,14 @@ export async function createPerson(raw: PersonFormValues) {
   return { id: row.id };
 }
 
-export async function updatePerson(id: string, raw: PersonFormValues) {
+export async function updatePerson(
+  id: string,
+  raw: PersonFormValues,
+  customFields?: CustomFieldsInput,
+) {
   const user = await requireUser();
   const data = personFormSchema.parse(raw);
+  const defs = await listCustomFieldDefs("person");
 
   await db
     .update(persons)
@@ -68,6 +82,7 @@ export async function updatePerson(id: string, raw: PersonFormValues) {
       title: nullify(data.title),
       orgId: nullify(data.orgId),
       source: nullify(data.source),
+      customFields: sanitizeCustomFields(defs, customFields),
     })
     .where(and(eq(persons.id, id), eq(persons.ownerId, user.id)));
 
@@ -89,20 +104,26 @@ export async function deletePerson(id: string) {
 }
 
 // --- Empresas ---------------------------------------------------------------
-export async function createOrganization(raw: OrganizationFormValues) {
+export async function createOrganization(
+  raw: OrganizationFormValues,
+  customFields?: CustomFieldsInput,
+) {
   const user = await requireUser();
   const data = organizationFormSchema.parse(raw);
+  const defs = await listCustomFieldDefs("organization");
 
   const [row] = await db
     .insert(organizations)
     .values({
       name: data.name.trim(),
+      tradeName: nullify(data.tradeName),
       domain: nullify(data.domain),
       website: nullify(data.website),
       phone: nullify(data.phone),
       industry: nullify(data.industry),
       size: nullify(data.size),
       address: nullify(data.address),
+      customFields: sanitizeCustomFields(defs, customFields),
       ownerId: user.id,
     })
     .returning({ id: organizations.id });
@@ -118,20 +139,24 @@ export async function createOrganization(raw: OrganizationFormValues) {
 export async function updateOrganization(
   id: string,
   raw: OrganizationFormValues,
+  customFields?: CustomFieldsInput,
 ) {
   const user = await requireUser();
   const data = organizationFormSchema.parse(raw);
+  const defs = await listCustomFieldDefs("organization");
 
   await db
     .update(organizations)
     .set({
       name: data.name.trim(),
+      tradeName: nullify(data.tradeName),
       domain: nullify(data.domain),
       website: nullify(data.website),
       phone: nullify(data.phone),
       industry: nullify(data.industry),
       size: nullify(data.size),
       address: nullify(data.address),
+      customFields: sanitizeCustomFields(defs, customFields),
     })
     .where(and(eq(organizations.id, id), eq(organizations.ownerId, user.id)));
 

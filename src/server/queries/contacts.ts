@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
+import { type SQL, and, asc, desc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 
 import { requireUser } from "@/lib/session";
 import { db } from "@/server/db";
@@ -12,8 +12,29 @@ import {
   persons,
 } from "@/server/db/schema";
 
+export type PersonSort = "recent" | "oldest" | "name";
+
+/** Criterio de orden para el listado de contactos. */
+function personOrderBy(sort?: string): SQL[] {
+  switch (sort) {
+    case "name":
+      return [
+        sql`${persons.lastName} asc nulls last`,
+        asc(persons.firstName),
+      ];
+    case "oldest":
+      return [asc(persons.createdAt)];
+    default:
+      return [desc(persons.createdAt)];
+  }
+}
+
 // --- Contactos --------------------------------------------------------------
-export async function listPersons(search?: string, labelId?: string) {
+export async function listPersons(
+  search?: string,
+  labelId?: string,
+  sort?: string,
+) {
   const user = await requireUser();
   const filters = [eq(persons.ownerId, user.id), isNull(persons.deletedAt)];
 
@@ -43,7 +64,7 @@ export async function listPersons(search?: string, labelId?: string) {
   return db.query.persons.findMany({
     where: and(...filters),
     with: { organization: { columns: { id: true, name: true } } },
-    orderBy: [desc(persons.createdAt)],
+    orderBy: personOrderBy(sort),
     limit: 200,
   });
 }
@@ -68,7 +89,11 @@ export type PersonListItem = Awaited<ReturnType<typeof listPersons>>[number];
 export type PersonDetail = Awaited<ReturnType<typeof getPerson>>;
 
 /** Contactos completos para exportar a CSV (mismos filtros, sin límite bajo). */
-export async function listPersonsForExport(search?: string, labelId?: string) {
+export async function listPersonsForExport(
+  search?: string,
+  labelId?: string,
+  sort?: string,
+) {
   const user = await requireUser();
   const filters = [eq(persons.ownerId, user.id), isNull(persons.deletedAt)];
 
@@ -98,7 +123,7 @@ export async function listPersonsForExport(search?: string, labelId?: string) {
   return db.query.persons.findMany({
     where: and(...filters),
     with: { organization: { columns: { name: true } } },
-    orderBy: [desc(persons.createdAt)],
+    orderBy: personOrderBy(sort),
     limit: 50_000,
   });
 }
