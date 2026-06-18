@@ -10,10 +10,11 @@
 
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
-- **Fase 2 · Pipeline/Negocios:** **~92%** — **Kanban operativo** (dnd-kit) con
+- **Fase 2 · Pipeline/Negocios:** **completa** — **Kanban operativo** (dnd-kit) con
   embudos múltiples, etapas configurables en Ajustes, totales por columna, previsión
   ponderada, estancado, ganado/perdido, **ficha de negocio** (`/deals/[id]`) con
-  tareas, notas y **participantes**. Pendiente: solo la vista de lista (2.10).
+  tareas, notas y **participantes**, y **vista de lista** (`/deals?view=list`) con
+  búsqueda, filtros por embudo/etapa/estado, ordenación y acciones por fila.
   Migraciones `0004` (pipeline) y `0005` (`deal_id` en actividades/notas).
 - **Fase 1 · Contactos y Empresas:** **completa** y verificada (vía login de
   desarrollo). Para subir adjuntos hace falta activar Supabase Storage (`SETUP.md`).
@@ -52,19 +53,18 @@
   - **Login de desarrollo** `GET /api/dev-login` (solo dev) para probar sin Google.
   - Datos de ejemplo: `pnpm db:seed` (4 empresas, 10 contactos, 3 etiquetas,
     5 actividades).
-- **Compila:** `pnpm build` ✅ y `pnpm typecheck` ✅. Verificado end-to-end en
-  navegador vía login de desarrollo (listados, fichas y creación de notas).
+- **Compila:** `pnpm typecheck` ✅, `pnpm lint` ✅ y `pnpm build` ✅. Verificado
+  vía login de desarrollo (listados, fichas, creación de notas, Kanban y lista de
+  negocios con filtros).
 - **Repo:** git, varios commits. Sin remoto en GitHub todavía.
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 1 completa. Fase 2 en marcha (~92%).** Kanban + ficha de negocio +
-participantes ya funcionan. Continúa la **FASE 2** en
-[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la última tarea sin marcar:
-1. **2.10** Vista de lista de negocios con filtros — con esto se **cierra la Fase 2**
-   (🎉 hito: CRM usable a diario).
-
-Con eso se cierra la Fase 2 (🎉 hito: CRM usable a diario).
+**Fase 2 completa.** El CRM ya cubre Contactos + Empresas + Pipeline/Kanban + ficha
+de negocio + participantes + vista de lista con filtros (🎉 hito: CRM usable a
+diario). Continúa la **FASE 3 · Email 1:1 (integración Gmail)** en
+[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la primera tarea sin marcar:
+1. **3.1** Ampliar OAuth de Google con scopes de Gmail (envío + lectura).
 
 Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 - Columnas y **filtros por campo personalizado** en los listados (sobre las vistas
@@ -73,11 +73,8 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 2 — 2.1/2.2/2.3/2.4/2.5 + 2.8/2.9/2.11 (Kanban
-> con dnd-kit, embudos/etapas en Ajustes, totales y previsión). Antes: Fase 1 completa.
-
-Alternativa: saltar a **Fase 2 · Pipeline** (negocios) si se prefiere completar antes
-el MVP visual, y volver a los extras de la Fase 1 después.
+> **Hecho en la última sesión:** Fase 2.10 — vista de lista de negocios con filtros y
+> cierre de la Fase 2. Antes: Kanban/ficha/participantes y Fase 1 completa.
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -118,6 +115,19 @@ el MVP visual, y volver a los extras de la Fase 1 después.
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-18 (13) — Fase 2.10: vista de lista de negocios
+- **Datos:** `listDeals` con filtros por embudo, etapa, estado y búsqueda por negocio/
+  contacto/empresa; ordenación por recientes, antiguos, valor y cierre previsto.
+- **UI:** `/deals?view=list` con conmutador Kanban/Lista, resumen de resultados,
+  tabla responsive, filtros URL-driven, creación/edición con `DealFormDialog` y
+  acciones por fila (ganar, perder con motivo, reabrir, eliminar).
+- **Calidad:** corregidos avisos/errores de lint existentes (`ThemeToggle`,
+  `useIsMobile` y `DealFormDialog`) para dejar `pnpm lint` verde completo.
+- **Verificado** vía login de desarrollo con `curl`: `/deals`, `/deals?view=list` y
+  `/deals?view=list&status=all&sort=value-desc&q=a` devuelven 200, renderizan los
+  controles esperados y no muestran overlay de Next.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde. **Fase 2 cerrada.**
 
 ### 2026-06-18 (12) — Fase 2.7: participantes del negocio
 - **Datos:** `getDeal` carga `contacts` (con persona); actions

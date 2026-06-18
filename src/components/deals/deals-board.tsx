@@ -24,7 +24,9 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   Building2,
+  Columns3,
   GripVertical,
+  List,
   MoreHorizontal,
   Plus,
   Trophy,
@@ -98,8 +100,11 @@ export function DealsBoard({
   );
 
   const pipelineId = board.activePipelineId ?? "";
+  const listHref = pipelineId
+    ? `/deals?view=list&pipeline=${encodeURIComponent(pipelineId)}`
+    : "/deals?view=list";
   const activeDeal = activeId
-    ? cols.flatMap((c) => c.deals).find((d) => d.id === activeId) ?? null
+    ? (cols.flatMap((c) => c.deals).find((d) => d.id === activeId) ?? null)
     : null;
 
   function colOf(id: string): number {
@@ -261,16 +266,28 @@ export function DealsBoard({
             </span>
           </div>
         </div>
-        <Button
-          className="shrink-0"
-          onClick={() =>
-            setCreateStageId(cols[0]?.stage.id ?? "")
-          }
-          disabled={cols.length === 0}
-        >
-          <Plus />
-          Nuevo negocio
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" className="shrink-0" aria-current="page">
+            <Columns3 />
+            Kanban
+          </Button>
+          <Button
+            variant="outline"
+            className="shrink-0"
+            render={<Link href={listHref} />}
+          >
+            <List />
+            Lista
+          </Button>
+          <Button
+            className="shrink-0"
+            onClick={() => setCreateStageId(cols[0]?.stage.id ?? "")}
+            disabled={cols.length === 0}
+          >
+            <Plus />
+            Nuevo negocio
+          </Button>
+        </div>
       </div>
 
       {cols.length === 0 ? (
@@ -297,9 +314,7 @@ export function DealsBoard({
                 key={col.stage.id}
                 col={col}
                 onAdd={() => setCreateStageId(col.stage.id)}
-                onEdit={(d) =>
-                  setEditing(toInitial(d, pipelineId))
-                }
+                onEdit={(d) => setEditing(toInitial(d, pipelineId))}
                 onWin={win}
                 onLose={(d) => setLost(d)}
                 onDelete={remove}
@@ -308,9 +323,7 @@ export function DealsBoard({
           </div>
 
           <DragOverlay>
-            {activeDeal ? (
-              <CardBody deal={activeDeal} dragging />
-            ) : null}
+            {activeDeal ? <CardBody deal={activeDeal} dragging /> : null}
           </DragOverlay>
         </DndContext>
       )}
@@ -452,8 +465,14 @@ function SortableCard({
   onLose: () => void;
   onDelete: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: deal.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: deal.id });
 
   return (
     <div

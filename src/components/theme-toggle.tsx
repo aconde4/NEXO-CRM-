@@ -11,11 +11,21 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+function subscribeMounted() {
+  return () => {};
+}
+
+function useMounted() {
+  return React.useSyncExternalStore(
+    subscribeMounted,
+    () => true,
+    () => false,
+  );
+}
+
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
 
   const isDark = resolvedTheme === "dark";
 

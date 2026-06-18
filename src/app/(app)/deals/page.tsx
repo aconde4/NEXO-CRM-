@@ -4,25 +4,115 @@ import {
   listOrganizationOptions,
   listPersonOptions,
 } from "@/server/queries/contacts";
-import { getBoard, listStagesByPipeline } from "@/server/queries/deals";
+import {
+  getBoard,
+  listDeals,
+  listPipelines,
+  listStagesByPipeline,
+  type DealListSort,
+  type DealListStatusFilter,
+} from "@/server/queries/deals";
 import { DealsBoard } from "@/components/deals/deals-board";
+import { DealsListView } from "@/components/deals/deals-list-view";
 import { PageHeader } from "@/components/page-header";
 
 export const metadata: Metadata = { title: "Negocios" };
 
+type DealsSearchParams = {
+  view?: string | string[];
+  pipeline?: string | string[];
+  stage?: string | string[];
+  status?: string | string[];
+  q?: string | string[];
+  sort?: string | string[];
+};
+
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function normalizeStatus(value: string | undefined): DealListStatusFilter {
+  if (value === "all" || value === "won" || value === "lost") return value;
+  return "open";
+}
+
+function normalizeSort(value: string | undefined): DealListSort {
+  if (
+    value === "oldest" ||
+    value === "value-desc" ||
+    value === "value-asc" ||
+    value === "close-date"
+  ) {
+    return value;
+  }
+  return "recent";
+}
+
 export default async function DealsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pipeline?: string }>;
+  searchParams: Promise<DealsSearchParams>;
 }) {
-  const { pipeline } = await searchParams;
+  const params = await searchParams;
+  const view = firstParam(params.view) === "list" ? "list" : "board";
+  const pipelineParam = firstParam(params.pipeline);
+  const stageParam = firstParam(params.stage);
+  const query = firstParam(params.q) ?? "";
+  const status = normalizeStatus(firstParam(params.status));
+  const sort = normalizeSort(firstParam(params.sort));
 
-  const [board, stagesByPipeline, persons, organizations] = await Promise.all([
-    getBoard(pipeline),
+  const pipelines = await listPipelines();
+  const activePipelineId =
+    pipelines.find((pipeline) => pipeline.id === pipelineParam)?.id ??
+    pipelines[0]?.id ??
+    "";
+
+  const [stagesByPipeline, persons, organizations] = await Promise.all([
     listStagesByPipeline(),
     listPersonOptions(),
     listOrganizationOptions(),
   ]);
+
+  const activeStages = stagesByPipeline[activePipelineId] ?? [];
+  const activeStageId =
+    activeStages.find((stage) => stage.id === stageParam)?.id ?? "";
+
+  if (view === "list") {
+    const deals = await listDeals({
+      pipelineId: activePipelineId || undefined,
+      stageId: activeStageId || undefined,
+      status,
+      query,
+      sort,
+    });
+
+    return (
+      <>
+        <PageHeader
+          title="Negocios"
+          description={`${deals.length} ${
+            deals.length === 1 ? "negocio" : "negocios"
+          } en la vista de lista.`}
+        />
+        <DealsListView
+          deals={deals}
+          filters={{
+            pipelineId: activePipelineId,
+            stageId: activeStageId,
+            status,
+            query,
+            sort,
+          }}
+          pipelines={pipelines}
+          stagesByPipeline={stagesByPipeline}
+          persons={persons}
+          organizations={organizations}
+        />
+      </>
+    );
+  }
+
+  const board = await getBoard(activePipelineId);
 
   // Firma de los datos: cambia al crear/mover/editar y remonta el tablero para
   // re-sincronizar su estado local tras revalidar.

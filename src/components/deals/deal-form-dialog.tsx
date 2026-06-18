@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -138,7 +138,7 @@ function DealFormBody({
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<DealFormValues>({
@@ -159,7 +159,7 @@ function DealFormBody({
     },
   });
 
-  const pipelineId = watch("pipelineId");
+  const pipelineId = useWatch({ control, name: "pipelineId" }) ?? "";
   const stageOptions = stagesByPipeline[pipelineId] ?? [];
 
   async function onSubmit(values: DealFormValues) {
@@ -175,7 +175,9 @@ function DealFormBody({
       router.refresh();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "No se pudo guardar el negocio",
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar el negocio",
       );
     }
   }
@@ -210,7 +212,10 @@ function DealFormBody({
                 className="flex-1"
                 {...register("value")}
               />
-              <select {...register("currency")} className={`${selectClass} w-24`}>
+              <select
+                {...register("currency")}
+                className={`${selectClass} w-24`}
+              >
                 {CURRENCIES.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -219,7 +224,10 @@ function DealFormBody({
               </select>
             </div>
           </Field>
-          <Field label="Cierre previsto" error={errors.expectedCloseDate?.message}>
+          <Field
+            label="Cierre previsto"
+            error={errors.expectedCloseDate?.message}
+          >
             <Input type="date" {...register("expectedCloseDate")} />
           </Field>
         </div>
