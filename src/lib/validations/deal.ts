@@ -30,3 +30,9 @@ export type StageInputValues = z.infer<typeof stageInputSchema>;
 export const lostReasonSchema = z.object({
   reason: z.string().trim().max(300).optional(),
 });
+
+export const dealContactSchema = z.object({
+  personId: z.string().uuid("Contacto no válido"),
+  role: z.string().trim().max(60).optional(),
+});
+export type DealContactValues = z.infer<typeof dealContactSchema>;

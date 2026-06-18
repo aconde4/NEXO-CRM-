@@ -4,7 +4,14 @@ import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 import { requireUser } from "@/lib/session";
 import { db } from "@/server/db";
-import { activities, deals, notes, pipelines, stages } from "@/server/db/schema";
+import {
+  activities,
+  dealContacts,
+  deals,
+  notes,
+  pipelines,
+  stages,
+} from "@/server/db/schema";
 
 const DEFAULT_STAGES = [
   { name: "Calificación", probability: 20, rottingDays: 14 },
@@ -110,6 +117,12 @@ export async function getDeal(id: string) {
       pipeline: { columns: { id: true, name: true } },
       person: { columns: { id: true, firstName: true, lastName: true } },
       organization: { columns: { id: true, name: true } },
+      contacts: {
+        with: {
+          person: { columns: { id: true, firstName: true, lastName: true } },
+        },
+        orderBy: [asc(dealContacts.createdAt)],
+      },
       activities: { orderBy: [desc(activities.createdAt)], limit: 100 },
       notes: { orderBy: [desc(notes.createdAt)], limit: 50 },
     },

@@ -136,19 +136,20 @@ previsión. Completa tu prioridad declarada (Contactos + Pipeline).
       propietario, cierre previsto, estado (+ motivo si perdido), panel de **tareas** y
       de **notas**. Acciones: editar, ganado/perdido (con motivo), reabrir, eliminar.
       Actividades y notas ahora pueden colgar de un negocio (`deal_id`, migración `0005`).
-- [ ] **2.7** Vincular negocios con contactos/empresas (participantes, `deal_contacts`).
+- [x] **2.7** Vincular negocios con contactos (participantes, `deal_contacts`): panel
+      en la ficha para añadir/quitar personas con un rol opcional.
 - [x] **2.8** Indicador de "estancado" (rotting) según `rotting_days` (borde y aviso).
 - [x] **2.9** Resumen por columna: nº de negocios y suma de valor por etapa.
 - [ ] **2.10** Vista de lista de negocios (alternativa al Kanban) con filtros.
 - [x] **2.11** Previsión ponderada (valor × probabilidad de etapa) en la cabecera.
 
-> **Estado Fase 2 (~85%):** Kanban operativo (arrastrar entre etapas, crear/editar/
+> **Estado Fase 2 (~92%):** Kanban operativo (arrastrar entre etapas, crear/editar/
 > borrar, ganado/perdido con motivo), varios embudos con selector, gestión de
 > embudos/etapas en Ajustes, totales por columna y previsión ponderada, indicador de
-> estancado, y **ficha de negocio** con tareas/notas. Verificado vía login de
-> desarrollo (render, totales, previsión, ficha + alta de nota end-to-end; el arrastre
-> dnd no se prueba en headless). **Pendiente:** participantes (2.7) y vista de lista
-> con filtros (2.10).
+> estancado, **ficha de negocio** con tareas/notas y **participantes**. Verificado vía
+> login de desarrollo (render, totales, previsión, ficha + nota + participantes
+> end-to-end; el arrastre dnd no se prueba en headless). **Pendiente:** solo la vista
+> de lista de negocios con filtros (2.10).
 
 ### Criterios de aceptación
 - Creas un negocio, lo arrastras entre etapas, lo marcas ganado/perdido, ves el total

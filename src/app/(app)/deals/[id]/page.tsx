@@ -27,6 +27,7 @@ import {
 } from "@/server/queries/deals";
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
 import { DealActions } from "@/components/deals/deal-actions";
+import { DealParticipants } from "@/components/deals/deal-participants";
 import { NoteComposer } from "@/components/note-composer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -183,6 +184,12 @@ export default async function DealDetailPage({
         </Card>
 
         <div className="space-y-4 lg:col-span-2">
+          <DealParticipants
+            dealId={deal.id}
+            participants={deal.contacts}
+            personOptions={persons}
+          />
+
           <ActivitiesPanel activities={deal.activities} lockedDealId={deal.id} />
 
           <Card>

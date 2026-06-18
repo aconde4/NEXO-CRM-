@@ -10,11 +10,11 @@
 
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
-- **Fase 2 · Pipeline/Negocios:** **~85%** — **Kanban operativo** (dnd-kit) con
+- **Fase 2 · Pipeline/Negocios:** **~92%** — **Kanban operativo** (dnd-kit) con
   embudos múltiples, etapas configurables en Ajustes, totales por columna, previsión
-  ponderada, estancado, ganado/perdido y **ficha de negocio** (`/deals/[id]`) con
-  tareas y notas. Pendiente: participantes (2.7) y vista de lista (2.10). Migraciones
-  `0004` (pipeline) y `0005` (`deal_id` en actividades/notas).
+  ponderada, estancado, ganado/perdido, **ficha de negocio** (`/deals/[id]`) con
+  tareas, notas y **participantes**. Pendiente: solo la vista de lista (2.10).
+  Migraciones `0004` (pipeline) y `0005` (`deal_id` en actividades/notas).
 - **Fase 1 · Contactos y Empresas:** **completa** y verificada (vía login de
   desarrollo). Para subir adjuntos hace falta activar Supabase Storage (`SETUP.md`).
   - Tablas CRM (migración `0001`) con índices y relaciones.
@@ -58,11 +58,11 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 1 completa. Fase 2 en marcha (~85%).** Kanban + **ficha de negocio** ya
-funcionan. Continúa la **FASE 2** en
-[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la primera tarea sin marcar:
-1. **2.7** Participantes del negocio (`deal_contacts`) — primera tarea sin marcar.
-2. **2.10** Vista de lista de negocios con filtros.
+**Fase 1 completa. Fase 2 en marcha (~92%).** Kanban + ficha de negocio +
+participantes ya funcionan. Continúa la **FASE 2** en
+[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la última tarea sin marcar:
+1. **2.10** Vista de lista de negocios con filtros — con esto se **cierra la Fase 2**
+   (🎉 hito: CRM usable a diario).
 
 Con eso se cierra la Fase 2 (🎉 hito: CRM usable a diario).
 
@@ -118,6 +118,16 @@ el MVP visual, y volver a los extras de la Fase 1 después.
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-18 (12) — Fase 2.7: participantes del negocio
+- **Datos:** `getDeal` carga `contacts` (con persona); actions
+  `addDealContact`/`removeDealContact` (autorización por dueño del negocio,
+  `onConflictDoNothing`); validación `dealContactSchema`.
+- **UI:** `DealParticipants` en la ficha del negocio — lista de personas con rol
+  opcional, alta inline (selector de contacto + rol) y quitar. Usa la tabla
+  `deal_contacts` (ya existente desde la migración `0004`).
+- **Verificado** vía login de desarrollo: añadir y quitar participante end-to-end.
+- Build, typecheck y lint (archivos nuevos) en verde.
 
 ### 2026-06-18 (11) — Fase 2.6: ficha de negocio
 - **Migración `0005`:** `deal_id` en `activities` y `notes` (con índices y relaciones),
