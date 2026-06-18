@@ -38,7 +38,7 @@ export const navGroups: NavGroup[] = [
       { title: "Contactos", href: "/contacts", icon: Users },
       { title: "Empresas", href: "/organizations", icon: Building2 },
       { title: "Actividades", href: "/activities", icon: ListChecks },
-      { title: "Negocios", href: "/deals", icon: Handshake, soon: true },
+      { title: "Negocios", href: "/deals", icon: Handshake },
     ],
   },
   {

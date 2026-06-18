@@ -29,6 +29,13 @@
       "when": 1781771339753,
       "tag": "0003_warm_prodigy",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781772937266,
+      "tag": "0004_regular_gamma_corps",
+      "breakpoints": true
     }
   ]
 }

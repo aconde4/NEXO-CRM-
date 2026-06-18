@@ -6,6 +6,7 @@
 import { relations } from "drizzle-orm";
 import {
   boolean,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -35,6 +36,7 @@ export type ActivityType =
   | "email"
   | "deadline"
   | "lunch";
+export type DealStatus = "open" | "won" | "lost";
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -223,6 +225,111 @@ export const activityLog = pgTable(
   ],
 );
 
+// --- Pipeline / Negocios (Fase 2) -------------------------------------------
+export const pipelines = pgTable(
+  "pipelines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    position: integer("position").default(0).notNull(),
+    isDefault: boolean("is_default").default(false).notNull(),
+    ownerId: text("owner_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
+    ...timestamps,
+  },
+  (t) => [index("pipelines_owner_idx").on(t.ownerId)],
+);
+
+export const stages = pgTable(
+  "stages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    pipelineId: uuid("pipeline_id")
+      .notNull()
+      .references(() => pipelines.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    position: integer("position").default(0).notNull(),
+    /** Probabilidad de cierre (0-100) para la previsión ponderada. */
+    probability: integer("probability").default(0).notNull(),
+    /** Días sin avanzar para marcar el negocio como "estancado" (null = nunca). */
+    rottingDays: integer("rotting_days"),
+    ownerId: text("owner_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
+    ...timestamps,
+  },
+  (t) => [index("stages_pipeline_idx").on(t.pipelineId)],
+);
+
+export const deals = pgTable(
+  "deals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    title: text("title").notNull(),
+    value: doublePrecision("value").default(0).notNull(),
+    currency: text("currency").default("EUR").notNull(),
+    pipelineId: uuid("pipeline_id")
+      .notNull()
+      .references(() => pipelines.id, { onDelete: "cascade" }),
+    stageId: uuid("stage_id")
+      .notNull()
+      .references(() => stages.id, { onDelete: "restrict" }),
+    personId: uuid("person_id").references(() => persons.id, {
+      onDelete: "set null",
+    }),
+    orgId: uuid("org_id").references(() => organizations.id, {
+      onDelete: "set null",
+    }),
+    ownerId: text("owner_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    status: text("status").$type<DealStatus>().default("open").notNull(),
+    /** Orden manual dentro de una columna (permite reordenar al arrastrar). */
+    position: doublePrecision("position").default(0).notNull(),
+    expectedCloseDate: timestamp("expected_close_date", { withTimezone: true }),
+    wonAt: timestamp("won_at", { withTimezone: true }),
+    lostAt: timestamp("lost_at", { withTimezone: true }),
+    lostReason: text("lost_reason"),
+    stageChangedAt: timestamp("stage_changed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    customFields: jsonb("custom_fields")
+      .$type<Record<string, unknown>>()
+      .default({})
+      .notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    index("deals_owner_idx").on(t.ownerId),
+    index("deals_pipeline_idx").on(t.pipelineId),
+    index("deals_stage_idx").on(t.stageId),
+    index("deals_status_idx").on(t.status),
+    index("deals_person_idx").on(t.personId),
+    index("deals_org_idx").on(t.orgId),
+  ],
+);
+
+export const dealContacts = pgTable(
+  "deal_contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    dealId: uuid("deal_id")
+      .notNull()
+      .references(() => deals.id, { onDelete: "cascade" }),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => persons.id, { onDelete: "cascade" }),
+    role: text("role"),
+    createdAt: timestamps.createdAt,
+  },
+  (t) => [
+    index("deal_contacts_deal_idx").on(t.dealId),
+    uniqueIndex("deal_contacts_unique").on(t.dealId, t.personId),
+  ],
+);
+
 // --- Campos personalizados (definiciones) -----------------------------------
 export const customFieldDefs = pgTable(
   "custom_field_defs",
@@ -334,5 +441,40 @@ export const notesRelations = relations(notes, ({ one }) => ({
   organization: one(organizations, {
     fields: [notes.orgId],
     references: [organizations.id],
+  }),
+}));
+
+export const pipelinesRelations = relations(pipelines, ({ many }) => ({
+  stages: many(stages),
+  deals: many(deals),
+}));
+
+export const stagesRelations = relations(stages, ({ one, many }) => ({
+  pipeline: one(pipelines, {
+    fields: [stages.pipelineId],
+    references: [pipelines.id],
+  }),
+  deals: many(deals),
+}));
+
+export const dealsRelations = relations(deals, ({ one, many }) => ({
+  pipeline: one(pipelines, {
+    fields: [deals.pipelineId],
+    references: [pipelines.id],
+  }),
+  stage: one(stages, { fields: [deals.stageId], references: [stages.id] }),
+  person: one(persons, { fields: [deals.personId], references: [persons.id] }),
+  organization: one(organizations, {
+    fields: [deals.orgId],
+    references: [organizations.id],
+  }),
+  contacts: many(dealContacts),
+}));
+
+export const dealContactsRelations = relations(dealContacts, ({ one }) => ({
+  deal: one(deals, { fields: [dealContacts.dealId], references: [deals.id] }),
+  person: one(persons, {
+    fields: [dealContacts.personId],
+    references: [persons.id],
   }),
 }));

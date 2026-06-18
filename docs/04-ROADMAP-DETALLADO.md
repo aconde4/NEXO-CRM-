@@ -120,21 +120,32 @@ notas e importación CSV. El núcleo de datos del CRM.
 previsión. Completa tu prioridad declarada (Contactos + Pipeline).
 
 ### Tareas
-- [ ] **2.1** Migración: `pipelines`, `stages`, `deals`, `deal_contacts`.
-- [ ] **2.2** CRUD de pipelines y etapas (UI de ajustes): nombre, orden,
-      probabilidad, días de estancamiento.
-- [ ] **2.3** Server Actions de `deals` (crear/editar/borrar, cambiar etapa, marcar
-      ganado/perdido con motivo).
-- [ ] **2.4** Tablero Kanban con dnd-kit: columnas = etapas, tarjetas = negocios,
-      arrastrar entre etapas actualiza `stage_id` y `stage_changed_at`.
-- [ ] **2.5** Selector de pipeline (varios embudos) y creación rápida de negocio.
+- [x] **2.1** Migración: `pipelines`, `stages`, `deals`, `deal_contacts` (migración
+      `0004`, con índices y relaciones).
+- [x] **2.2** CRUD de pipelines y etapas (UI en Ajustes): nombre, orden (subir/bajar),
+      probabilidad, días de estancamiento. Bloquea borrar el último embudo/etapa o con
+      negocios.
+- [x] **2.3** Server Actions de `deals` (crear/editar/borrar, mover de etapa con
+      reordenación, marcar ganado/perdido con motivo, reabrir) + `activity_log`.
+- [x] **2.4** Tablero Kanban con **dnd-kit**: columnas = etapas, tarjetas = negocios,
+      arrastrar entre etapas actualiza `stage_id` y `stage_changed_at` (estado
+      optimista + reordenación dentro de la columna).
+- [x] **2.5** Selector de embudo (varios pipelines) y creación rápida de negocio
+      (botón general y "+" por columna). Acción "Nuevo negocio" en ⌘K.
 - [ ] **2.6** Ficha de negocio: valor, etapa, contacto/empresa, propietario, cierre
       previsto, actividades, notas, timeline.
-- [ ] **2.7** Vincular negocios con contactos/empresas (participantes).
-- [ ] **2.8** Indicador de "estancado" (rotting) según `rotting_days`.
-- [ ] **2.9** Resumen por columna: nº de negocios y suma de valor por etapa.
+- [ ] **2.7** Vincular negocios con contactos/empresas (participantes, `deal_contacts`).
+- [x] **2.8** Indicador de "estancado" (rotting) según `rotting_days` (borde y aviso).
+- [x] **2.9** Resumen por columna: nº de negocios y suma de valor por etapa.
 - [ ] **2.10** Vista de lista de negocios (alternativa al Kanban) con filtros.
-- [ ] **2.11** Previsión ponderada (valor × probabilidad de etapa) básica.
+- [x] **2.11** Previsión ponderada (valor × probabilidad de etapa) en la cabecera.
+
+> **Estado Fase 2 (~75%):** Kanban operativo (arrastrar entre etapas, crear/editar/
+> borrar, ganado/perdido con motivo), varios embudos con selector, gestión de
+> embudos/etapas en Ajustes, totales por columna y previsión ponderada, indicador de
+> estancado. Verificado vía login de desarrollo (render, totales, previsión; el
+> arrastre dnd no se prueba en headless). **Pendiente:** ficha de negocio (2.6),
+> participantes (2.7) y vista de lista con filtros (2.10).
 
 ### Criterios de aceptación
 - Creas un negocio, lo arrastras entre etapas, lo marcas ganado/perdido, ves el total

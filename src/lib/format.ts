@@ -37,6 +37,33 @@ export function formatDateTime(value: Date | string | null | undefined): string 
   return dateTimeFormatter.format(d);
 }
 
+/** Importe con moneda ("1.500 €"); sin decimales si es entero. */
+export function formatMoney(value: number, currency = "EUR"): string {
+  try {
+    return new Intl.NumberFormat("es-ES", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `${value} ${currency}`;
+  }
+}
+
+/** Importe abreviado para tarjetas ("1,5 k €", "2,3 M €"). */
+export function formatMoneyCompact(value: number, currency = "EUR"): string {
+  if (Math.abs(value) >= 1000) {
+    const compact = new Intl.NumberFormat("es-ES", {
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(value);
+    const symbol = currency === "EUR" ? "€" : currency;
+    return `${compact} ${symbol}`;
+  }
+  return formatMoney(value, currency);
+}
+
 /** Tamaño de archivo legible ("1,2 MB"). */
 export function formatBytes(bytes: number): string {
   if (!bytes) return "0 B";

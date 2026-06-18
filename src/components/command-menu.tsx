@@ -59,6 +59,13 @@ export function CommandMenu({
             Nueva actividad
           </CommandItem>
           <CommandItem
+            value="nuevo negocio oportunidad crear"
+            onSelect={() => go("/deals")}
+          >
+            <Plus />
+            Nuevo negocio
+          </CommandItem>
+          <CommandItem
             value="importar contactos csv excel"
             onSelect={() => go("/contacts/import")}
           >

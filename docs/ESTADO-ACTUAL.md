@@ -10,6 +10,10 @@
 
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
+- **Fase 2 · Pipeline/Negocios:** **~75%** — **Kanban operativo** (dnd-kit) con
+  embudos múltiples, etapas configurables en Ajustes, totales por columna, previsión
+  ponderada, estancado y ganado/perdido. Pendiente: ficha de negocio (2.6),
+  participantes (2.7) y vista de lista (2.10). Migración `0004`.
 - **Fase 1 · Contactos y Empresas:** **completa** y verificada (vía login de
   desarrollo). Para subir adjuntos hace falta activar Supabase Storage (`SETUP.md`).
   - Tablas CRM (migración `0001`) con índices y relaciones.
@@ -53,21 +57,25 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**La Fase 1 está completa.** El siguiente paso es empezar la **FASE 2 · Pipeline /
-Embudos / Negocios** en [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md), por la
-tarea **2.1** (migración `pipelines`, `stages`, `deals`, `deal_contacts`).
+**Fase 1 completa. Fase 2 en marcha (~75%).** El **Kanban de negocios ya funciona**.
+Continúa la **FASE 2** en [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la
+primera tarea sin marcar:
+1. **2.6** Ficha de negocio (valor, etapa, contacto/empresa, cierre previsto,
+   actividades, notas, timeline) — primera tarea sin marcar.
+2. **2.7** Participantes del negocio (`deal_contacts`).
+3. **2.10** Vista de lista de negocios con filtros.
 
-Tareas opcionales que quedaron fuera de la Fase 1 (se pueden retomar cuando convenga):
-- Columnas y **filtros por campo personalizado** en los listados (se apoyan en las
-  vistas guardadas).
-- Etiquetas también en empresas; editor de notas enriquecido (Tiptap).
+Con eso se cierra la Fase 2 (🎉 hito: CRM usable a diario).
+
+Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
+- Columnas y **filtros por campo personalizado** en los listados (sobre las vistas
+  guardadas). Etiquetas también en empresas; editor de notas enriquecido (Tiptap).
 
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
-> `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter). Sin eso, el panel "Archivos"
-> aparece desactivado (no rompe nada). El resto de la Fase 1 está verificado.
+> `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** 1.12 Adjuntos (Supabase Storage) + verificación en
-> navegador de toda la Fase 1. Antes: 1.8/1.5, 1.13/1.14, 1.10.
+> **Hecho en la última sesión:** Fase 2 — 2.1/2.2/2.3/2.4/2.5 + 2.8/2.9/2.11 (Kanban
+> con dnd-kit, embudos/etapas en Ajustes, totales y previsión). Antes: Fase 1 completa.
 
 Alternativa: saltar a **Fase 2 · Pipeline** (negocios) si se prefiere completar antes
 el MVP visual, y volver a los extras de la Fase 1 después.
@@ -111,6 +119,26 @@ el MVP visual, y volver a los extras de la Fase 1 después.
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-18 (10) — Fase 2: tablero Kanban de negocios
+- **Migración `0004`:** `pipelines`, `stages`, `deals`, `deal_contacts` (índices y
+  relaciones). Valor en `double precision`, `stage_changed_at`, `position` para orden.
+- **Datos:** `queries/deals.ts` (bootstrap de embudo por defecto, `getBoard` con
+  agrupación por etapa + totales + previsión, opciones), `actions/deals.ts`
+  (crear/editar/borrar, `moveDeal` con reordenación y `stage_changed_at`,
+  ganado/perdido/reabrir) y `actions/pipelines.ts` (CRUD de embudos y etapas con
+  guardas). Dependencia **@dnd-kit**.
+- **UI:** `/deals` con **tablero Kanban** (arrastrar entre etapas, estado optimista),
+  `DealFormDialog` (crear/editar), selector de embudo, creación rápida por columna,
+  tarjetas con contacto/empresa, **indicador de estancado**, **totales por columna** y
+  **previsión ponderada** en cabecera; diálogo de "perdido" con motivo.
+  Gestión de **embudos y etapas en Ajustes** (`PipelinesManager`). Negocios en la
+  navegación y en ⌘K. `formatMoney`/`formatMoneyCompact` en `lib/format`.
+- **Seed** con 1 embudo, 4 etapas y 5 negocios de ejemplo.
+- **Verificado** vía login de desarrollo: render del tablero, 5 negocios por etapas,
+  totales (68.000 €), **previsión 31.400 €** (cálculo ponderado correcto), estancado,
+  y gestión de embudos en Ajustes. El arrastre dnd no se prueba en headless.
+- Build, typecheck y lint (archivos nuevos) en verde.
 
 ### 2026-06-18 (9) — Adjuntos (1.12) + cierre y revisión de la Fase 1
 - **Migración `0003`** aplicada: tabla `files`.

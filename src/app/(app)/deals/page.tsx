@@ -1,24 +1,48 @@
-import { Handshake } from "lucide-react";
 import type { Metadata } from "next";
 
-import { ComingSoon } from "@/components/coming-soon";
+import {
+  listOrganizationOptions,
+  listPersonOptions,
+} from "@/server/queries/contacts";
+import { getBoard, listStagesByPipeline } from "@/server/queries/deals";
+import { DealsBoard } from "@/components/deals/deals-board";
+import { PageHeader } from "@/components/page-header";
 
 export const metadata: Metadata = { title: "Negocios" };
 
-export default function DealsPage() {
+export default async function DealsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pipeline?: string }>;
+}) {
+  const { pipeline } = await searchParams;
+
+  const [board, stagesByPipeline, persons, organizations] = await Promise.all([
+    getBoard(pipeline),
+    listStagesByPipeline(),
+    listPersonOptions(),
+    listOrganizationOptions(),
+  ]);
+
+  // Firma de los datos: cambia al crear/mover/editar y remonta el tablero para
+  // re-sincronizar su estado local tras revalidar.
+  const signature = board.columns
+    .map((c) => `${c.stage.id}:${c.deals.map((d) => d.id).join(",")}`)
+    .join("|");
+
   return (
-    <ComingSoon
-      icon={Handshake}
-      title="Negocios"
-      description="Tu embudo de ventas visual con arrastrar y soltar entre etapas."
-      phase="Fase 2"
-      features={[
-        "Tablero Kanban con arrastrar y soltar",
-        "Varios embudos (pipelines) configurables",
-        "Probabilidad por etapa y previsión ponderada",
-        "Detección de negocios estancados",
-        "Marcar como ganado/perdido con motivo",
-      ]}
-    />
+    <>
+      <PageHeader
+        title="Negocios"
+        description="Tu embudo de ventas. Arrastra las tarjetas entre etapas."
+      />
+      <DealsBoard
+        key={`${board.activePipelineId}-${signature}`}
+        board={board}
+        stagesByPipeline={stagesByPipeline}
+        persons={persons}
+        organizations={organizations}
+      />
+    </>
   );
 }

@@ -19,6 +19,9 @@ async function main() {
     entityLabels,
     activities,
     customFieldDefs,
+    pipelines,
+    stages,
+    deals,
   } = await import("./schema");
 
   const email =
@@ -200,8 +203,59 @@ async function main() {
     },
   ]);
 
+  // Embudo + etapas + negocios de ejemplo (Fase 2).
+  const [pipeline] = await db
+    .insert(pipelines)
+    .values({ name: "Embudo de ventas", isDefault: true, ownerId: user.id })
+    .returning({ id: pipelines.id });
+  const stagesData = [
+    { name: "Calificación", probability: 20, rottingDays: 14 },
+    { name: "Contacto establecido", probability: 40, rottingDays: 14 },
+    { name: "Propuesta enviada", probability: 60, rottingDays: 21 },
+    { name: "Negociación", probability: 80, rottingDays: 30 },
+  ];
+  const insertedStages = pipeline
+    ? await db
+        .insert(stages)
+        .values(
+          stagesData.map((s, i) => ({
+            pipelineId: pipeline.id,
+            name: s.name,
+            position: i,
+            probability: s.probability,
+            rottingDays: s.rottingDays,
+            ownerId: user.id,
+          })),
+        )
+        .returning({ id: stages.id })
+    : [];
+
+  if (pipeline && insertedStages.length === 4) {
+    const dealsData = [
+      { title: "Suscripción anual — Innovatech", value: 12000, stage: 0, person: 0, org: 0, pos: 0, rotting: false },
+      { title: "Renovación — Marbella Hoteles", value: 8000, stage: 0, person: null, org: 1, pos: 1, rotting: false },
+      { title: "Implantación CRM", value: 25000, stage: 1, person: 2, org: null, pos: 0, rotting: false },
+      { title: "Consultoría estratégica", value: 5000, stage: 2, person: null, org: 2, pos: 0, rotting: true },
+      { title: "Ampliación de licencias", value: 18000, stage: 3, person: 4, org: 0, pos: 0, rotting: false },
+    ];
+    await db.insert(deals).values(
+      dealsData.map((d) => ({
+        title: d.title,
+        value: d.value,
+        currency: "EUR",
+        pipelineId: pipeline.id,
+        stageId: insertedStages[d.stage]!.id,
+        personId: d.person != null ? (insertedPeople[d.person]?.id ?? null) : null,
+        orgId: d.org != null ? (insertedOrgs[d.org]?.id ?? null) : null,
+        position: d.pos,
+        ownerId: user.id,
+        stageChangedAt: d.rotting ? at(-40) : new Date(),
+      })),
+    );
+  }
+
   console.log(
-    `✓ Sembrados ${insertedOrgs.length} empresas, ${insertedPeople.length} contactos, ${createdLabels.length} etiquetas, ${activitiesData.length} actividades y 2 campos personalizados para ${email}.`,
+    `✓ Sembrados ${insertedOrgs.length} empresas, ${insertedPeople.length} contactos, ${createdLabels.length} etiquetas, ${activitiesData.length} actividades, 2 campos personalizados y 1 embudo con 5 negocios para ${email}.`,
   );
 }
 
