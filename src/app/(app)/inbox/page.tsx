@@ -27,6 +27,7 @@ import {
   GOOGLE_OAUTH_AUTHORIZATION_PARAMS,
 } from "@/lib/google-oauth";
 import { cn } from "@/lib/utils";
+import { syncGmailInboxNow } from "@/server/actions/emails";
 import { getGmailConnectionStatus } from "@/server/queries/gmail";
 
 export const metadata: Metadata = { title: "Bandeja" };
@@ -43,6 +44,26 @@ async function authorizeGmail() {
     { redirectTo: "/inbox" },
     GOOGLE_OAUTH_AUTHORIZATION_PARAMS,
   );
+}
+
+async function syncGmailInbox() {
+  "use server";
+  await syncGmailInboxNow();
+}
+
+const mailboxStatusLabels = {
+  active: "Activo",
+  error: "Error",
+  needs_reauth: "Requiere reautorización",
+  paused: "Pausado",
+} as const;
+
+function formatDateTime(value: Date | null | undefined) {
+  if (!value) return "Nunca";
+  return new Intl.DateTimeFormat("es", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(value);
 }
 
 function StatusRow({
@@ -81,11 +102,11 @@ export default async function InboxPage() {
   const status = await getGmailConnectionStatus();
   const grantedScopeSet = new Set(status.grantedScopes);
   const expiresAt = status.expiresAt
-    ? new Intl.DateTimeFormat("es", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(status.expiresAt)
+    ? formatDateTime(status.expiresAt)
     : "Sin token de acceso guardado";
+  const mailboxLabel = status.mailbox
+    ? mailboxStatusLabels[status.mailbox.status]
+    : "Sin buzón inicializado";
 
   return (
     <>
@@ -93,19 +114,29 @@ export default async function InboxPage() {
         title="Bandeja"
         description="Conecta Gmail para enviar y leer conversaciones 1:1 desde Nexo CRM."
         actions={
-          <form action={authorizeGmail}>
-            <Button
-              type="submit"
-              variant={status.ready ? "outline" : "default"}
-            >
-              {status.ready ? (
-                <RefreshCw className="size-4" />
-              ) : (
-                <ExternalLink className="size-4" />
-              )}
-              {status.ready ? "Reautorizar Gmail" : "Conectar Gmail"}
-            </Button>
-          </form>
+          <div className="flex flex-wrap items-center gap-2">
+            {status.ready ? (
+              <form action={syncGmailInbox}>
+                <Button type="submit" variant="outline">
+                  <RefreshCw className="size-4" />
+                  Sincronizar ahora
+                </Button>
+              </form>
+            ) : null}
+            <form action={authorizeGmail}>
+              <Button
+                type="submit"
+                variant={status.ready ? "outline" : "default"}
+              >
+                {status.ready ? (
+                  <RefreshCw className="size-4" />
+                ) : (
+                  <ExternalLink className="size-4" />
+                )}
+                {status.ready ? "Reautorizar Gmail" : "Conectar Gmail"}
+              </Button>
+            </form>
+          </div>
         }
       />
 
@@ -165,6 +196,20 @@ export default async function InboxPage() {
                 ok={status.hasAccessToken}
                 value={`Caducidad: ${expiresAt}`}
               />
+              <StatusRow
+                icon={
+                  status.mailbox?.status === "error" ? AlertTriangle : MailCheck
+                }
+                label="Sincronización"
+                ok={Boolean(
+                  status.mailbox &&
+                  status.mailbox.status !== "error" &&
+                  status.mailbox.status !== "needs_reauth",
+                )}
+                value={`${mailboxLabel} · Última: ${formatDateTime(status.mailbox?.lastSyncedAt)} · Cursor: ${
+                  status.mailbox?.hasHistoryCursor ? "guardado" : "pendiente"
+                }`}
+              />
             </div>
 
             {status.missingScopes.length > 0 ? (
@@ -179,6 +224,17 @@ export default async function InboxPage() {
                     .join(" y ")
                     .toLowerCase()}
                   .
+                </p>
+              </div>
+            ) : null}
+
+            {status.mailbox?.lastSyncError ? (
+              <div className="border-destructive/30 bg-destructive/10 rounded-lg border px-4 py-3 text-sm">
+                <p className="text-destructive font-medium">
+                  Última sincronización con error
+                </p>
+                <p className="text-muted-foreground mt-1 break-words">
+                  {status.mailbox.lastSyncError}
                 </p>
               </div>
             ) : null}
@@ -200,7 +256,7 @@ export default async function InboxPage() {
               <ul className="space-y-3 text-sm">
                 {[
                   "Enviar correo desde el buzón real del usuario.",
-                  "Leer hilos y mensajes entrantes para vincular respuestas.",
+                  "Sincronizar Gmail por Inngest y vincular mensajes por email.",
                   "Mantener acceso mediante refresh token guardado en Auth.js.",
                 ].map((item) => (
                   <li key={item} className="flex gap-2">

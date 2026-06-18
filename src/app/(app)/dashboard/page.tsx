@@ -168,7 +168,7 @@ export default async function DashboardPage() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Siguiente</span>
-              <span className="font-medium">3.4 · Sincronización Gmail</span>
+              <span className="font-medium">3.5 · Vista de hilo</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Login</span>

@@ -3,11 +3,9 @@ import "server-only";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { buildGmailRawMessage, type EmailAddressInput } from "@/lib/email/mime";
-import { GMAIL_OAUTH_SCOPES, parseOAuthScope } from "@/lib/google-oauth";
 import { sendEmailSchema, type SendEmailValues } from "@/lib/validations/email";
 import { db } from "@/server/db";
 import {
-  accounts,
   activityLog,
   deals,
   emailEvents,
@@ -16,34 +14,22 @@ import {
   mailboxes,
   organizations,
   persons,
-  users,
 } from "@/server/db/schema";
+import {
+  cleanOptional,
+  excerpt,
+  getGoogleAccessToken,
+  getGoogleAccount,
+  GmailServiceError,
+  GMAIL_SEND_SCOPE,
+  markMailboxNeedsReauth,
+  nextUtcMidnight,
+  normalizeEmail,
+  type GoogleAccount,
+} from "@/server/services/gmail-auth";
 
-const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GMAIL_SEND_URL =
   "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
-const GMAIL_SEND_SCOPE = GMAIL_OAUTH_SCOPES[0];
-const TOKEN_EXPIRY_SKEW_SECONDS = 60;
-
-type GoogleAccount = {
-  accessToken: string | null;
-  expiresAt: number | null;
-  providerAccountId: string;
-  refreshToken: string | null;
-  scope: string | null;
-  tokenType: string | null;
-  userEmail: string;
-  userName: string | null;
-};
-
-type GmailTokenResponse = {
-  access_token?: string;
-  expires_in?: number;
-  scope?: string;
-  token_type?: string;
-  error?: string;
-  error_description?: string;
-};
 
 type GmailMessageResponse = {
   id?: string;
@@ -82,31 +68,6 @@ type PreparedSend = {
   to: EmailAddressInput[];
 };
 
-export class GmailServiceError extends Error {
-  constructor(
-    message: string,
-    readonly code:
-      | "missing_credentials"
-      | "missing_google_account"
-      | "missing_scope"
-      | "needs_reauth"
-      | "daily_limit"
-      | "thread_mismatch"
-      | "gmail_api_error",
-  ) {
-    super(message);
-  }
-}
-
-function cleanOptional(value: string | undefined | null): string | null {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
-}
-
-function normalizeEmail(value: string): string {
-  return value.trim().toLowerCase();
-}
-
 function normalizeAddress(address: EmailAddressInput): EmailAddressInput {
   return {
     email: normalizeEmail(address.email),
@@ -134,20 +95,6 @@ function makeRfcMessageId(fromEmail: string): string {
   return `<${crypto.randomUUID()}@${domain || "nexo.local"}>`;
 }
 
-function nextUtcMidnight(from = new Date()): Date {
-  return new Date(
-    Date.UTC(
-      from.getUTCFullYear(),
-      from.getUTCMonth(),
-      from.getUTCDate() + 1,
-      0,
-      0,
-      0,
-      0,
-    ),
-  );
-}
-
 function effectiveDailyCounter(mailbox: {
   sentToday: number;
   sentTodayResetAt: Date | null;
@@ -164,11 +111,6 @@ function effectiveDailyCounter(mailbox: {
   return { resetAt, sentToday };
 }
 
-function excerpt(text: string | null | undefined): string | null {
-  const clean = text?.replace(/\s+/g, " ").trim();
-  return clean ? clean.slice(0, 240) : null;
-}
-
 function referencesForReply(lastMessage: LastThreadMessage | null): {
   inReplyTo: string | null;
   references: string | null;
@@ -181,133 +123,6 @@ function referencesForReply(lastMessage: LastThreadMessage | null): {
     .filter(Boolean)
     .join(" ");
   return { inReplyTo, references: references || null };
-}
-
-async function getGoogleAccount(userId: string): Promise<GoogleAccount> {
-  const [row] = await db
-    .select({
-      accessToken: accounts.access_token,
-      expiresAt: accounts.expires_at,
-      providerAccountId: accounts.providerAccountId,
-      refreshToken: accounts.refresh_token,
-      scope: accounts.scope,
-      tokenType: accounts.token_type,
-      userEmail: users.email,
-      userName: users.name,
-    })
-    .from(accounts)
-    .innerJoin(users, eq(accounts.userId, users.id))
-    .where(and(eq(accounts.userId, userId), eq(accounts.provider, "google")))
-    .limit(1);
-
-  if (!row) {
-    throw new GmailServiceError(
-      "Conecta Gmail antes de enviar correos.",
-      "missing_google_account",
-    );
-  }
-  if (!row.refreshToken) {
-    throw new GmailServiceError(
-      "Falta el refresh token de Google. Reautoriza Gmail desde Bandeja.",
-      "needs_reauth",
-    );
-  }
-  if (!parseOAuthScope(row.scope).has(GMAIL_SEND_SCOPE)) {
-    throw new GmailServiceError(
-      "Falta el permiso gmail.send. Reautoriza Gmail desde Bandeja.",
-      "missing_scope",
-    );
-  }
-  return row;
-}
-
-async function markMailboxNeedsReauth(ownerId: string, error: string) {
-  await db
-    .update(mailboxes)
-    .set({ lastSyncError: error, status: "needs_reauth" })
-    .where(
-      and(eq(mailboxes.ownerId, ownerId), eq(mailboxes.provider, "gmail")),
-    );
-}
-
-async function refreshGoogleAccessToken(
-  userId: string,
-  account: GoogleAccount,
-): Promise<string> {
-  const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
-  if (!clientId || !clientSecret) {
-    throw new GmailServiceError(
-      "Faltan GOOGLE_CLIENT_ID o GOOGLE_CLIENT_SECRET.",
-      "missing_credentials",
-    );
-  }
-  if (!account.refreshToken) {
-    throw new GmailServiceError(
-      "Falta el refresh token de Google. Reautoriza Gmail desde Bandeja.",
-      "needs_reauth",
-    );
-  }
-
-  const response = await fetch(GOOGLE_TOKEN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: "refresh_token",
-      refresh_token: account.refreshToken,
-    }),
-  });
-  const body = (await response.json().catch(() => ({}))) as GmailTokenResponse;
-
-  if (!response.ok || !body.access_token) {
-    await markMailboxNeedsReauth(
-      userId,
-      body.error_description || body.error || `OAuth ${response.status}`,
-    );
-    throw new GmailServiceError(
-      "Google no pudo refrescar el acceso. Reautoriza Gmail desde Bandeja.",
-      "needs_reauth",
-    );
-  }
-
-  const expiresAt = Math.floor(Date.now() / 1000) + (body.expires_in ?? 3600);
-  await db
-    .update(accounts)
-    .set({
-      access_token: body.access_token,
-      expires_at: expiresAt,
-      scope: body.scope ?? account.scope,
-      token_type: body.token_type ?? account.tokenType ?? "Bearer",
-    })
-    .where(
-      and(
-        eq(accounts.provider, "google"),
-        eq(accounts.providerAccountId, account.providerAccountId),
-      ),
-    );
-
-  return body.access_token;
-}
-
-async function getGoogleAccessToken(
-  userId: string,
-  account: GoogleAccount,
-  forceRefresh = false,
-): Promise<{ accessToken: string; refreshed: boolean }> {
-  const expiresAt = account.expiresAt ?? 0;
-  const isFresh = Boolean(
-    account.accessToken &&
-    expiresAt - Math.floor(Date.now() / 1000) > TOKEN_EXPIRY_SKEW_SECONDS,
-  );
-  if (isFresh && !forceRefresh) {
-    return { accessToken: account.accessToken!, refreshed: false };
-  }
-  return {
-    accessToken: await refreshGoogleAccessToken(userId, account),
-    refreshed: true,
-  };
 }
 
 async function ensureGmailMailbox(userId: string, account: GoogleAccount) {
@@ -352,7 +167,7 @@ async function ensureGmailMailbox(userId: string, account: GoogleAccount) {
   if (mailbox.status === "paused") {
     throw new GmailServiceError(
       "El buzón está pausado. Actívalo antes de enviar.",
-      "daily_limit",
+      "mailbox_paused",
     );
   }
   return mailbox;
@@ -553,7 +368,7 @@ async function callGmailSend(
 }
 
 export async function sendGmailEmail(userId: string, raw: SendEmailValues) {
-  const account = await getGoogleAccount(userId);
+  const account = await getGoogleAccount(userId, [GMAIL_SEND_SCOPE]);
   const mailbox = await ensureGmailMailbox(userId, account);
   const localThread = await getLocalThread(userId, cleanOptional(raw.threadId));
 

@@ -1,11 +1,11 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { missingGmailScopes, parseOAuthScope } from "@/lib/google-oauth";
 import { requireUser } from "@/lib/session";
 import { db } from "@/server/db";
-import { accounts } from "@/server/db/schema";
+import { accounts, mailboxes } from "@/server/db/schema";
 
 export async function getGmailConnectionStatus() {
   const user = await requireUser();
@@ -24,6 +24,18 @@ export async function getGmailConnectionStatus() {
   const missingScopes = missingGmailScopes(account?.scope);
   const grantedScopes = Array.from(parseOAuthScope(account?.scope)).sort();
   const hasRefreshToken = Boolean(account?.refreshToken);
+  const [mailbox] = await db
+    .select({
+      gmailHistoryId: mailboxes.gmailHistoryId,
+      lastSyncError: mailboxes.lastSyncError,
+      lastSyncStartedAt: mailboxes.lastSyncStartedAt,
+      lastSyncedAt: mailboxes.lastSyncedAt,
+      status: mailboxes.status,
+    })
+    .from(mailboxes)
+    .where(and(eq(mailboxes.ownerId, user.id), eq(mailboxes.provider, "gmail")))
+    .orderBy(desc(mailboxes.updatedAt))
+    .limit(1);
 
   return {
     connected: Boolean(account),
@@ -36,6 +48,15 @@ export async function getGmailConnectionStatus() {
     hasAccessToken: Boolean(account?.accessToken),
     hasRefreshToken,
     missingScopes,
+    mailbox: mailbox
+      ? {
+          hasHistoryCursor: Boolean(mailbox.gmailHistoryId),
+          lastSyncError: mailbox.lastSyncError,
+          lastSyncStartedAt: mailbox.lastSyncStartedAt,
+          lastSyncedAt: mailbox.lastSyncedAt,
+          status: mailbox.status,
+        }
+      : null,
     providerAccountId: account?.providerAccountId ?? null,
     ready: Boolean(account && hasRefreshToken && missingScopes.length === 0),
   };

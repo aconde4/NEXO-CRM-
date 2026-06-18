@@ -179,8 +179,11 @@ negocios, con plantillas y seguimiento de aperturas/clics.
       token guardado. → MIME RFC 2822/base64url, refresh de access token,
       `users.messages.send`, `threadId` + `In-Reply-To`/`References`, límite diario
       del buzón y persistencia en `email_threads`/`email_messages`/`email_events`.
-- [ ] **3.4** Sincronización de entrada: leer mensajes nuevos (Gmail history API o
-      polling vía Inngest) y vincularlos al contacto por email.
+- [x] **3.4** Sincronización de entrada: leer mensajes nuevos (Gmail history API o
+      polling vía Inngest) y vincularlos al contacto por email. → Job Inngest cada
+      10 min + acción manual, full sync inicial acotado, sync incremental con
+      `history.list`, recuperación si caduca el cursor, persistencia idempotente y
+      vínculo a contacto/empresa por email del remitente.
 - [ ] **3.5** Vista de hilo de conversación en la ficha del contacto/negocio.
 - [ ] **3.6** Redactor de email (Tiptap) con plantillas y **merge tags**: variables
       de **campos de serie + personalizados** del contacto y su empresa
