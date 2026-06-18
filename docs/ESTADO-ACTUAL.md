@@ -10,12 +10,14 @@
 
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
-- **Fase 3 · Email 1:1 (Gmail):** iniciada — **3.1 y 3.2 completas**. OAuth de
+- **Fase 3 · Email 1:1 (Gmail):** iniciada — **3.1, 3.2 y 3.3 completas**. OAuth de
   Google pide `gmail.send` + `gmail.readonly`, con acceso offline e incremental;
   Auth.js conserva/actualiza tokens y scopes en `account`; `/inbox` muestra el
   estado seguro de conexión Gmail sin exponer tokens. Migración `0006_exotic_prism`
   aplicada con `mailboxes`, `email_threads`, `email_messages`, `email_templates` y
-  `email_events`. Siguiente: servicio Gmail de envío.
+  `email_events`. Servicio Gmail de envío listo: refresca access tokens, construye
+  MIME RFC 2822/base64url, envía por `users.messages.send`, respeta hilo Gmail y
+  persiste hilo/mensaje/evento. Siguiente: sincronización de entrada.
 - **Fase 2 · Pipeline/Negocios:** **completa** — **Kanban operativo** (dnd-kit) con
   embudos múltiples, etapas configurables en Ajustes, totales por columna, previsión
   ponderada, estancado, ganado/perdido, **ficha de negocio** (`/deals/[id]`) con
@@ -68,8 +70,8 @@
 
 **Fase 3 iniciada.** Continúa la **FASE 3 · Email 1:1 (integración Gmail)** en
 [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la primera tarea sin marcar:
-1. **3.3** Servicio Gmail: enviar correo (con hilo correcto) usando el refresh token
-   guardado.
+1. **3.4** Sincronización de entrada: leer mensajes nuevos (Gmail history API o
+   polling vía Inngest) y vincularlos al contacto por email.
 
 Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 - Columnas y **filtros por campo personalizado** en los listados (sobre las vistas
@@ -78,9 +80,9 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 3.2 — migración de email
-> `0006_exotic_prism` generada y aplicada: buzones, hilos, mensajes, plantillas y
-> eventos. Antes: 3.1 OAuth Gmail.
+> **Hecho en la última sesión:** Fase 3.3 — servicio Gmail de envío con refresh token,
+> MIME RFC 2822/base64url, threading correcto, límite diario y persistencia en tablas
+> de email. Antes: 3.2 modelo de email.
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -121,6 +123,24 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-18 (16) — Fase 3.3: servicio Gmail de envío
+- **MIME:** `src/lib/email/mime.ts` construye mensajes RFC 2822 con texto/HTML
+  multipart, headers `Message-ID`, `In-Reply-To` y `References`, codificación UTF-8 y
+  `raw` base64url para Gmail.
+- **Validación:** `src/lib/validations/email.ts` valida destinatarios, asunto, cuerpo
+  y vínculos opcionales a contacto/empresa/negocio/hilo.
+- **Servicio:** `src/server/services/gmail.ts` usa tokens de Auth.js `account`,
+  comprueba `gmail.send`, refresca access tokens vía `refresh_token`, asegura el
+  `mailbox`, respeta límite diario, llama `users.messages.send` y persiste hilo,
+  mensaje y evento `sent`.
+- **Threading:** al responder a un hilo local, envía `threadId` de Gmail y headers
+  `In-Reply-To`/`References`; bloquea asuntos incompatibles para no romper el hilo.
+- **Server Action:** `sendEmail` en `src/server/actions/emails.ts`, con autorización
+  por sesión y revalidación de superficies afectadas.
+- **Verificado:** prueba local del MIME/base64url; no se envía correo real sin una
+  cuenta Google reautorizada.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-18 (15) — Fase 3.2: modelo de email
 - **Esquema:** nuevo `src/server/db/schema/email.ts` con `mailboxes`,

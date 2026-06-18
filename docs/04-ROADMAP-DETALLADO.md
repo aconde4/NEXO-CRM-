@@ -175,8 +175,10 @@ negocios, con plantillas y seguimiento de aperturas/clics.
       usuario, buzones Gmail sin duplicar tokens OAuth, hilos vinculables a
       contacto/empresa/negocio, mensajes con IDs de Gmail/RFC, plantillas y eventos
       de tracking/webhook.
-- [ ] **3.3** Servicio Gmail: enviar correo (con hilo correcto) usando el refresh
-      token guardado.
+- [x] **3.3** Servicio Gmail: enviar correo (con hilo correcto) usando el refresh
+      token guardado. → MIME RFC 2822/base64url, refresh de access token,
+      `users.messages.send`, `threadId` + `In-Reply-To`/`References`, límite diario
+      del buzón y persistencia en `email_threads`/`email_messages`/`email_events`.
 - [ ] **3.4** Sincronización de entrada: leer mensajes nuevos (Gmail history API o
       polling vía Inngest) y vincularlos al contacto por email.
 - [ ] **3.5** Vista de hilo de conversación en la ficha del contacto/negocio.
