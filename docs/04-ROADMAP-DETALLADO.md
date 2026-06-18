@@ -170,8 +170,11 @@ negocios, con plantillas y seguimiento de aperturas/clics.
 - [x] **3.1** Ampliar OAuth de Google con scopes de Gmail (envío + lectura).
       → scopes `gmail.send` + `gmail.readonly`, acceso offline/incremental,
       persistencia segura de tokens/scopes y panel de conexión en `/inbox`.
-- [ ] **3.2** Migración: `mailboxes`, `email_threads`, `email_messages`,
-      `email_templates`, `email_events`.
+- [x] **3.2** Migración: `mailboxes`, `email_threads`, `email_messages`,
+      `email_templates`, `email_events`. → `0006_exotic_prism`: ownership por
+      usuario, buzones Gmail sin duplicar tokens OAuth, hilos vinculables a
+      contacto/empresa/negocio, mensajes con IDs de Gmail/RFC, plantillas y eventos
+      de tracking/webhook.
 - [ ] **3.3** Servicio Gmail: enviar correo (con hilo correcto) usando el refresh
       token guardado.
 - [ ] **3.4** Sincronización de entrada: leer mensajes nuevos (Gmail history API o

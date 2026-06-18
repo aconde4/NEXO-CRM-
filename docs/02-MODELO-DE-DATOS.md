@@ -23,9 +23,12 @@ Tablas estándar de Auth.js. En `accounts` guardamos el **refresh_token de Googl
 para llamar a la Gmail API.
 
 ### `mailboxes`
-Buzones conectados para envío 1:1. `user_id`, `provider` (`gmail`), `email`,
-`access_token`, `refresh_token`, `daily_limit` (warm-up), `sent_today`,
-`signature` (HTML), `status`.
+Buzones conectados para envío 1:1. `owner_id`, `provider` (`gmail`), `email`,
+`email_normalized`, `display_name`, `from_name`, `status`, vínculo a la cuenta OAuth
+(`account_provider`, `account_provider_account_id`), `gmail_history_id`,
+`last_synced_at`, `last_sync_started_at`, `last_sync_error`, `daily_limit`
+(warm-up), `sent_today`, `sent_today_reset_at`, `signature_html`, `settings`.
+Los tokens OAuth **no se duplican aquí**: siguen en `accounts` (Auth.js).
 
 ### `settings`
 Ajustes globales del workspace: zona horaria, horario de envío permitido (sending
@@ -104,22 +107,30 @@ Eventos del sistema para la línea de tiempo de cada ficha y auditoría:
 ## 4. Email (Fases 3–4)
 
 ### `email_threads`
-Hilos sincronizados: `gmail_thread_id`, `subject`, `person_id`, `deal_id`,
-`last_message_at`, `snippet`.
+Hilos sincronizados: `mailbox_id`, `provider_thread_id` (Gmail thread id),
+`subject`, `snippet`, `status`, `person_id`, `org_id`, `deal_id`,
+`last_message_at`, `last_inbound_at`, `last_outbound_at`, `message_count`,
+`unread`, `provider_labels`, `metadata`, `deleted_at`.
 
 ### `email_messages`
-Mensajes individuales: `thread_id`, `gmail_message_id`, `direction`
-(`inbound`/`outbound`), `from`, `to`, `cc`, `subject`, `body_html`, `body_text`,
-`sent_at`, `provider` (`gmail`/`resend`), `tracking_id`,
-`opened_at`, `clicked_at`, `replied`, `bounced`, `status`.
+Mensajes individuales: `mailbox_id`, `thread_id`, `provider`,
+`provider_message_id`, `provider_thread_id`, `rfc_message_id`, `in_reply_to`,
+`references_header`, `direction` (`inbound`/`outbound`), `status`, `from_email`,
+`from_name`, destinatarios en JSONB (`to_recipients`, `cc_recipients`,
+`bcc_recipients`, `reply_to_recipients`), `subject`, `snippet`, `body_html`,
+`body_text`, `attachments`, `headers`, `sent_at`, `received_at`, `tracking_id`,
+`opened_at`, `clicked_at`, `replied_at`, `bounced_at`, contadores de apertura/clic y
+`metadata`.
 
 ### `email_templates`
 Plantillas reutilizables: `name`, `subject`, `body_html`, `variables` (merge tags
-como `{{first_name}}`), `category`.
+como `{{first_name}}`), `category`, `archived_at`.
 
 ### `email_events`
 Eventos crudos de tracking/webhooks: `message_id`, `type`
-(`delivered`/`open`/`click`/`bounce`/`complaint`/`unsubscribe`), `meta` (JSONB),
+(`queued`/`sent`/`delivered`/`open`/`click`/`bounce`/`complaint`/`unsubscribe`/
+`reply`/`sync`), `mailbox_id`, `provider`, `provider_event_id`, `recipient_email`,
+`tracking_id`, `url`, `ip_address`, `user_agent`, `meta` (JSONB), `occurred_at`,
 `created_at`. Alimenta las métricas.
 
 ### `suppressions` (lista de supresión global — RGPD)

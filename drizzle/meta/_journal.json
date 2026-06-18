@@ -43,6 +43,13 @@
       "when": 1781789976391,
       "tag": "0005_gigantic_cargill",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781794170481,
+      "tag": "0006_exotic_prism",
+      "breakpoints": true
     }
   ]
 }
