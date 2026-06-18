@@ -11,5 +11,6 @@ export const activityFormSchema = z.object({
   dueAt: z.string().optional(),
   personId: z.string().optional(),
   orgId: z.string().optional(),
+  dealId: z.string().optional(),
 });
 export type ActivityFormValues = z.infer<typeof activityFormSchema>;

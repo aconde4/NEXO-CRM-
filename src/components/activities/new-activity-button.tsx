@@ -17,6 +17,7 @@ export function NewActivityButton({
   label = "Nueva actividad",
   lockedPersonId,
   lockedOrgId,
+  lockedDealId,
 }: {
   persons?: EntityOption[];
   organizations?: EntityOption[];
@@ -25,6 +26,7 @@ export function NewActivityButton({
   label?: string;
   lockedPersonId?: string;
   lockedOrgId?: string;
+  lockedDealId?: string;
 }) {
   const [open, setOpen] = React.useState(false);
 
@@ -46,6 +48,7 @@ export function NewActivityButton({
         organizations={organizations}
         lockedPersonId={lockedPersonId}
         lockedOrgId={lockedOrgId}
+        lockedDealId={lockedDealId}
       />
     </>
   );

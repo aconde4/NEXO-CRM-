@@ -11,9 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 export function NoteComposer({
   personId,
   orgId,
+  dealId,
 }: {
   personId?: string;
   orgId?: string;
+  dealId?: string;
 }) {
   const router = useRouter();
   const [body, setBody] = React.useState("");
@@ -23,7 +25,7 @@ export function NoteComposer({
     if (!body.trim()) return;
     setSaving(true);
     try {
-      await createNote({ body, personId, orgId });
+      await createNote({ body, personId, orgId, dealId });
       setBody("");
       toast.success("Nota añadida");
       router.refresh();

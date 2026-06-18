@@ -507,16 +507,12 @@ function CardBody({
         >
           <GripVertical className="size-4" />
         </button>
-        <button
-          type="button"
-          onClick={onEdit}
-          className="min-w-0 flex-1 text-left"
-        >
+        <Link href={`/deals/${deal.id}`} className="min-w-0 flex-1 text-left">
           <p className="truncate text-sm font-medium">{deal.title}</p>
           <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
             {formatMoney(deal.value, deal.currency)}
           </p>
-        </button>
+        </Link>
         {onEdit ? (
           <DropdownMenu>
             <DropdownMenuTrigger

@@ -4,7 +4,7 @@ import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 import { requireUser } from "@/lib/session";
 import { db } from "@/server/db";
-import { deals, pipelines, stages } from "@/server/db/schema";
+import { activities, deals, notes, pipelines, stages } from "@/server/db/schema";
 
 const DEFAULT_STAGES = [
   { name: "Calificación", probability: 20, rottingDays: 14 },
@@ -95,6 +95,27 @@ export async function listStagesByPipeline(): Promise<
   }
   return out;
 }
+
+/** Negocio completo para su ficha (con etapa, embudo, contacto, empresa, etc.). */
+export async function getDeal(id: string) {
+  const user = await requireUser();
+  return db.query.deals.findFirst({
+    where: and(
+      eq(deals.id, id),
+      eq(deals.ownerId, user.id),
+      isNull(deals.deletedAt),
+    ),
+    with: {
+      stage: { columns: { id: true, name: true, probability: true } },
+      pipeline: { columns: { id: true, name: true } },
+      person: { columns: { id: true, firstName: true, lastName: true } },
+      organization: { columns: { id: true, name: true } },
+      activities: { orderBy: [desc(activities.createdAt)], limit: 100 },
+      notes: { orderBy: [desc(notes.createdAt)], limit: 50 },
+    },
+  });
+}
+export type DealDetail = Awaited<ReturnType<typeof getDeal>>;
 
 function isRotting(
   stageChangedAt: Date,

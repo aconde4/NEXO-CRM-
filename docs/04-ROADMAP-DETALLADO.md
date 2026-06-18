@@ -132,20 +132,23 @@ previsión. Completa tu prioridad declarada (Contactos + Pipeline).
       optimista + reordenación dentro de la columna).
 - [x] **2.5** Selector de embudo (varios pipelines) y creación rápida de negocio
       (botón general y "+" por columna). Acción "Nuevo negocio" en ⌘K.
-- [ ] **2.6** Ficha de negocio: valor, etapa, contacto/empresa, propietario, cierre
-      previsto, actividades, notas, timeline.
+- [x] **2.6** Ficha de negocio (`/deals/[id]`): valor, etapa, embudo, contacto/empresa,
+      propietario, cierre previsto, estado (+ motivo si perdido), panel de **tareas** y
+      de **notas**. Acciones: editar, ganado/perdido (con motivo), reabrir, eliminar.
+      Actividades y notas ahora pueden colgar de un negocio (`deal_id`, migración `0005`).
 - [ ] **2.7** Vincular negocios con contactos/empresas (participantes, `deal_contacts`).
 - [x] **2.8** Indicador de "estancado" (rotting) según `rotting_days` (borde y aviso).
 - [x] **2.9** Resumen por columna: nº de negocios y suma de valor por etapa.
 - [ ] **2.10** Vista de lista de negocios (alternativa al Kanban) con filtros.
 - [x] **2.11** Previsión ponderada (valor × probabilidad de etapa) en la cabecera.
 
-> **Estado Fase 2 (~75%):** Kanban operativo (arrastrar entre etapas, crear/editar/
+> **Estado Fase 2 (~85%):** Kanban operativo (arrastrar entre etapas, crear/editar/
 > borrar, ganado/perdido con motivo), varios embudos con selector, gestión de
 > embudos/etapas en Ajustes, totales por columna y previsión ponderada, indicador de
-> estancado. Verificado vía login de desarrollo (render, totales, previsión; el
-> arrastre dnd no se prueba en headless). **Pendiente:** ficha de negocio (2.6),
-> participantes (2.7) y vista de lista con filtros (2.10).
+> estancado, y **ficha de negocio** con tareas/notas. Verificado vía login de
+> desarrollo (render, totales, previsión, ficha + alta de nota end-to-end; el arrastre
+> dnd no se prueba en headless). **Pendiente:** participantes (2.7) y vista de lista
+> con filtros (2.10).
 
 ### Criterios de aceptación
 - Creas un negocio, lo arrastras entre etapas, lo marcas ganado/perdido, ves el total

@@ -21,10 +21,12 @@ export function ActivitiesPanel({
   activities,
   lockedPersonId,
   lockedOrgId,
+  lockedDealId,
 }: {
   activities: ActivityRowData[];
   lockedPersonId?: string;
   lockedOrgId?: string;
+  lockedDealId?: string;
 }) {
   const open = activities.filter((a) => !a.done).sort(byDue);
   const done = activities
@@ -53,6 +55,7 @@ export function ActivitiesPanel({
             label="Nueva"
             lockedPersonId={lockedPersonId}
             lockedOrgId={lockedOrgId}
+            lockedDealId={lockedDealId}
           />
         </CardAction>
       </CardHeader>
@@ -69,6 +72,7 @@ export function ActivitiesPanel({
                 activity={a}
                 lockedPersonId={lockedPersonId}
                 lockedOrgId={lockedOrgId}
+                lockedDealId={lockedDealId}
               />
             ))}
 
@@ -84,6 +88,7 @@ export function ActivitiesPanel({
                 activity={a}
                 lockedPersonId={lockedPersonId}
                 lockedOrgId={lockedOrgId}
+                lockedDealId={lockedDealId}
               />
             ))}
           </div>

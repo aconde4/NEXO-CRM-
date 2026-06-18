@@ -167,6 +167,9 @@ export const activities = pgTable(
     orgId: uuid("org_id").references(() => organizations.id, {
       onDelete: "cascade",
     }),
+    dealId: uuid("deal_id").references(() => deals.id, {
+      onDelete: "cascade",
+    }),
     ownerId: text("owner_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -176,6 +179,7 @@ export const activities = pgTable(
     index("activities_owner_idx").on(t.ownerId),
     index("activities_person_idx").on(t.personId),
     index("activities_org_idx").on(t.orgId),
+    index("activities_deal_idx").on(t.dealId),
     index("activities_due_idx").on(t.dueAt),
     index("activities_done_idx").on(t.done),
   ],
@@ -193,6 +197,9 @@ export const notes = pgTable(
     orgId: uuid("org_id").references(() => organizations.id, {
       onDelete: "cascade",
     }),
+    dealId: uuid("deal_id").references(() => deals.id, {
+      onDelete: "cascade",
+    }),
     ownerId: text("owner_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -201,6 +208,7 @@ export const notes = pgTable(
   (t) => [
     index("notes_person_idx").on(t.personId),
     index("notes_org_idx").on(t.orgId),
+    index("notes_deal_idx").on(t.dealId),
     index("notes_owner_idx").on(t.ownerId),
   ],
 );
@@ -434,6 +442,10 @@ export const activitiesRelations = relations(activities, ({ one }) => ({
     fields: [activities.orgId],
     references: [organizations.id],
   }),
+  deal: one(deals, {
+    fields: [activities.dealId],
+    references: [deals.id],
+  }),
 }));
 
 export const notesRelations = relations(notes, ({ one }) => ({
@@ -442,6 +454,7 @@ export const notesRelations = relations(notes, ({ one }) => ({
     fields: [notes.orgId],
     references: [organizations.id],
   }),
+  deal: one(deals, { fields: [notes.dealId], references: [deals.id] }),
 }));
 
 export const pipelinesRelations = relations(pipelines, ({ many }) => ({
@@ -469,6 +482,8 @@ export const dealsRelations = relations(deals, ({ one, many }) => ({
     references: [organizations.id],
   }),
   contacts: many(dealContacts),
+  activities: many(activities),
+  notes: many(notes),
 }));
 
 export const dealContactsRelations = relations(dealContacts, ({ one }) => ({

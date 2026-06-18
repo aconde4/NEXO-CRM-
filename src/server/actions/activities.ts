@@ -29,7 +29,11 @@ function nullify(value: string | undefined | null): string | null {
 }
 
 /** Revalida las rutas afectadas por una actividad según sus vínculos. */
-function revalidateFor(personId: string | null, orgId: string | null) {
+function revalidateFor(
+  personId: string | null,
+  orgId: string | null,
+  dealId: string | null = null,
+) {
   revalidatePath("/activities");
   revalidatePath("/dashboard");
   if (personId) {
@@ -40,6 +44,10 @@ function revalidateFor(personId: string | null, orgId: string | null) {
     revalidatePath("/organizations");
     revalidatePath(`/organizations/${orgId}`);
   }
+  if (dealId) {
+    revalidatePath("/deals");
+    revalidatePath(`/deals/${dealId}`);
+  }
 }
 
 export async function createActivity(raw: ActivityFormValues) {
@@ -47,6 +55,7 @@ export async function createActivity(raw: ActivityFormValues) {
   const data = activityFormSchema.parse(raw);
   const personId = nullify(data.personId);
   const orgId = nullify(data.orgId);
+  const dealId = nullify(data.dealId);
   const dueAt = nullify(data.dueAt);
 
   const [row] = await db
@@ -58,13 +67,14 @@ export async function createActivity(raw: ActivityFormValues) {
       dueAt: dueAt ? new Date(dueAt) : null,
       personId,
       orgId,
+      dealId,
       ownerId: user.id,
     })
     .returning({ id: activities.id });
 
   if (!row) throw new Error("No se pudo crear la actividad");
   await logEvent(user.id, "created", row.id, { subject: data.subject });
-  revalidateFor(personId, orgId);
+  revalidateFor(personId, orgId, dealId);
   return { id: row.id };
 }
 
@@ -73,6 +83,7 @@ export async function updateActivity(id: string, raw: ActivityFormValues) {
   const data = activityFormSchema.parse(raw);
   const personId = nullify(data.personId);
   const orgId = nullify(data.orgId);
+  const dealId = nullify(data.dealId);
   const dueAt = nullify(data.dueAt);
 
   await db
@@ -84,11 +95,12 @@ export async function updateActivity(id: string, raw: ActivityFormValues) {
       dueAt: dueAt ? new Date(dueAt) : null,
       personId,
       orgId,
+      dealId,
     })
     .where(and(eq(activities.id, id), eq(activities.ownerId, user.id)));
 
   await logEvent(user.id, "updated", id);
-  revalidateFor(personId, orgId);
+  revalidateFor(personId, orgId, dealId);
   return { id };
 }
 
@@ -102,11 +114,12 @@ export async function setActivityDone(id: string, done: boolean) {
     .returning({
       personId: activities.personId,
       orgId: activities.orgId,
+      dealId: activities.dealId,
     });
 
   if (!row) throw new Error("Actividad no encontrada");
   await logEvent(user.id, done ? "completed" : "reopened", id);
-  revalidateFor(row.personId, row.orgId);
+  revalidateFor(row.personId, row.orgId, row.dealId);
 }
 
 export async function deleteActivity(id: string) {
@@ -118,9 +131,10 @@ export async function deleteActivity(id: string) {
     .returning({
       personId: activities.personId,
       orgId: activities.orgId,
+      dealId: activities.dealId,
     });
 
   if (!row) throw new Error("Actividad no encontrada");
   await logEvent(user.id, "deleted", id);
-  revalidateFor(row.personId, row.orgId);
+  revalidateFor(row.personId, row.orgId, row.dealId);
 }

@@ -10,10 +10,11 @@
 
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
-- **Fase 2 · Pipeline/Negocios:** **~75%** — **Kanban operativo** (dnd-kit) con
+- **Fase 2 · Pipeline/Negocios:** **~85%** — **Kanban operativo** (dnd-kit) con
   embudos múltiples, etapas configurables en Ajustes, totales por columna, previsión
-  ponderada, estancado y ganado/perdido. Pendiente: ficha de negocio (2.6),
-  participantes (2.7) y vista de lista (2.10). Migración `0004`.
+  ponderada, estancado, ganado/perdido y **ficha de negocio** (`/deals/[id]`) con
+  tareas y notas. Pendiente: participantes (2.7) y vista de lista (2.10). Migraciones
+  `0004` (pipeline) y `0005` (`deal_id` en actividades/notas).
 - **Fase 1 · Contactos y Empresas:** **completa** y verificada (vía login de
   desarrollo). Para subir adjuntos hace falta activar Supabase Storage (`SETUP.md`).
   - Tablas CRM (migración `0001`) con índices y relaciones.
@@ -57,13 +58,11 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 1 completa. Fase 2 en marcha (~75%).** El **Kanban de negocios ya funciona**.
-Continúa la **FASE 2** en [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la
-primera tarea sin marcar:
-1. **2.6** Ficha de negocio (valor, etapa, contacto/empresa, cierre previsto,
-   actividades, notas, timeline) — primera tarea sin marcar.
-2. **2.7** Participantes del negocio (`deal_contacts`).
-3. **2.10** Vista de lista de negocios con filtros.
+**Fase 1 completa. Fase 2 en marcha (~85%).** Kanban + **ficha de negocio** ya
+funcionan. Continúa la **FASE 2** en
+[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la primera tarea sin marcar:
+1. **2.7** Participantes del negocio (`deal_contacts`) — primera tarea sin marcar.
+2. **2.10** Vista de lista de negocios con filtros.
 
 Con eso se cierra la Fase 2 (🎉 hito: CRM usable a diario).
 
@@ -119,6 +118,20 @@ el MVP visual, y volver a los extras de la Fase 1 después.
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-18 (11) — Fase 2.6: ficha de negocio
+- **Migración `0005`:** `deal_id` en `activities` y `notes` (con índices y relaciones),
+  para colgar tareas y notas de un negocio.
+- **Datos:** `getDeal` (con etapa, embudo, contacto, empresa, actividades y notas);
+  actividades (action/validación + `ActivityFormDialog`/`ActivitiesPanel`/
+  `NewActivityButton`/`ActivityRow`) y notas (`createNote`/`NoteComposer`) admiten
+  `dealId`.
+- **UI:** página `/deals/[id]` (ficha de negocio) con detalles, panel de tareas y de
+  notas, y `DealActions` (editar, ganado/perdido con motivo, reabrir, eliminar). Las
+  tarjetas del Kanban enlazan a la ficha.
+- **Verificado** vía login de desarrollo: render completo de la ficha y **alta de nota
+  en el negocio end-to-end** (cableado `deal_id`). Datos de prueba limpiados.
+- Build, typecheck y lint (archivos nuevos) en verde.
 
 ### 2026-06-18 (10) — Fase 2: tablero Kanban de negocios
 - **Migración `0004`:** `pipelines`, `stages`, `deals`, `deal_contacts` (índices y

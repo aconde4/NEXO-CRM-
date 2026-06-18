@@ -182,6 +182,7 @@ export async function createNote(input: {
   body: string;
   personId?: string;
   orgId?: string;
+  dealId?: string;
 }) {
   const user = await requireUser();
   const { body } = noteFormSchema.parse({ body: input.body });
@@ -190,6 +191,7 @@ export async function createNote(input: {
     body,
     personId: input.personId ?? null,
     orgId: input.orgId ?? null,
+    dealId: input.dealId ?? null,
     ownerId: user.id,
   });
 
@@ -200,5 +202,9 @@ export async function createNote(input: {
   if (input.orgId) {
     await logEvent(user.id, "noted", "organization", input.orgId);
     revalidatePath(`/organizations/${input.orgId}`);
+  }
+  if (input.dealId) {
+    await logEvent(user.id, "noted", "deal", input.dealId);
+    revalidatePath(`/deals/${input.dealId}`);
   }
 }

@@ -60,6 +60,7 @@ export function ActivityRow({
   organizations = [],
   lockedPersonId,
   lockedOrgId,
+  lockedDealId,
 }: {
   activity: ActivityRowData;
   showEntity?: boolean;
@@ -67,6 +68,7 @@ export function ActivityRow({
   organizations?: EntityOption[];
   lockedPersonId?: string;
   lockedOrgId?: string;
+  lockedDealId?: string;
 }) {
   const router = useRouter();
   const [editing, setEditing] = React.useState(false);
@@ -221,6 +223,7 @@ export function ActivityRow({
         organizations={organizations}
         lockedPersonId={lockedPersonId}
         lockedOrgId={lockedOrgId}
+        lockedDealId={lockedDealId}
       />
 
       <Dialog open={deleting} onOpenChange={(o) => !o && setDeleting(false)}>

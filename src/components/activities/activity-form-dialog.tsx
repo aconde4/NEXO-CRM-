@@ -41,6 +41,7 @@ export type ActivityInitial = {
   dueAt: Date | string | null;
   personId: string | null;
   orgId: string | null;
+  dealId?: string | null;
 };
 
 const selectClass =
@@ -71,7 +72,7 @@ function Field({
 
 function toDefaults(
   activity: ActivityInitial | null | undefined,
-  locked: { personId?: string; orgId?: string },
+  locked: { personId?: string; orgId?: string; dealId?: string },
 ): ActivityFormValues {
   return {
     type: activity?.type ?? "task",
@@ -80,6 +81,7 @@ function toDefaults(
     dueAt: toDateTimeLocal(activity?.dueAt),
     personId: locked.personId ?? activity?.personId ?? "",
     orgId: locked.orgId ?? activity?.orgId ?? "",
+    dealId: locked.dealId ?? activity?.dealId ?? "",
   };
 }
 
@@ -91,6 +93,7 @@ export function ActivityFormDialog({
   organizations = [],
   lockedPersonId,
   lockedOrgId,
+  lockedDealId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -101,10 +104,11 @@ export function ActivityFormDialog({
   organizations?: EntityOption[];
   lockedPersonId?: string;
   lockedOrgId?: string;
+  lockedDealId?: string;
 }) {
   const router = useRouter();
   const isEdit = Boolean(activity);
-  const locked = Boolean(lockedPersonId || lockedOrgId);
+  const locked = Boolean(lockedPersonId || lockedOrgId || lockedDealId);
 
   const {
     register,
@@ -116,13 +120,20 @@ export function ActivityFormDialog({
     defaultValues: toDefaults(activity, {
       personId: lockedPersonId,
       orgId: lockedOrgId,
+      dealId: lockedDealId,
     }),
   });
 
   React.useEffect(() => {
     if (open)
-      reset(toDefaults(activity, { personId: lockedPersonId, orgId: lockedOrgId }));
-  }, [open, activity, lockedPersonId, lockedOrgId, reset]);
+      reset(
+        toDefaults(activity, {
+          personId: lockedPersonId,
+          orgId: lockedOrgId,
+          dealId: lockedDealId,
+        }),
+      );
+  }, [open, activity, lockedPersonId, lockedOrgId, lockedDealId, reset]);
 
   async function onSubmit(values: ActivityFormValues) {
     const payload: ActivityFormValues = {
@@ -130,6 +141,7 @@ export function ActivityFormDialog({
       dueAt: values.dueAt ? new Date(values.dueAt).toISOString() : undefined,
       personId: lockedPersonId ?? (values.personId || undefined),
       orgId: lockedOrgId ?? (values.orgId || undefined),
+      dealId: lockedDealId ?? (values.dealId || undefined),
     };
     try {
       if (isEdit && activity) {
