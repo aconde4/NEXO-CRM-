@@ -33,9 +33,23 @@ termines, dímelo y conecto la base de datos, el login y el despliegue.
    - (más adelante, la de producción: `https://TU-APP.vercel.app/api/auth/callback/google`)
 5. Copia **Client ID** y **Client secret** → `GOOGLE_CLIENT_ID` y
    `GOOGLE_CLIENT_SECRET` en `.env.local`.
+6. **APIs y servicios → Biblioteca** → busca **Gmail API** → **Habilitar**.
+7. En la pantalla de consentimiento, revisa que la app pueda pedir estos permisos:
+   - `openid`
+   - `email`
+   - `profile`
+   - `https://www.googleapis.com/auth/gmail.send`
+   - `https://www.googleapis.com/auth/gmail.readonly`
+8. Reinicia `pnpm dev`, entra en `/inbox` y pulsa **Conectar Gmail** o
+   **Reautorizar Gmail** para conceder los nuevos permisos.
 
 > `AUTH_SECRET` ya está generado en tu `.env.local`. `ALLOWED_EMAILS` ya tiene tu
 > correo (solo tú podrás entrar).
+>
+> Nota de producción: Google clasifica `gmail.send` como permiso sensible y
+> `gmail.readonly` como restringido. En local/desarrollo basta con usuarios de
+> prueba; si la app se publica para más usuarios, puede requerir verificación OAuth
+> y revisión de seguridad de Google.
 
 ## 2 bis. Usar tu correo de empresa (@miempresa.com)
 

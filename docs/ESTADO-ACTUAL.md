@@ -10,6 +10,10 @@
 
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
+- **Fase 3 · Email 1:1 (Gmail):** iniciada — **3.1 completa**. OAuth de Google pide
+  `gmail.send` + `gmail.readonly`, con acceso offline e incremental; Auth.js
+  conserva/actualiza tokens y scopes en `account`; `/inbox` muestra el estado seguro
+  de conexión Gmail sin exponer tokens. Siguiente: modelo de datos de email.
 - **Fase 2 · Pipeline/Negocios:** **completa** — **Kanban operativo** (dnd-kit) con
   embudos múltiples, etapas configurables en Ajustes, totales por columna, previsión
   ponderada, estancado, ganado/perdido, **ficha de negocio** (`/deals/[id]`) con
@@ -60,11 +64,10 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 2 completa.** El CRM ya cubre Contactos + Empresas + Pipeline/Kanban + ficha
-de negocio + participantes + vista de lista con filtros (🎉 hito: CRM usable a
-diario). Continúa la **FASE 3 · Email 1:1 (integración Gmail)** en
+**Fase 3 iniciada.** Continúa la **FASE 3 · Email 1:1 (integración Gmail)** en
 [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la primera tarea sin marcar:
-1. **3.1** Ampliar OAuth de Google con scopes de Gmail (envío + lectura).
+1. **3.2** Migración: `mailboxes`, `email_threads`, `email_messages`,
+   `email_templates`, `email_events`.
 
 Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 - Columnas y **filtros por campo personalizado** en los listados (sobre las vistas
@@ -73,8 +76,9 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 2.10 — vista de lista de negocios con filtros y
-> cierre de la Fase 2. Antes: Kanban/ficha/participantes y Fase 1 completa.
+> **Hecho en la última sesión:** Fase 3.1 — OAuth Google ampliado con scopes Gmail
+> (`gmail.send` + `gmail.readonly`), persistencia de tokens/scopes y panel de conexión
+> en `/inbox`. Antes: cierre de la Fase 2 con vista de lista de negocios.
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -115,6 +119,21 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-18 (14) — Fase 3.1: OAuth Gmail
+- **OAuth:** scopes compartidos en `src/lib/google-oauth.ts` (`openid`, `email`,
+  `profile`, `gmail.send`, `gmail.readonly`) con `access_type=offline`,
+  `prompt=consent`, `include_granted_scopes=true` y `response_type=code`.
+- **Auth.js:** Google Provider usa la configuración común y el callback `signIn`
+  actualiza de forma conservadora `access_token`, `refresh_token`, `expires_at`,
+  `token_type`, `scope` e `id_token` de la cuenta Google existente.
+- **UI:** `/inbox` deja de ser placeholder y muestra estado de conexión Gmail,
+  permisos concedidos/faltantes, refresh token, caducidad del access token y acción
+  para conectar o reautorizar Gmail. La navegación ya no marca Bandeja como
+  "próximamente".
+- **Docs:** `docs/SETUP.md` documenta habilitar Gmail API, scopes requeridos y la
+  nota de verificación OAuth en producción.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-18 (13) — Fase 2.10: vista de lista de negocios
 - **Datos:** `listDeals` con filtros por embudo, etapa, estado y búsqueda por negocio/

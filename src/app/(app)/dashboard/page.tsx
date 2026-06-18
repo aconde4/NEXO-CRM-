@@ -21,10 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  getActivityCounts,
-  listAgenda,
-} from "@/server/queries/activities";
+import { getActivityCounts, listAgenda } from "@/server/queries/activities";
 import {
   countOrganizations,
   countPersons,
@@ -167,15 +164,15 @@ export default async function DashboardPage() {
           <CardContent className="space-y-3 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Fase</span>
-              <span className="font-medium">1 · Contactos y Empresas</span>
+              <span className="font-medium">3 · Email 1:1</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Siguiente</span>
-              <span className="font-medium">2 · Pipeline</span>
+              <span className="font-medium">3.2 · Modelo de email</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Login</span>
-              <span className="font-medium">Google ✓</span>
+              <span className="font-medium">Google + Gmail OAuth</span>
             </div>
             <p className="text-muted-foreground/80 border-t pt-3 text-xs">
               El plan completo está en <code>docs/</code>. Retoma siempre por{" "}

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { auth, signIn } from "@/auth";
 import { Button } from "@/components/ui/button";
+import { GOOGLE_OAUTH_AUTHORIZATION_PARAMS } from "@/lib/google-oauth";
 
 export const metadata: Metadata = { title: "Iniciar sesión" };
 
@@ -35,7 +36,11 @@ export default async function LoginPage() {
 
   async function signInWithGoogle() {
     "use server";
-    await signIn("google", { redirectTo: "/dashboard" });
+    await signIn(
+      "google",
+      { redirectTo: "/dashboard" },
+      GOOGLE_OAUTH_AUTHORIZATION_PARAMS,
+    );
   }
 
   return (
@@ -48,7 +53,7 @@ export default async function LoginPage() {
 
       <div className="relative w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="from-primary to-chart-2 mb-4 flex size-12 items-center justify-center rounded-xl bg-gradient-to-br text-lg font-bold text-primary-foreground shadow-sm">
+          <div className="from-primary to-chart-2 text-primary-foreground mb-4 flex size-12 items-center justify-center rounded-xl bg-gradient-to-br text-lg font-bold shadow-sm">
             N
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">Nexo CRM</h1>
@@ -59,7 +64,12 @@ export default async function LoginPage() {
 
         <div className="bg-card rounded-xl border p-6 shadow-sm">
           <form action={signInWithGoogle}>
-            <Button type="submit" variant="outline" size="lg" className="w-full">
+            <Button
+              type="submit"
+              variant="outline"
+              size="lg"
+              className="w-full"
+            >
               <GoogleIcon />
               Continuar con Google
             </Button>

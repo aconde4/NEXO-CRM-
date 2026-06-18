@@ -167,7 +167,9 @@ previsión. Completa tu prioridad declarada (Contactos + Pipeline).
 negocios, con plantillas y seguimiento de aperturas/clics.
 
 ### Tareas
-- [ ] **3.1** Ampliar OAuth de Google con scopes de Gmail (envío + lectura).
+- [x] **3.1** Ampliar OAuth de Google con scopes de Gmail (envío + lectura).
+      → scopes `gmail.send` + `gmail.readonly`, acceso offline/incremental,
+      persistencia segura de tokens/scopes y panel de conexión en `/inbox`.
 - [ ] **3.2** Migración: `mailboxes`, `email_threads`, `email_messages`,
       `email_templates`, `email_events`.
 - [ ] **3.3** Servicio Gmail: enviar correo (con hilo correcto) usando el refresh

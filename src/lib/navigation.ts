@@ -44,7 +44,7 @@ export const navGroups: NavGroup[] = [
   {
     label: "Comunicación",
     items: [
-      { title: "Bandeja", href: "/inbox", icon: Inbox, soon: true },
+      { title: "Bandeja", href: "/inbox", icon: Inbox },
       { title: "Campañas", href: "/campaigns", icon: Megaphone, soon: true },
       { title: "Secuencias", href: "/sequences", icon: Repeat, soon: true },
       {
@@ -58,7 +58,9 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: "Análisis",
-    items: [{ title: "Analítica", href: "/analytics", icon: BarChart3, soon: true }],
+    items: [
+      { title: "Analítica", href: "/analytics", icon: BarChart3, soon: true },
+    ],
   },
 ];
 
