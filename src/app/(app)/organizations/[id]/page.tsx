@@ -16,7 +16,10 @@ import { notFound } from "next/navigation";
 import { fullName, formatDate, relativeDate } from "@/lib/format";
 import { getOrganization } from "@/server/queries/contacts";
 import { listCustomFieldDefs } from "@/server/queries/custom-fields";
+import { listFilesFor } from "@/server/queries/files";
+import { isStorageConfigured } from "@/server/storage";
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { EditOrganizationButton } from "@/components/organizations/edit-organization-button";
 import { CustomFieldsList } from "@/components/custom-fields/custom-fields-list";
 import { EntityAvatar } from "@/components/entity-avatar";
@@ -37,11 +40,13 @@ export default async function OrganizationDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [organization, customFieldDefs] = await Promise.all([
+  const [organization, customFieldDefs, attachments] = await Promise.all([
     getOrganization(id),
     listCustomFieldDefs("organization"),
+    listFilesFor("organization", id),
   ]);
   if (!organization) notFound();
+  const storageEnabled = isStorageConfigured();
 
   const notesTimeline = organization.notes
     .map((n) => ({ id: n.id, at: n.createdAt, text: n.body }))
@@ -182,6 +187,13 @@ export default async function OrganizationDetailPage({
           <ActivitiesPanel
             activities={organization.activities}
             lockedOrgId={organization.id}
+          />
+
+          <AttachmentsPanel
+            entityType="organization"
+            entityId={organization.id}
+            files={attachments}
+            storageEnabled={storageEnabled}
           />
 
           <Card>

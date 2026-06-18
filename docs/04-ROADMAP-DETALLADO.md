@@ -81,7 +81,11 @@ notas e importación CSV. El núcleo de datos del CRM.
       con filtros (Hoy/Pendientes/Hechas/Todas), panel en fichas de contacto/empresa,
       y agenda + contadores en el panel.
 - [x] **1.11** Notas (compositor en la ficha). *(editor Tiptap enriquecido más tarde.)*
-- [ ] **1.12** Adjuntos de archivos (Supabase Storage).
+- [x] **1.12** Adjuntos de archivos (Supabase Storage). Tabla `files`, panel
+      "Archivos" en fichas de contacto y empresa (subir hasta 10 MB, descargar con
+      enlace firmado temporal, borrar), bucket privado y **degradación elegante** si
+      Storage no está configurado. → alta del bucket + clave en
+      [`SETUP.md`](SETUP.md) §2 ter.
 - [x] **1.13** Importación **Excel (.xlsx) y CSV**: leer columnas, **mapearlas** a
       campos del CRM, vista previa y deduplicación por email. Asistente en
       `/contacts/import` (subir → mapear → previsualizar → resultado), auto-mapeo de
@@ -93,13 +97,15 @@ notas e importación CSV. El núcleo de datos del CRM.
       `/api/organizations/export`).
 - [x] **1.15** Registro en `activity_log` de las mutaciones (creado/editado/borrado/nota).
 
-> **Estado Fase 1 (~95%):** Contactos y Empresas operativos (crear/editar/borrar,
+> **Estado Fase 1 (completa):** Contactos y Empresas operativos (crear/editar/borrar,
 > buscar, fichas con contactos/notas/timeline) + **etiquetas** + **actividades/tareas**
 > + **importación CSV/Excel con mapeo y dedupe** + **exportación CSV** + **campos
 > personalizados** (Ajustes, fichas, formularios, import/export) con `trade_name` de
-> serie + **vistas guardadas** y orden en Contactos. Front pulido a nivel profesional:
-> **paleta de comandos (⌘K)**, skeletons de carga, página 404 cuidada, chips.
-> Pendiente: adjuntos (1.12) y, como mejora, filtros/columnas por campo personalizado.
+> serie + **vistas guardadas** y orden en Contactos + **adjuntos** (Supabase Storage).
+> Front pulido: **paleta de comandos (⌘K)**, skeletons, página 404, chips. Verificado
+> vía login de desarrollo. Mejora futura opcional: filtros/columnas por campo
+> personalizado en los listados. Para subir archivos hay que activar Storage
+> (`SETUP.md` §2 ter).
 
 ### Criterios de aceptación
 - Importas un CSV de contactos, los ves en una tabla filtrable, abres una ficha,

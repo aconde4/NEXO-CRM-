@@ -57,6 +57,24 @@ Sí se puede, y suele ser lo ideal. Depende de quién aloje ese correo:
 > Microsoft 365 u otro). No bloquea nada ahora: el login inicial puede ser tu Gmail
 > y luego conectamos el de empresa.
 
+## 2 ter. Supabase Storage (adjuntos de archivos, Fase 1.12) — opcional
+
+Los adjuntos en las fichas usan **Supabase Storage**. Sin esto, la app funciona
+igual pero el panel "Archivos" aparece desactivado. Para activarlo:
+
+1. En el panel de Supabase → **Storage** → **New bucket**: nombre **`attachments`**,
+   marcado como **privado** (sin acceso público). Los archivos se sirven con enlaces
+   firmados temporales.
+2. **Settings → API → Project API keys** → copia la clave **`service_role`**
+   (¡secreta, solo backend!) y pégala en `.env.local`:
+   `SUPABASE_SERVICE_ROLE_KEY="..."`.
+   - `SUPABASE_URL` se deduce de `DATABASE_URL`; solo defínela si quieres forzarla.
+   - El bucket por defecto es `attachments` (cambiable con `SUPABASE_STORAGE_BUCKET`).
+3. Reinicia `pnpm dev`. El panel "Archivos" quedará activo (subir/descargar/borrar,
+   máx. 10 MB por archivo).
+
+> En producción (Vercel) añade `SUPABASE_SERVICE_ROLE_KEY` como variable de entorno.
+
 ## 3. GitHub (repositorio) — recomendado
 
 1. Crea un repositorio **privado** vacío en https://github.com/new (p. ej. `nexo-crm`).

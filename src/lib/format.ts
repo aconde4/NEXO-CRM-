@@ -37,6 +37,19 @@ export function formatDateTime(value: Date | string | null | undefined): string 
   return dateTimeFormatter.format(d);
 }
 
+/** Tamaño de archivo legible ("1,2 MB"). */
+export function formatBytes(bytes: number): string {
+  if (!bytes) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const i = Math.min(
+    units.length - 1,
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+  );
+  const value = bytes / Math.pow(1024, i);
+  const rounded = i === 0 ? value : Math.round(value * 10) / 10;
+  return `${String(rounded).replace(".", ",")} ${units[i]}`;
+}
+
 /** Fecha relativa sencilla en español ("hace 3 días"). */
 export function relativeDate(value: Date | string | null | undefined): string {
   if (!value) return "—";

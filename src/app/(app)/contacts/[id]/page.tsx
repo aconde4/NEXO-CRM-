@@ -15,8 +15,11 @@ import { notFound } from "next/navigation";
 import { fullName, formatDate, relativeDate } from "@/lib/format";
 import { getPerson, listOrganizationOptions } from "@/server/queries/contacts";
 import { listCustomFieldDefs } from "@/server/queries/custom-fields";
+import { listFilesFor } from "@/server/queries/files";
 import { getLabelsForPerson, listLabels } from "@/server/queries/labels";
+import { isStorageConfigured } from "@/server/storage";
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { EditContactButton } from "@/components/contacts/edit-contact-button";
 import { CustomFieldsList } from "@/components/custom-fields/custom-fields-list";
 import { EntityAvatar } from "@/components/entity-avatar";
@@ -46,14 +49,17 @@ export default async function ContactDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [person, organizations, allLabels, customFieldDefs] = await Promise.all([
-    getPerson(id),
-    listOrganizationOptions(),
-    listLabels(),
-    listCustomFieldDefs("person"),
-  ]);
+  const [person, organizations, allLabels, customFieldDefs, attachments] =
+    await Promise.all([
+      getPerson(id),
+      listOrganizationOptions(),
+      listLabels(),
+      listCustomFieldDefs("person"),
+      listFilesFor("person", id),
+    ]);
 
   if (!person) notFound();
+  const storageEnabled = isStorageConfigured();
 
   const assignedLabels = await getLabelsForPerson(person.id);
   const name = fullName(person.firstName, person.lastName);
@@ -167,6 +173,13 @@ export default async function ContactDetailPage({
           <ActivitiesPanel
             activities={person.activities}
             lockedPersonId={person.id}
+          />
+
+          <AttachmentsPanel
+            entityType="person"
+            entityId={person.id}
+            files={attachments}
+            storageEnabled={storageEnabled}
           />
 
           <Card>

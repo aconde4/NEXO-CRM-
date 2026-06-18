@@ -280,6 +280,28 @@ export const savedViews = pgTable(
   ],
 );
 
+// --- Adjuntos (Supabase Storage) --------------------------------------------
+export const files = pgTable(
+  "files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    path: text("path").notNull(),
+    size: integer("size").default(0).notNull(),
+    mime: text("mime"),
+    entityType: text("entity_type").$type<CustomEntityType>().notNull(),
+    entityId: uuid("entity_id").notNull(),
+    ownerId: text("owner_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamps.createdAt,
+  },
+  (t) => [
+    index("files_entity_idx").on(t.entityType, t.entityId),
+    index("files_owner_idx").on(t.ownerId),
+  ],
+);
+
 // --- Relaciones (para consultas con `with`) ---------------------------------
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   persons: many(persons),

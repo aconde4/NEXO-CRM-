@@ -10,7 +10,8 @@
 
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
-- **Fase 1 · Contactos y Empresas:** **~95% hecho**.
+- **Fase 1 · Contactos y Empresas:** **completa** y verificada (vía login de
+  desarrollo). Para subir adjuntos hace falta activar Supabase Storage (`SETUP.md`).
   - Tablas CRM (migración `0001`) con índices y relaciones.
   - **Contactos:** listado con búsqueda, crear/editar (diálogo), borrar (reversible),
     ficha con detalles + línea de tiempo + notas, **etiquetas con color y filtro**.
@@ -36,6 +37,9 @@
   - **Vistas guardadas (1.5):** barra de vistas en Contactos para guardar/aplicar/
     borrar combinaciones de filtros (búsqueda + etiqueta + **orden**). Tabla
     `saved_views`.
+  - **Adjuntos (1.12):** tabla `files` + Supabase Storage. Panel "Archivos" en las
+    fichas (subir hasta 10 MB, descargar con enlace firmado, borrar) con bucket
+    privado y degradación elegante si Storage no está configurado.
   - **Front pulido (nivel profesional):** paleta de comandos **⌘K**, skeletons de
     carga (`loading.tsx`), página 404 cuidada, chips de etiquetas, microinteracciones.
   - Dashboard con contadores reales (contactos, empresas, tareas hoy, vencidas).
@@ -49,23 +53,21 @@
 
 ## ⏭️ Siguiente paso concreto
 
-Continuar la **Fase 1** por la primera tarea sin marcar en
-[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) → FASE 1. Queda:
-1. **1.12 Adjuntos** (Supabase Storage) — última tarea para cerrar la Fase 1.
-2. (Mejora) columnas y **filtros por campo personalizado** en los listados,
-   apoyados en las vistas guardadas.
-3. (Opcional) etiquetas también en empresas; editor de notas enriquecido (Tiptap).
+**La Fase 1 está completa.** El siguiente paso es empezar la **FASE 2 · Pipeline /
+Embudos / Negocios** en [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md), por la
+tarea **2.1** (migración `pipelines`, `stages`, `deals`, `deal_contacts`).
 
-> **Verificación pendiente:** a petición del usuario, la comprobación en navegador
-> (login de desarrollo) de **1.8 y 1.5** se hará al cerrar **toda** la Fase 1 (tras
-> 1.12). Compila: `pnpm build`, `pnpm typecheck` y `pnpm lint` (archivos nuevos) en
-> verde; migración `0002` aplicada.
+Tareas opcionales que quedaron fuera de la Fase 1 (se pueden retomar cuando convenga):
+- Columnas y **filtros por campo personalizado** en los listados (se apoyan en las
+  vistas guardadas).
+- Etiquetas también en empresas; editor de notas enriquecido (Tiptap).
 
-Después de la Fase 1 → **Fase 2 · Pipeline** (Kanban de negocios), fin del MVP
-prioritario.
+> **Para activar adjuntos:** crear el bucket `attachments` y añadir
+> `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter). Sin eso, el panel "Archivos"
+> aparece desactivado (no rompe nada). El resto de la Fase 1 está verificado.
 
-> **Hecho en la última sesión:** 1.8 Campos personalizados (+ `trade_name`) y 1.5
-> Vistas guardadas. Antes: 1.13/1.14 import/export, 1.10 actividades.
+> **Hecho en la última sesión:** 1.12 Adjuntos (Supabase Storage) + verificación en
+> navegador de toda la Fase 1. Antes: 1.8/1.5, 1.13/1.14, 1.10.
 
 Alternativa: saltar a **Fase 2 · Pipeline** (negocios) si se prefiere completar antes
 el MVP visual, y volver a los extras de la Fase 1 después.
@@ -109,6 +111,21 @@ el MVP visual, y volver a los extras de la Fase 1 después.
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-18 (9) — Adjuntos (1.12) + cierre y revisión de la Fase 1
+- **Migración `0003`** aplicada: tabla `files`.
+- **Adjuntos (1.12):** helper `server/storage.ts` (Supabase Storage con `service_role`,
+  URL deducida de `DATABASE_URL`, `isStorageConfigured()`), queries/actions, route
+  handlers `POST /api/attachments` (subida multipart, máx. 10 MB, autorización por
+  dueño de la entidad) y `GET /api/attachments/[id]` (descarga vía enlace firmado).
+  `AttachmentsPanel` en fichas de contacto y empresa con **degradación elegante** si
+  Storage no está configurado. Dependencia `@supabase/supabase-js`. Setup del bucket
+  documentado en `SETUP.md` §2 ter.
+- **Revisión en navegador de la Fase 1** (login de desarrollo, lectura de DOM + fetch):
+  campos personalizados en Ajustes/fichas (texto y monetario `1.500.000,00 €`) y en
+  export; `trade_name`; vistas guardadas (aplicar/limpiar) y orden por nombre; panel
+  de adjuntos en estado "no configurado". Datos de prueba sembrados y limpiados.
+- Build, typecheck y lint (archivos nuevos) en verde. **Fase 1 cerrada.**
 
 ### 2026-06-18 (8) — Campos personalizados + vistas guardadas (1.8 y 1.5)
 - **Migración `0002`** aplicada: `custom_field_defs`, `saved_views` y `trade_name`
