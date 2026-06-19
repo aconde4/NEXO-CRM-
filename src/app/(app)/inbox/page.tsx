@@ -29,6 +29,12 @@ import {
 import { cn } from "@/lib/utils";
 import { syncGmailInboxNow } from "@/server/actions/emails";
 import { getGmailConnectionStatus } from "@/server/queries/gmail";
+import {
+  listInboxThreads,
+  type InboxThreadFilter,
+  type InboxThreadSort,
+} from "@/server/queries/email-threads";
+import { InboxThreadsView } from "@/components/email/inbox-threads-view";
 
 export const metadata: Metadata = { title: "Bandeja" };
 
@@ -36,6 +42,27 @@ const scopeLabels: Record<(typeof GMAIL_OAUTH_SCOPES)[number], string> = {
   "https://www.googleapis.com/auth/gmail.readonly": "Leer hilos y mensajes",
   "https://www.googleapis.com/auth/gmail.send": "Enviar correos",
 };
+
+type InboxSearchParams = {
+  filter?: string | string[];
+  q?: string | string[];
+  sort?: string | string[];
+};
+
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function normalizeFilter(value: string | undefined): InboxThreadFilter {
+  if (value === "unread" || value === "linked" || value === "unlinked") {
+    return value;
+  }
+  return "all";
+}
+
+function normalizeSort(value: string | undefined): InboxThreadSort {
+  return value === "oldest" ? "oldest" : "recent";
+}
 
 async function authorizeGmail() {
   "use server";
@@ -98,8 +125,21 @@ function StatusRow({
   );
 }
 
-export default async function InboxPage() {
-  const status = await getGmailConnectionStatus();
+export default async function InboxPage({
+  searchParams,
+}: {
+  searchParams: Promise<InboxSearchParams>;
+}) {
+  const params = await searchParams;
+  const filters = {
+    filter: normalizeFilter(firstParam(params.filter)),
+    query: firstParam(params.q) ?? "",
+    sort: normalizeSort(firstParam(params.sort)),
+  };
+  const [status, inbox] = await Promise.all([
+    getGmailConnectionStatus(),
+    listInboxThreads(filters),
+  ]);
   const grantedScopeSet = new Set(status.grantedScopes);
   const expiresAt = status.expiresAt
     ? formatDateTime(status.expiresAt)
@@ -112,7 +152,15 @@ export default async function InboxPage() {
     <>
       <PageHeader
         title="Bandeja"
-        description="Conecta Gmail para enviar y leer conversaciones 1:1 desde Nexo CRM."
+        description={
+          status.ready
+            ? `${inbox.stats.total} ${
+                inbox.stats.total === 1
+                  ? "hilo sincronizado"
+                  : "hilos sincronizados"
+              } desde Gmail.`
+            : "Conecta Gmail para enviar y leer conversaciones 1:1 desde Nexo CRM."
+        }
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {status.ready ? (
@@ -139,6 +187,14 @@ export default async function InboxPage() {
           </div>
         }
       />
+
+      {status.ready ? (
+        <InboxThreadsView
+          filters={filters}
+          stats={inbox.stats}
+          threads={inbox.threads}
+        />
+      ) : null}
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.75fr)]">
         <Card>

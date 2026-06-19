@@ -198,7 +198,10 @@ negocios, con plantillas y seguimiento de aperturas/clics.
       → `email_events`. Cada mensaje saliente tiene `tracking_id`, pixel de apertura,
       enlaces HTTP/HTTPS reescritos a redirecciones firmadas, eventos `open`/`click`,
       contadores en `email_messages` y métricas visibles en `/inbox/[threadId]`.
-- [ ] **3.8** Bandeja de ventas unificada (todos los hilos en un sitio).
+- [x] **3.8** Bandeja de ventas unificada (todos los hilos en un sitio). `/inbox`
+      muestra los hilos sincronizados con búsqueda, filtros (todos/no leídos/
+      vinculados/sin vincular), orden reciente/antiguo, contadores y acceso directo a
+      `/inbox/[threadId]`.
 - [ ] **3.9** Detección de respuestas (marca `replied`) — base para parar secuencias.
 - [ ] **3.10** Límite diario de envío por buzón (warm-up) y firma HTML.
 

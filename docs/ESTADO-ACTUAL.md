@@ -10,7 +10,7 @@
 
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
-- **Fase 3 · Email 1:1 (Gmail):** en marcha — **3.1–3.7 completas**. OAuth de
+- **Fase 3 · Email 1:1 (Gmail):** en marcha — **3.1–3.8 completas**. OAuth de
   Google pide `gmail.send` + `gmail.readonly`, con acceso offline e incremental;
   Auth.js conserva/actualiza tokens y scopes en `account`; `/inbox` muestra el
   estado seguro de conexión Gmail sin exponer tokens. Migración `0006_exotic_prism`
@@ -27,8 +27,10 @@
   `{{nombre|"amigo"}}`, vista previa por destinatario y sanitización HTML en servidor.
   **3.7**: tracking propio de aperturas y clics; cada email saliente guarda
   `tracking_id`, añade pixel, reescribe enlaces HTTP/HTTPS a redirects firmados,
-  registra eventos `open`/`click` y muestra contadores en la vista de hilo. Siguiente:
-  bandeja unificada de ventas (3.8).
+  registra eventos `open`/`click` y muestra contadores en la vista de hilo. **3.8**:
+  `/inbox` ya es una bandeja unificada con lista de hilos, búsqueda, filtros de
+  lectura/vinculación, ordenación y acceso a cada conversación. Siguiente: detección
+  de respuestas (3.9).
 - **Fase 2 · Pipeline/Negocios:** **completa** — **Kanban operativo** (dnd-kit) con
   embudos múltiples, etapas configurables en Ajustes, totales por columna, previsión
   ponderada, estancado, ganado/perdido, **ficha de negocio** (`/deals/[id]`) con
@@ -79,11 +81,10 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 3 en marcha (3.1–3.7 hechas).** Continúa la **FASE 3 · Email 1:1 (Gmail)** en
+**Fase 3 en marcha (3.1–3.8 hechas).** Continúa la **FASE 3 · Email 1:1 (Gmail)** en
 [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la primera tarea sin marcar:
-1. **3.8** Bandeja unificada (lista de hilos).
-2. **3.9** Detección de respuestas.
-3. **3.10** Límite diario + firma.
+1. **3.9** Detección de respuestas.
+2. **3.10** Límite diario + firma.
 
 Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 - Columnas y **filtros por campo personalizado** en los listados (sobre las vistas
@@ -92,10 +93,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 3.7 — tracking propio de aperturas/clics.
-> Antes: 3.1–3.6 (OAuth Gmail, modelo de email, envío, sincronización de entrada,
-> vista de hilo de conversación y redactor Tiptap con plantillas) y cierre de la Fase
-> 2 (2.10).
+> **Hecho en la última sesión:** Fase 3.8 — bandeja unificada en `/inbox`.
+> Antes: 3.1–3.7 (OAuth Gmail, modelo de email, envío, sincronización de entrada,
+> vista de hilo de conversación, redactor Tiptap con plantillas y tracking propio) y
+> cierre de la Fase 2 (2.10).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -136,6 +137,19 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-19 (22) — Fase 3.8: bandeja unificada de ventas
+- **Datos:** `listInboxThreads` carga todos los hilos del usuario con ownership,
+  buzón, último mensaje, contacto/empresa/negocio vinculado y contadores de estado.
+- **Filtros:** `/inbox` soporta búsqueda por asunto/snippet/buzón/contacto/empresa/
+  negocio, filtro por todos/no leídos/vinculados/sin vincular y orden reciente/antiguo.
+- **UI:** `InboxThreadsView` muestra lista responsive de conversaciones, estado de
+  lectura, remitente/destinatario, snippet, fecha, número de mensajes y chips de
+  vinculación CRM. La lista queda como experiencia principal cuando Gmail está listo.
+- **Verificado:** login de desarrollo + lectura HTML de `/inbox` y
+  `/inbox?filter=unread&q=Sugar` devuelven 200 y contienen conversaciones
+  sincronizadas, búsqueda y enlaces a `/inbox/[threadId]`.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-19 (21) — Bugfix: sincronización Gmail tras activar API
 - **Causa:** la Gmail API ya respondía OK, pero la sync fallaba al actualizar hilos
