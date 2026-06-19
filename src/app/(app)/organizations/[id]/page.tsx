@@ -16,10 +16,12 @@ import { notFound } from "next/navigation";
 import { fullName, formatDate, relativeDate } from "@/lib/format";
 import { getOrganization } from "@/server/queries/contacts";
 import { listCustomFieldDefs } from "@/server/queries/custom-fields";
+import { listEntityThreads } from "@/server/queries/email-threads";
 import { listFilesFor } from "@/server/queries/files";
 import { isStorageConfigured } from "@/server/storage";
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
+import { EmailThreadsPanel } from "@/components/email/email-threads-panel";
 import { EditOrganizationButton } from "@/components/organizations/edit-organization-button";
 import { CustomFieldsList } from "@/components/custom-fields/custom-fields-list";
 import { EntityAvatar } from "@/components/entity-avatar";
@@ -40,11 +42,13 @@ export default async function OrganizationDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [organization, customFieldDefs, attachments] = await Promise.all([
-    getOrganization(id),
-    listCustomFieldDefs("organization"),
-    listFilesFor("organization", id),
-  ]);
+  const [organization, customFieldDefs, attachments, emailThreads] =
+    await Promise.all([
+      getOrganization(id),
+      listCustomFieldDefs("organization"),
+      listFilesFor("organization", id),
+      listEntityThreads({ orgId: id }),
+    ]);
   if (!organization) notFound();
   const storageEnabled = isStorageConfigured();
 
@@ -195,6 +199,8 @@ export default async function OrganizationDetailPage({
             files={attachments}
             storageEnabled={storageEnabled}
           />
+
+          <EmailThreadsPanel threads={emailThreads} />
 
           <Card>
             <CardHeader>

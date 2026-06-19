@@ -25,9 +25,11 @@ import {
   listPipelines,
   listStagesByPipeline,
 } from "@/server/queries/deals";
+import { listEntityThreads } from "@/server/queries/email-threads";
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
 import { DealActions } from "@/components/deals/deal-actions";
 import { DealParticipants } from "@/components/deals/deal-participants";
+import { EmailThreadsPanel } from "@/components/email/email-threads-panel";
 import { NoteComposer } from "@/components/note-composer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,15 +52,23 @@ export default async function DealDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [deal, pipelines, stagesByPipeline, persons, organizations, user] =
-    await Promise.all([
-      getDeal(id),
-      listPipelines(),
-      listStagesByPipeline(),
-      listPersonOptions(),
-      listOrganizationOptions(),
-      requireUser(),
-    ]);
+  const [
+    deal,
+    pipelines,
+    stagesByPipeline,
+    persons,
+    organizations,
+    user,
+    emailThreads,
+  ] = await Promise.all([
+    getDeal(id),
+    listPipelines(),
+    listStagesByPipeline(),
+    listPersonOptions(),
+    listOrganizationOptions(),
+    requireUser(),
+    listEntityThreads({ dealId: id }),
+  ]);
 
   if (!deal) notFound();
 
@@ -191,6 +201,8 @@ export default async function DealDetailPage({
           />
 
           <ActivitiesPanel activities={deal.activities} lockedDealId={deal.id} />
+
+          <EmailThreadsPanel threads={emailThreads} />
 
           <Card>
             <CardHeader>

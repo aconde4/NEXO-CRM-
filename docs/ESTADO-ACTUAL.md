@@ -10,7 +10,7 @@
 
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
-- **Fase 3 · Email 1:1 (Gmail):** iniciada — **3.1, 3.2, 3.3 y 3.4 completas**. OAuth de
+- **Fase 3 · Email 1:1 (Gmail):** en marcha — **3.1–3.5 completas**. OAuth de
   Google pide `gmail.send` + `gmail.readonly`, con acceso offline e incremental;
   Auth.js conserva/actualiza tokens y scopes en `account`; `/inbox` muestra el
   estado seguro de conexión Gmail sin exponer tokens. Migración `0006_exotic_prism`
@@ -19,8 +19,10 @@
   MIME RFC 2822/base64url, envía por `users.messages.send`, respeta hilo Gmail y
   persiste hilo/mensaje/evento. Sincronización de entrada lista: job Inngest cada 10
   min, acción manual en `/inbox`, full sync inicial, incremental por Gmail History API
-  y vínculo de mensajes entrantes a contacto/empresa por email. Siguiente: vista de
-  hilo de conversación.
+  y vínculo de mensajes entrantes a contacto/empresa por email. **3.5**: panel
+  "Conversaciones" en fichas (contacto/empresa/negocio) y vista de conversación
+  `/inbox/[threadId]` (mensajes cronológicos, Enviado/Recibido, cuerpo HTML→texto
+  seguro). Siguiente: redactor con plantillas y merge tags (3.6).
 - **Fase 2 · Pipeline/Negocios:** **completa** — **Kanban operativo** (dnd-kit) con
   embudos múltiples, etapas configurables en Ajustes, totales por columna, previsión
   ponderada, estancado, ganado/perdido, **ficha de negocio** (`/deals/[id]`) con
@@ -71,9 +73,12 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 3 iniciada.** Continúa la **FASE 3 · Email 1:1 (integración Gmail)** en
+**Fase 3 en marcha (3.1–3.5 hechas).** Continúa la **FASE 3 · Email 1:1 (Gmail)** en
 [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la primera tarea sin marcar:
-1. **3.5** Vista de hilo de conversación en la ficha del contacto/negocio.
+1. **3.6** Redactor de email (Tiptap) con plantillas y **merge tags** (campos de serie
+   + personalizados, valor por defecto, vista previa por destinatario).
+2. **3.7** Tracking de aperturas/clics. **3.8** Bandeja unificada (lista de hilos).
+   **3.9** Detección de respuestas. **3.10** Límite diario + firma.
 
 Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 - Columnas y **filtros por campo personalizado** en los listados (sobre las vistas
@@ -82,9 +87,9 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 3.4 — sincronización Gmail de entrada con
-> Inngest, History API, recuperación por full sync, persistencia idempotente y vínculo
-> a contacto/empresa por email. Antes: 3.3 servicio Gmail de envío.
+> **Hecho en la última sesión:** Fase 3.5 — vista de hilo de conversación en fichas y
+> página `/inbox/[threadId]`. Antes (Codex): 3.1–3.4 (OAuth Gmail, modelo de email,
+> envío y sincronización de entrada) y cierre de la Fase 2 (2.10).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -125,6 +130,19 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-18 (18) — Fase 3.5: vista de hilo de conversación
+- **Relevo desde Codex:** verificados los gates tras el handoff (typecheck, lint —ahora
+  a cero, Codex limpió los 2 errores preexistentes— y build); actualizada la nota de
+  gates en `AGENTS.md`.
+- **Datos:** `queries/email-threads.ts` — `listEntityThreads({person|org|deal})` y
+  `getThreadWithMessages` (mensajes en orden cronológico).
+- **UI:** `EmailThreadsPanel` (panel "Conversaciones") en las fichas de contacto,
+  empresa y negocio; página `/inbox/[threadId]` con la conversación (Enviado/Recibido,
+  remitente, fecha, destinatarios), cuerpo `bodyText` o **HTML→texto** (sin XSS).
+- **Verificado** vía login de desarrollo (hilo sembrado): panel en la ficha y
+  conversación con 2 mensajes en orden y dirección correctos. Datos de prueba limpiados.
+- Build, typecheck y lint en verde.
 
 ### 2026-06-18 (17) — Fase 3.4: sincronización Gmail de entrada
 - **Auth común:** `src/server/services/gmail-auth.ts` centraliza cuenta Google,

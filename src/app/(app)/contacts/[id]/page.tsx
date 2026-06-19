@@ -15,11 +15,13 @@ import { notFound } from "next/navigation";
 import { fullName, formatDate, relativeDate } from "@/lib/format";
 import { getPerson, listOrganizationOptions } from "@/server/queries/contacts";
 import { listCustomFieldDefs } from "@/server/queries/custom-fields";
+import { listEntityThreads } from "@/server/queries/email-threads";
 import { listFilesFor } from "@/server/queries/files";
 import { getLabelsForPerson, listLabels } from "@/server/queries/labels";
 import { isStorageConfigured } from "@/server/storage";
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
+import { EmailThreadsPanel } from "@/components/email/email-threads-panel";
 import { EditContactButton } from "@/components/contacts/edit-contact-button";
 import { CustomFieldsList } from "@/components/custom-fields/custom-fields-list";
 import { EntityAvatar } from "@/components/entity-avatar";
@@ -49,14 +51,21 @@ export default async function ContactDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [person, organizations, allLabels, customFieldDefs, attachments] =
-    await Promise.all([
-      getPerson(id),
-      listOrganizationOptions(),
-      listLabels(),
-      listCustomFieldDefs("person"),
-      listFilesFor("person", id),
-    ]);
+  const [
+    person,
+    organizations,
+    allLabels,
+    customFieldDefs,
+    attachments,
+    emailThreads,
+  ] = await Promise.all([
+    getPerson(id),
+    listOrganizationOptions(),
+    listLabels(),
+    listCustomFieldDefs("person"),
+    listFilesFor("person", id),
+    listEntityThreads({ personId: id }),
+  ]);
 
   if (!person) notFound();
   const storageEnabled = isStorageConfigured();
@@ -181,6 +190,8 @@ export default async function ContactDetailPage({
             files={attachments}
             storageEnabled={storageEnabled}
           />
+
+          <EmailThreadsPanel threads={emailThreads} />
 
           <Card>
             <CardHeader>

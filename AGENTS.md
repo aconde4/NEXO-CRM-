@@ -68,11 +68,10 @@ Auth.js v5 (Google) · Inngest · Gmail API + Resend · Claude API. Gestor: **pn
 
 ## Gates de calidad (antes de cada commit)
 
-- `pnpm typecheck`, `pnpm build` y `pnpm lint` en verde **para lo que añadas**.
-- ⚠️ El lint tiene **2 errores preexistentes** en `src/components/theme-toggle.tsx` y
-  `src/hooks/use-mobile.ts` (regla `react-hooks/set-state-in-effect`). Son **conocidos
-  y aceptados**: no los cuentes como tuyos ni los persigas; solo asegúrate de **no
-  introducir errores/avisos nuevos**.
+- `pnpm typecheck`, `pnpm build` y `pnpm lint` en verde. **`pnpm lint` debe quedar a
+  cero** (ya no hay errores preexistentes). No introduzcas errores ni avisos nuevos.
+- El aviso `nativeButton` de Base UI (botones con `render={<Link/>}`) es **cosmético y
+  esperado** en dev; no lo cuentes como error.
 - **Commit por tarea.** Identidad de git: este equipo **no tiene `user.name/email`
   configurados** (commitear directo falla con "Author identity unknown"). Usa:
   `git -c user.name="acondeuceda" -c user.email="acondeuceda@gmail.com" commit -m "…"`
