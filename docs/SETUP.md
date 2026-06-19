@@ -102,6 +102,25 @@ igual pero el panel "Archivos" aparece desactivado. Para activarlo:
    (con la URL de producción en `NEXT_PUBLIC_APP_URL`).
 3. Deploy. A partir de ahí, cada `git push` despliega solo.
 
+## 4 bis. Tracking de aperturas/clics — importante desde la Fase 3.7
+
+El tracking de emails usa URLs públicas de tu CRM:
+
+- Aperturas: un pixel propio en `/api/email/track/open/...`.
+- Clics: una redirección firmada en `/api/email/track/click/...`.
+
+En local, si envías un correo real con `http://localhost:3000`, Gmail no puede cargar
+ese pixel desde internet. Para medir aperturas/clics de destinatarios reales necesitas
+desplegar la app y definir en Vercel:
+
+```env
+NEXT_PUBLIC_APP_URL=https://TU-APP.vercel.app
+AUTH_SECRET=el_mismo_secret_seguro_que_uses_en_produccion
+```
+
+Si más adelante cambias a un dominio propio, actualiza `NEXT_PUBLIC_APP_URL` y
+redeploy. Los enlaces ya enviados seguirán apuntando al dominio antiguo.
+
 ## 5. Inngest (automatizaciones) — cuando despleguemos
 
 1. Entra en https://www.inngest.com con tu GitHub.

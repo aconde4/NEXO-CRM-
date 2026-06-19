@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   Bold,
   Italic,
+  Link2,
   List,
   ListOrdered,
   Quote,
@@ -11,6 +12,7 @@ import {
   RemoveFormatting,
   Strikethrough,
   Underline,
+  Unlink,
   Undo2,
 } from "lucide-react";
 import { Placeholder } from "@tiptap/extensions";
@@ -55,6 +57,12 @@ function editorToValue(editor: Editor): RichEmailEditorValue {
   const doc = editor.state.doc;
   const text = doc.textBetween(0, doc.content.size, "\n\n").trim();
   return { html: editor.getHTML(), text };
+}
+
+function normalizePromptHref(value: string): string {
+  const href = value.trim();
+  if (/^(https?:|mailto:|tel:)/i.test(href)) return href;
+  return `https://${href.replace(/^\/+/, "")}`;
 }
 
 type ToolbarButtonProps = {
@@ -125,7 +133,16 @@ export const RichEmailEditor = React.forwardRef<
         codeBlock: false,
         heading: false,
         horizontalRule: false,
-        link: false,
+        link: {
+          autolink: true,
+          defaultProtocol: "https",
+          HTMLAttributes: {
+            rel: "noopener noreferrer",
+            target: "_blank",
+          },
+          openOnClick: false,
+          protocols: ["http", "https", "mailto", "tel"],
+        },
       }),
       Placeholder.configure({
         placeholder,
@@ -176,6 +193,31 @@ export const RichEmailEditor = React.forwardRef<
 
   const canEdit = Boolean(editor && !disabled);
 
+  function setLink() {
+    if (!editor || disabled) return;
+    const previousHref = editor.getAttributes("link").href;
+    const nextHref = window.prompt(
+      "URL del enlace",
+      typeof previousHref === "string" ? previousHref : "https://",
+    );
+    if (nextHref === null) return;
+    if (!nextHref.trim()) {
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      return;
+    }
+    editor
+      .chain()
+      .focus()
+      .extendMarkRange("link")
+      .setLink({ href: normalizePromptHref(nextHref) })
+      .run();
+  }
+
+  function unsetLink() {
+    if (!editor || disabled) return;
+    editor.chain().focus().extendMarkRange("link").unsetLink().run();
+  }
+
   return (
     <div
       className={cn(
@@ -211,6 +253,19 @@ export const RichEmailEditor = React.forwardRef<
           active={editor?.isActive("strike")}
           disabled={!canEdit}
           onClick={() => editor?.chain().focus().toggleStrike().run()}
+        />
+        <ToolbarButton
+          label="Enlace"
+          icon={Link2}
+          active={editor?.isActive("link")}
+          disabled={!canEdit}
+          onClick={setLink}
+        />
+        <ToolbarButton
+          label="Quitar enlace"
+          icon={Unlink}
+          disabled={!canEdit || !editor?.isActive("link")}
+          onClick={unsetLink}
         />
         <span className="bg-border mx-1 h-5 w-px" />
         <ToolbarButton

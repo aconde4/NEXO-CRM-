@@ -3,7 +3,9 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Building2,
+  Eye,
   Handshake,
+  MousePointerClick,
   User,
 } from "lucide-react";
 import type { Metadata } from "next";
@@ -40,6 +42,10 @@ function recipientsLabel(
   list: { email: string; name?: string | null }[],
 ): string {
   return list.map((r) => r.name || r.email).join(", ");
+}
+
+function countLabel(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
 }
 
 export default async function ThreadPage({
@@ -107,7 +113,8 @@ export default async function ThreadPage({
             (message.bodyHtml ? htmlToText(message.bodyHtml) : "") ||
             message.snippet ||
             "(sin contenido)";
-          const date = message.sentAt ?? message.receivedAt ?? message.createdAt;
+          const date =
+            message.sentAt ?? message.receivedAt ?? message.createdAt;
           return (
             <li
               key={message.id}
@@ -139,6 +146,29 @@ export default async function ThreadPage({
                 <p className="text-muted-foreground mt-1 truncate text-xs">
                   Para: {recipientsLabel(message.toRecipients)}
                 </p>
+              ) : null}
+
+              {outbound && message.trackingId ? (
+                <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                  <span className="inline-flex items-center gap-1">
+                    <Eye className="size-3.5" />
+                    {countLabel(message.openCount, "apertura", "aperturas")}
+                  </span>
+                  {message.openedAt ? (
+                    <span>
+                      Primera apertura: {formatDateTime(message.openedAt)}
+                    </span>
+                  ) : null}
+                  <span className="inline-flex items-center gap-1">
+                    <MousePointerClick className="size-3.5" />
+                    {countLabel(message.clickCount, "clic", "clics")}
+                  </span>
+                  {message.clickedAt ? (
+                    <span>
+                      Primer clic: {formatDateTime(message.clickedAt)}
+                    </span>
+                  ) : null}
+                </div>
               ) : null}
 
               <p className="mt-3 text-sm break-words whitespace-pre-wrap">

@@ -27,6 +27,7 @@ import {
   normalizeEmail,
   type GoogleAccount,
 } from "@/server/services/gmail-auth";
+import { instrumentEmailHtml } from "@/server/services/email-tracking";
 
 const GMAIL_SEND_URL =
   "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
@@ -392,10 +393,16 @@ export async function sendGmailEmail(userId: string, raw: SendEmailValues) {
   const fromName =
     cleanOptional(mailbox.fromName) ?? cleanOptional(mailbox.displayName);
   const localMessageId = makeRfcMessageId(fromEmail);
+  const trackingId = crypto.randomUUID();
+  const trackedBodyHtml = instrumentEmailHtml({
+    bodyHtml: prepared.bodyHtml,
+    bodyText: prepared.bodyText,
+    trackingId,
+  });
 
   const rawMessage = buildGmailRawMessage({
     bcc: prepared.bcc,
-    bodyHtml: prepared.bodyHtml,
+    bodyHtml: trackedBodyHtml,
     bodyText: prepared.bodyText,
     cc: prepared.cc,
     from: { email: fromEmail, name: fromName },
@@ -525,7 +532,7 @@ export async function sendGmailEmail(userId: string, raw: SendEmailValues) {
       .insert(emailMessages)
       .values({
         bccRecipients: prepared.bcc,
-        bodyHtml: prepared.bodyHtml,
+        bodyHtml: trackedBodyHtml,
         bodyText: prepared.bodyText,
         ccRecipients: prepared.cc,
         direction: "outbound",
@@ -546,6 +553,7 @@ export async function sendGmailEmail(userId: string, raw: SendEmailValues) {
         subject: prepared.subject,
         threadId: thread.id,
         toRecipients: prepared.to,
+        trackingId,
       })
       .returning({ id: emailMessages.id });
     if (!message) throw new Error("No se pudo registrar el mensaje enviado");
@@ -560,6 +568,7 @@ export async function sendGmailEmail(userId: string, raw: SendEmailValues) {
       occurredAt: now,
       ownerId: userId,
       provider: "gmail",
+      trackingId,
       type: "sent",
     });
 

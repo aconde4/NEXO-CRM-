@@ -10,7 +10,7 @@
 
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
-- **Fase 3 · Email 1:1 (Gmail):** en marcha — **3.1–3.6 completas**. OAuth de
+- **Fase 3 · Email 1:1 (Gmail):** en marcha — **3.1–3.7 completas**. OAuth de
   Google pide `gmail.send` + `gmail.readonly`, con acceso offline e incremental;
   Auth.js conserva/actualiza tokens y scopes en `account`; `/inbox` muestra el
   estado seguro de conexión Gmail sin exponer tokens. Migración `0006_exotic_prism`
@@ -25,7 +25,10 @@
   seguro). **3.6**: redactor Tiptap reutilizable, plantillas en Ajustes, merge tags de
   campos de serie y personalizados (contacto + empresa), fallback
   `{{nombre|"amigo"}}`, vista previa por destinatario y sanitización HTML en servidor.
-  Siguiente: tracking de aperturas/clics (3.7).
+  **3.7**: tracking propio de aperturas y clics; cada email saliente guarda
+  `tracking_id`, añade pixel, reescribe enlaces HTTP/HTTPS a redirects firmados,
+  registra eventos `open`/`click` y muestra contadores en la vista de hilo. Siguiente:
+  bandeja unificada de ventas (3.8).
 - **Fase 2 · Pipeline/Negocios:** **completa** — **Kanban operativo** (dnd-kit) con
   embudos múltiples, etapas configurables en Ajustes, totales por columna, previsión
   ponderada, estancado, ganado/perdido, **ficha de negocio** (`/deals/[id]`) con
@@ -76,11 +79,11 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 3 en marcha (3.1–3.6 hechas).** Continúa la **FASE 3 · Email 1:1 (Gmail)** en
+**Fase 3 en marcha (3.1–3.7 hechas).** Continúa la **FASE 3 · Email 1:1 (Gmail)** en
 [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la primera tarea sin marcar:
-1. **3.7** Tracking de aperturas/clics.
-2. **3.8** Bandeja unificada (lista de hilos).
-   **3.9** Detección de respuestas. **3.10** Límite diario + firma.
+1. **3.8** Bandeja unificada (lista de hilos).
+2. **3.9** Detección de respuestas.
+3. **3.10** Límite diario + firma.
 
 Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 - Columnas y **filtros por campo personalizado** en los listados (sobre las vistas
@@ -89,9 +92,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 3.6 — redactor Tiptap, plantillas y merge tags.
-> Antes: 3.1–3.5 (OAuth Gmail, modelo de email, envío, sincronización de entrada y
-> vista de hilo de conversación) y cierre de la Fase 2 (2.10).
+> **Hecho en la última sesión:** Fase 3.7 — tracking propio de aperturas/clics.
+> Antes: 3.1–3.6 (OAuth Gmail, modelo de email, envío, sincronización de entrada,
+> vista de hilo de conversación y redactor Tiptap con plantillas) y cierre de la Fase
+> 2 (2.10).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -132,6 +136,21 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-19 (20) — Fase 3.7: tracking de aperturas y clics
+- **Instrumentación:** cada email saliente recibe un `tracking_id`, se envía con pixel
+  propio de apertura y los enlaces HTTP/HTTPS se reescriben a redirects firmados.
+- **Seguridad:** las URLs de clic se firman con HMAC usando `AUTH_SECRET`; el endpoint
+  rechaza firmas inválidas y no actúa como redirect abierto. El HTML de email permite
+  enlaces seguros (`http`, `https`, `mailto`, `tel`) y descarta enlaces relativos.
+- **Eventos:** `/api/email/track/open/[trackingId]` registra `open`; `/api/email/track/click/[trackingId]`
+  registra `click`, IP, user-agent y URL destino en `email_events`, además de
+  actualizar `open_count`/`click_count`, `opened_at`/`clicked_at` en `email_messages`.
+- **UI:** el editor Tiptap permite añadir/quitar enlaces; `/inbox/[threadId]` muestra
+  aperturas, clics y primera fecha registrada en cada mensaje enviado.
+- **Setup:** `docs/SETUP.md` documenta que en producción hay que definir
+  `NEXT_PUBLIC_APP_URL` para que Gmail pueda cargar el pixel/redirección públicos.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-19 (19) — Fase 3.6: redactor Tiptap, plantillas y merge tags
 - **Editor:** `RichEmailEditor` con Tiptap (`immediatelyRender: false` para Next),
