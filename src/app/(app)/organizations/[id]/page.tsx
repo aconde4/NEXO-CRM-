@@ -13,26 +13,25 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { buildMergeCatalog, buildMergeContext } from "@/lib/email/merge-tags";
 import { fullName, formatDate, relativeDate } from "@/lib/format";
 import { getOrganization } from "@/server/queries/contacts";
-import { listCustomFieldDefs } from "@/server/queries/custom-fields";
+import { listAllCustomFieldDefs } from "@/server/queries/custom-fields";
 import { listEntityThreads } from "@/server/queries/email-threads";
+import { listEmailTemplates } from "@/server/queries/email-templates";
 import { listFilesFor } from "@/server/queries/files";
+import { getGmailConnectionStatus } from "@/server/queries/gmail";
 import { isStorageConfigured } from "@/server/storage";
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
+import { EmailComposerButton } from "@/components/email/email-composer-button";
 import { EmailThreadsPanel } from "@/components/email/email-threads-panel";
 import { EditOrganizationButton } from "@/components/organizations/edit-organization-button";
 import { CustomFieldsList } from "@/components/custom-fields/custom-fields-list";
 import { EntityAvatar } from "@/components/entity-avatar";
 import { NoteComposer } from "@/components/note-composer";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Empresa" };
 
@@ -42,15 +41,48 @@ export default async function OrganizationDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [organization, customFieldDefs, attachments, emailThreads] =
-    await Promise.all([
-      getOrganization(id),
-      listCustomFieldDefs("organization"),
-      listFilesFor("organization", id),
-      listEntityThreads({ orgId: id }),
-    ]);
+  const [
+    organization,
+    customFieldDefs,
+    attachments,
+    emailThreads,
+    emailTemplates,
+    gmailStatus,
+  ] = await Promise.all([
+    getOrganization(id),
+    listAllCustomFieldDefs(),
+    listFilesFor("organization", id),
+    listEntityThreads({ orgId: id }),
+    listEmailTemplates(),
+    getGmailConnectionStatus(),
+  ]);
   if (!organization) notFound();
   const storageEnabled = isStorageConfigured();
+  const personCustomFieldDefs = customFieldDefs.person;
+  const organizationCustomFieldDefs = customFieldDefs.organization;
+  const mergeCatalog = buildMergeCatalog(
+    personCustomFieldDefs,
+    organizationCustomFieldDefs,
+    true,
+  );
+  const emailRecipients = organization.persons.flatMap((person) => {
+    if (!person.email) return [];
+    return [
+      {
+        id: person.id,
+        email: person.email,
+        name: fullName(person.firstName, person.lastName),
+        personId: person.id,
+        orgId: organization.id,
+        context: buildMergeContext(
+          person,
+          organization,
+          personCustomFieldDefs,
+          organizationCustomFieldDefs,
+        ),
+      },
+    ];
+  });
 
   const notesTimeline = organization.notes
     .map((n) => ({ id: n.id, at: n.createdAt, text: n.body }))
@@ -71,7 +103,11 @@ export default async function OrganizationDetailPage({
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <EntityAvatar name={organization.name} square className="size-12 text-base" />
+          <EntityAvatar
+            name={organization.name}
+            square
+            className="size-12 text-base"
+          />
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">
               {organization.name}
@@ -81,21 +117,29 @@ export default async function OrganizationDetailPage({
             </p>
           </div>
         </div>
-        <EditOrganizationButton
-          customFieldDefs={customFieldDefs}
-          organization={{
-            id: organization.id,
-            name: organization.name,
-            tradeName: organization.tradeName,
-            domain: organization.domain,
-            website: organization.website,
-            phone: organization.phone,
-            industry: organization.industry,
-            size: organization.size,
-            address: organization.address,
-            customFields: organization.customFields,
-          }}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <EmailComposerButton
+            recipients={emailRecipients}
+            catalog={mergeCatalog}
+            templates={emailTemplates}
+            gmailReady={gmailStatus.ready}
+          />
+          <EditOrganizationButton
+            customFieldDefs={organizationCustomFieldDefs}
+            organization={{
+              id: organization.id,
+              name: organization.name,
+              tradeName: organization.tradeName,
+              domain: organization.domain,
+              website: organization.website,
+              phone: organization.phone,
+              industry: organization.industry,
+              size: organization.size,
+              address: organization.address,
+              customFields: organization.customFields,
+            }}
+          />
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -137,10 +181,10 @@ export default async function OrganizationDetailPage({
               {formatDate(organization.createdAt)}
             </InfoRow>
 
-            {customFieldDefs.length > 0 ? (
+            {organizationCustomFieldDefs.length > 0 ? (
               <div className="space-y-3 border-t pt-3">
                 <CustomFieldsList
-                  defs={customFieldDefs}
+                  defs={organizationCustomFieldDefs}
                   values={organization.customFields}
                 />
               </div>

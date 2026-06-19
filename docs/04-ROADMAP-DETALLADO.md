@@ -188,7 +188,7 @@ negocios, con plantillas y seguimiento de aperturas/clics.
       "Conversaciones" en fichas de contacto, empresa y negocio (lista de hilos por
       `person_id`/`org_id`/`deal_id`) y página `/inbox/[threadId]` con los mensajes en
       orden cronológico (Enviado/Recibido). Cuerpo HTML→texto por seguridad (sin XSS).
-- [ ] **3.6** Redactor de email (Tiptap) con plantillas y **merge tags**: variables
+- [x] **3.6** Redactor de email (Tiptap) con plantillas y **merge tags**: variables
       de **campos de serie + personalizados** del contacto y su empresa
       (`{{nombre}}`, `{{empresa.nombre_comercial}}`, `{{ingresos}}`…), con **valor por
       defecto** (`{{nombre|"amigo"}}`) y **vista previa por destinatario**. Este motor

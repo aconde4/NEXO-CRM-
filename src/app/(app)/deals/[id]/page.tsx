@@ -14,21 +14,26 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { buildMergeCatalog, buildMergeContext } from "@/lib/email/merge-tags";
 import { formatDate, formatMoney, fullName, relativeDate } from "@/lib/format";
 import { requireUser } from "@/lib/session";
 import {
   listOrganizationOptions,
   listPersonOptions,
 } from "@/server/queries/contacts";
+import { listAllCustomFieldDefs } from "@/server/queries/custom-fields";
 import {
   getDeal,
   listPipelines,
   listStagesByPipeline,
 } from "@/server/queries/deals";
 import { listEntityThreads } from "@/server/queries/email-threads";
+import { listEmailTemplates } from "@/server/queries/email-templates";
+import { getGmailConnectionStatus } from "@/server/queries/gmail";
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
 import { DealActions } from "@/components/deals/deal-actions";
 import { DealParticipants } from "@/components/deals/deal-participants";
+import { EmailComposerButton } from "@/components/email/email-composer-button";
 import { EmailThreadsPanel } from "@/components/email/email-threads-panel";
 import { NoteComposer } from "@/components/note-composer";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +65,9 @@ export default async function DealDetailPage({
     organizations,
     user,
     emailThreads,
+    customFieldDefs,
+    emailTemplates,
+    gmailStatus,
   ] = await Promise.all([
     getDeal(id),
     listPipelines(),
@@ -68,6 +76,9 @@ export default async function DealDetailPage({
     listOrganizationOptions(),
     requireUser(),
     listEntityThreads({ dealId: id }),
+    listAllCustomFieldDefs(),
+    listEmailTemplates(),
+    getGmailConnectionStatus(),
   ]);
 
   if (!deal) notFound();
@@ -77,6 +88,29 @@ export default async function DealDetailPage({
   const personName = deal.person
     ? fullName(deal.person.firstName, deal.person.lastName)
     : null;
+  const mergeCatalog = buildMergeCatalog(
+    customFieldDefs.person,
+    customFieldDefs.organization,
+    Boolean(deal.organization),
+  );
+  const emailRecipients = deal.person?.email
+    ? [
+        {
+          id: deal.person.id,
+          email: deal.person.email,
+          name: personName ?? deal.person.email,
+          personId: deal.person.id,
+          orgId: deal.orgId ?? undefined,
+          dealId: deal.id,
+          context: buildMergeContext(
+            deal.person,
+            deal.organization,
+            customFieldDefs.person,
+            customFieldDefs.organization,
+          ),
+        },
+      ]
+    : [];
 
   const notesTimeline = deal.notes
     .map((n) => ({ id: n.id, at: n.createdAt, text: n.body }))
@@ -94,7 +128,9 @@ export default async function DealDetailPage({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-2xl font-semibold tracking-tight">{deal.title}</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">
+              {deal.title}
+            </h2>
             <Badge variant="secondary" className={status.className}>
               {status.label}
             </Badge>
@@ -106,24 +142,32 @@ export default async function DealDetailPage({
             · {deal.pipeline?.name} → {deal.stage?.name}
           </p>
         </div>
-        <DealActions
-          status={deal.status}
-          pipelines={pipelines}
-          stagesByPipeline={stagesByPipeline}
-          persons={persons}
-          organizations={organizations}
-          deal={{
-            id: deal.id,
-            title: deal.title,
-            value: deal.value,
-            currency: deal.currency,
-            pipelineId: deal.pipelineId,
-            stageId: deal.stageId,
-            personId: deal.personId,
-            orgId: deal.orgId,
-            expectedCloseDate: deal.expectedCloseDate,
-          }}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <EmailComposerButton
+            recipients={emailRecipients}
+            catalog={mergeCatalog}
+            templates={emailTemplates}
+            gmailReady={gmailStatus.ready}
+          />
+          <DealActions
+            status={deal.status}
+            pipelines={pipelines}
+            stagesByPipeline={stagesByPipeline}
+            persons={persons}
+            organizations={organizations}
+            deal={{
+              id: deal.id,
+              title: deal.title,
+              value: deal.value,
+              currency: deal.currency,
+              pipelineId: deal.pipelineId,
+              stageId: deal.stageId,
+              personId: deal.personId,
+              orgId: deal.orgId,
+              expectedCloseDate: deal.expectedCloseDate,
+            }}
+          />
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -200,7 +244,10 @@ export default async function DealDetailPage({
             personOptions={persons}
           />
 
-          <ActivitiesPanel activities={deal.activities} lockedDealId={deal.id} />
+          <ActivitiesPanel
+            activities={deal.activities}
+            lockedDealId={deal.id}
+          />
 
           <EmailThreadsPanel threads={emailThreads} />
 

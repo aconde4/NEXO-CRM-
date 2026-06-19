@@ -128,8 +128,27 @@ export async function getDeal(id: string) {
     with: {
       stage: { columns: { id: true, name: true, probability: true } },
       pipeline: { columns: { id: true, name: true } },
-      person: { columns: { id: true, firstName: true, lastName: true } },
-      organization: { columns: { id: true, name: true } },
+      person: {
+        columns: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          title: true,
+          customFields: true,
+        },
+      },
+      organization: {
+        columns: {
+          id: true,
+          name: true,
+          tradeName: true,
+          website: true,
+          industry: true,
+          customFields: true,
+        },
+      },
       contacts: {
         with: {
           person: { columns: { id: true, firstName: true, lastName: true } },

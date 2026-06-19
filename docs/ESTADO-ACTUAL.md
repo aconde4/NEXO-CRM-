@@ -10,7 +10,7 @@
 
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
-- **Fase 3 · Email 1:1 (Gmail):** en marcha — **3.1–3.5 completas**. OAuth de
+- **Fase 3 · Email 1:1 (Gmail):** en marcha — **3.1–3.6 completas**. OAuth de
   Google pide `gmail.send` + `gmail.readonly`, con acceso offline e incremental;
   Auth.js conserva/actualiza tokens y scopes en `account`; `/inbox` muestra el
   estado seguro de conexión Gmail sin exponer tokens. Migración `0006_exotic_prism`
@@ -22,7 +22,10 @@
   y vínculo de mensajes entrantes a contacto/empresa por email. **3.5**: panel
   "Conversaciones" en fichas (contacto/empresa/negocio) y vista de conversación
   `/inbox/[threadId]` (mensajes cronológicos, Enviado/Recibido, cuerpo HTML→texto
-  seguro). Siguiente: redactor con plantillas y merge tags (3.6).
+  seguro). **3.6**: redactor Tiptap reutilizable, plantillas en Ajustes, merge tags de
+  campos de serie y personalizados (contacto + empresa), fallback
+  `{{nombre|"amigo"}}`, vista previa por destinatario y sanitización HTML en servidor.
+  Siguiente: tracking de aperturas/clics (3.7).
 - **Fase 2 · Pipeline/Negocios:** **completa** — **Kanban operativo** (dnd-kit) con
   embudos múltiples, etapas configurables en Ajustes, totales por columna, previsión
   ponderada, estancado, ganado/perdido, **ficha de negocio** (`/deals/[id]`) con
@@ -73,11 +76,10 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 3 en marcha (3.1–3.5 hechas).** Continúa la **FASE 3 · Email 1:1 (Gmail)** en
+**Fase 3 en marcha (3.1–3.6 hechas).** Continúa la **FASE 3 · Email 1:1 (Gmail)** en
 [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la primera tarea sin marcar:
-1. **3.6** Redactor de email (Tiptap) con plantillas y **merge tags** (campos de serie
-   + personalizados, valor por defecto, vista previa por destinatario).
-2. **3.7** Tracking de aperturas/clics. **3.8** Bandeja unificada (lista de hilos).
+1. **3.7** Tracking de aperturas/clics.
+2. **3.8** Bandeja unificada (lista de hilos).
    **3.9** Detección de respuestas. **3.10** Límite diario + firma.
 
 Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
@@ -87,9 +89,9 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 3.5 — vista de hilo de conversación en fichas y
-> página `/inbox/[threadId]`. Antes (Codex): 3.1–3.4 (OAuth Gmail, modelo de email,
-> envío y sincronización de entrada) y cierre de la Fase 2 (2.10).
+> **Hecho en la última sesión:** Fase 3.6 — redactor Tiptap, plantillas y merge tags.
+> Antes: 3.1–3.5 (OAuth Gmail, modelo de email, envío, sincronización de entrada y
+> vista de hilo de conversación) y cierre de la Fase 2 (2.10).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -130,6 +132,23 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-19 (19) — Fase 3.6: redactor Tiptap, plantillas y merge tags
+- **Editor:** `RichEmailEditor` con Tiptap (`immediatelyRender: false` para Next),
+  toolbar con iconos, placeholder y HTML básico para emails 1:1.
+- **Personalización:** motor compartido de merge tags con campos de serie y
+  personalizados de contacto/empresa, fallback (`{{nombre|"amigo"}}`), detección de
+  variables desconocidas y escapado de valores en HTML.
+- **Plantillas:** gestión en Ajustes (crear/editar/eliminar) con el mismo editor rico
+  y menú de variables; se guardan `body_html`, `body_text` y variables usadas.
+- **Envío:** botón "Enviar email" en fichas de contacto, empresa y negocio; selector y
+  vista previa por destinatario, plantillas aplicables y vínculo a contacto/empresa/
+  negocio al enviar.
+- **Seguridad:** sanitización server-side del HTML permitido antes de guardar
+  plantillas y antes de llamar al servicio Gmail.
+- **Verificado** vía login de desarrollo leyendo DOM: Ajustes muestra "Plantillas de
+  email" y las fichas de contacto, empresa y negocio muestran el botón de email.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-18 (18) — Fase 3.5: vista de hilo de conversación
 - **Relevo desde Codex:** verificados los gates tras el handoff (typecheck, lint —ahora

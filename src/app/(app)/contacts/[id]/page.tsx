@@ -12,16 +12,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { buildMergeCatalog, buildMergeContext } from "@/lib/email/merge-tags";
 import { fullName, formatDate, relativeDate } from "@/lib/format";
 import { getPerson, listOrganizationOptions } from "@/server/queries/contacts";
-import { listCustomFieldDefs } from "@/server/queries/custom-fields";
+import { listAllCustomFieldDefs } from "@/server/queries/custom-fields";
 import { listEntityThreads } from "@/server/queries/email-threads";
+import { listEmailTemplates } from "@/server/queries/email-templates";
 import { listFilesFor } from "@/server/queries/files";
+import { getGmailConnectionStatus } from "@/server/queries/gmail";
 import { getLabelsForPerson, listLabels } from "@/server/queries/labels";
 import { isStorageConfigured } from "@/server/storage";
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { EmailThreadsPanel } from "@/components/email/email-threads-panel";
+import { EmailComposerButton } from "@/components/email/email-composer-button";
 import { EditContactButton } from "@/components/contacts/edit-contact-button";
 import { CustomFieldsList } from "@/components/custom-fields/custom-fields-list";
 import { EntityAvatar } from "@/components/entity-avatar";
@@ -29,12 +33,7 @@ import { LabelPicker } from "@/components/contacts/label-picker";
 import { NoteComposer } from "@/components/note-composer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Contacto" };
 
@@ -58,20 +57,48 @@ export default async function ContactDetailPage({
     customFieldDefs,
     attachments,
     emailThreads,
+    emailTemplates,
+    gmailStatus,
   ] = await Promise.all([
     getPerson(id),
     listOrganizationOptions(),
     listLabels(),
-    listCustomFieldDefs("person"),
+    listAllCustomFieldDefs(),
     listFilesFor("person", id),
     listEntityThreads({ personId: id }),
+    listEmailTemplates(),
+    getGmailConnectionStatus(),
   ]);
 
   if (!person) notFound();
   const storageEnabled = isStorageConfigured();
+  const personCustomFieldDefs = customFieldDefs.person;
+  const organizationCustomFieldDefs = customFieldDefs.organization;
 
   const assignedLabels = await getLabelsForPerson(person.id);
   const name = fullName(person.firstName, person.lastName);
+  const mergeCatalog = buildMergeCatalog(
+    personCustomFieldDefs,
+    organizationCustomFieldDefs,
+    Boolean(person.organization),
+  );
+  const emailRecipients = person.email
+    ? [
+        {
+          id: person.id,
+          email: person.email,
+          name,
+          personId: person.id,
+          orgId: person.orgId ?? undefined,
+          context: buildMergeContext(
+            person,
+            person.organization,
+            personCustomFieldDefs,
+            organizationCustomFieldDefs,
+          ),
+        },
+      ]
+    : [];
 
   const notesTimeline = person.notes
     .map((n) => ({ id: n.id, at: n.createdAt, text: n.body }))
@@ -80,7 +107,11 @@ export default async function ContactDetailPage({
   return (
     <>
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon-sm" render={<Link href="/contacts" />}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          render={<Link href="/contacts" />}
+        >
           <ArrowLeft />
         </Button>
         <span className="text-muted-foreground text-sm">Contactos</span>
@@ -98,21 +129,29 @@ export default async function ContactDetailPage({
             </p>
           </div>
         </div>
-        <EditContactButton
-          organizations={organizations}
-          customFieldDefs={customFieldDefs}
-          contact={{
-            id: person.id,
-            firstName: person.firstName,
-            lastName: person.lastName,
-            email: person.email,
-            phone: person.phone,
-            title: person.title,
-            orgId: person.orgId,
-            source: person.source,
-            customFields: person.customFields,
-          }}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <EmailComposerButton
+            recipients={emailRecipients}
+            catalog={mergeCatalog}
+            templates={emailTemplates}
+            gmailReady={gmailStatus.ready}
+          />
+          <EditContactButton
+            organizations={organizations}
+            customFieldDefs={personCustomFieldDefs}
+            contact={{
+              id: person.id,
+              firstName: person.firstName,
+              lastName: person.lastName,
+              email: person.email,
+              phone: person.phone,
+              title: person.title,
+              orgId: person.orgId,
+              source: person.source,
+              customFields: person.customFields,
+            }}
+          />
+        </div>
       </div>
 
       <LabelPicker
@@ -167,10 +206,10 @@ export default async function ContactDetailPage({
               {formatDate(person.createdAt)}
             </InfoRow>
 
-            {customFieldDefs.length > 0 ? (
+            {personCustomFieldDefs.length > 0 ? (
               <div className="space-y-3 border-t pt-3">
                 <CustomFieldsList
-                  defs={customFieldDefs}
+                  defs={personCustomFieldDefs}
                   values={person.customFields}
                 />
               </div>

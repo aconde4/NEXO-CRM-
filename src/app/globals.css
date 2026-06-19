@@ -178,3 +178,63 @@
     scrollbar-color: var(--border) transparent;
   }
 }
+
+@layer components {
+  .nexo-rich-editor .tiptap p.is-editor-empty:first-child::before {
+    color: var(--muted-foreground);
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .nexo-rich-editor .tiptap p {
+    margin-block: 0.5rem;
+  }
+
+  .nexo-rich-editor .tiptap p:first-child {
+    margin-top: 0;
+  }
+
+  .nexo-rich-editor .tiptap p:last-child {
+    margin-bottom: 0;
+  }
+
+  .nexo-rich-editor .tiptap ul,
+  .nexo-rich-editor .tiptap ol,
+  .nexo-email-preview ul,
+  .nexo-email-preview ol {
+    margin-block: 0.5rem;
+    padding-left: 1.25rem;
+  }
+
+  .nexo-rich-editor .tiptap ul,
+  .nexo-email-preview ul {
+    list-style: disc;
+  }
+
+  .nexo-rich-editor .tiptap ol,
+  .nexo-email-preview ol {
+    list-style: decimal;
+  }
+
+  .nexo-rich-editor .tiptap blockquote,
+  .nexo-email-preview blockquote {
+    margin-block: 0.75rem;
+    border-left: 3px solid var(--border);
+    padding-left: 0.75rem;
+    color: var(--muted-foreground);
+  }
+
+  .nexo-email-preview p {
+    margin-block: 0.5rem;
+  }
+
+  .nexo-email-preview p:first-child {
+    margin-top: 0;
+  }
+
+  .nexo-email-preview p:last-child {
+    margin-bottom: 0;
+  }
+}
