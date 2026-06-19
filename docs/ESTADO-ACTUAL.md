@@ -137,6 +137,18 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 
 ## 🗒️ Changelog por sesión
 
+### 2026-06-19 (21) — Bugfix: sincronización Gmail tras activar API
+- **Causa:** la Gmail API ya respondía OK, pero la sync fallaba al actualizar hilos
+  porque `postgres-js` no serializa `Date` dentro de fragmentos raw de Drizzle
+  (`sql`).
+- **Fix:** `gmail-sync.ts` castea `received_at` como ISO `::timestamptz` en los
+  `greatest(coalesce(...))` de `last_message_at`/`last_inbound_at`.
+- **UX:** `Sincronizar ahora` ya no muestra overlay rojo para errores esperados de
+  Gmail (`GmailServiceError`); la página muestra el error guardado en el panel.
+- Verificado que `https://gmail.googleapis.com/gmail/v1/users/me/profile` responde
+  `200` para la cuenta conectada y que `pnpm typecheck`, `pnpm lint` y `pnpm build`
+  siguen en verde.
+
 ### 2026-06-19 (20) — Fase 3.7: tracking de aperturas y clics
 - **Instrumentación:** cada email saliente recibe un `tracking_id`, se envía con pixel
   propio de apertura y los enlaces HTTP/HTTPS se reescriben a redirects firmados.

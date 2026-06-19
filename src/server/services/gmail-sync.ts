@@ -643,9 +643,10 @@ async function persistSyncedMessage({
 
     const messageId = inserted?.id ?? existingMessage[0]?.id ?? null;
     const linkedContact = Boolean(contactLink && !thread.personId);
+    const receivedAtIso = parsed.receivedAt.toISOString();
     const baseThreadUpdate = {
-      lastInboundAt: sql`greatest(coalesce(${emailThreads.lastInboundAt}, ${parsed.receivedAt}), ${parsed.receivedAt})`,
-      lastMessageAt: sql`greatest(coalesce(${emailThreads.lastMessageAt}, ${parsed.receivedAt}), ${parsed.receivedAt})`,
+      lastInboundAt: sql`greatest(coalesce(${emailThreads.lastInboundAt}, ${receivedAtIso}::timestamptz), ${receivedAtIso}::timestamptz)`,
+      lastMessageAt: sql`greatest(coalesce(${emailThreads.lastMessageAt}, ${receivedAtIso}::timestamptz), ${receivedAtIso}::timestamptz)`,
       orgId: thread.orgId ?? contactLink?.orgId ?? null,
       personId: thread.personId ?? contactLink?.personId ?? null,
       providerLabels: parsed.labelIds,

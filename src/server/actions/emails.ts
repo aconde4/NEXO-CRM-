@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/session";
 import { sendEmailSchema, type SendEmailValues } from "@/lib/validations/email";
 import { sanitizeEmailHtml } from "@/server/services/email-html";
 import { sendGmailEmail } from "@/server/services/gmail";
+import { GmailServiceError } from "@/server/services/gmail-auth";
 import { syncGmailMailbox } from "@/server/services/gmail-sync";
 
 function cleanOptional(value: string | undefined | null): string | null {
@@ -52,8 +53,17 @@ export async function sendEmail(raw: SendEmailValues) {
 
 export async function syncGmailInboxNow() {
   const user = await requireUser();
-  const result = await syncGmailMailbox(user.id);
-  revalidatePath("/inbox");
-  revalidatePath("/dashboard");
-  return result;
+  try {
+    const result = await syncGmailMailbox(user.id);
+    revalidatePath("/inbox");
+    revalidatePath("/dashboard");
+    return { ok: true, result };
+  } catch (error) {
+    revalidatePath("/inbox");
+    revalidatePath("/dashboard");
+    if (error instanceof GmailServiceError) {
+      return { error: error.message, ok: false };
+    }
+    throw error;
+  }
 }
