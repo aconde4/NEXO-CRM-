@@ -6,6 +6,7 @@ import {
   Eye,
   Handshake,
   MousePointerClick,
+  Reply,
   User,
 } from "lucide-react";
 import type { Metadata } from "next";
@@ -169,6 +170,13 @@ export default async function ThreadPage({
                     </span>
                   ) : null}
                 </div>
+              ) : null}
+
+              {outbound && message.repliedAt ? (
+                <p className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                  <Reply className="size-3.5" />
+                  Respondido · {formatDateTime(message.repliedAt)}
+                </p>
               ) : null}
 
               <p className="mt-3 text-sm break-words whitespace-pre-wrap">

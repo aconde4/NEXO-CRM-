@@ -137,7 +137,10 @@ type ContactLink = {
 type PersistResult = {
   inserted: boolean;
   linkedContact: boolean;
+  replies: number;
 };
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type GmailSyncResult = {
   fetched: number;
@@ -146,6 +149,7 @@ export type GmailSyncResult = {
   linkedContacts: number;
   mailboxId: string;
   mode: "full" | "partial";
+  replies: number;
   skipped: number;
   updated: number;
 };
@@ -498,6 +502,128 @@ async function findContactLink(
   return person ?? null;
 }
 
+function normalizeMessageId(value: string): string {
+  return value.trim().replace(/^<|>$/g, "").trim();
+}
+
+/** Ids de mensaje referenciados por un entrante (In-Reply-To + References). */
+function collectReferenceIds(
+  inReplyTo: string | null,
+  references: string | null,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const value of [inReplyTo, references]) {
+    if (!value) continue;
+    const matches = value.match(/<[^>]+>/g);
+    if (matches) {
+      for (const match of matches) ids.add(normalizeMessageId(match));
+    } else {
+      ids.add(normalizeMessageId(value));
+    }
+  }
+  return ids;
+}
+
+/**
+ * Detección de respuestas (Fase 3.9): si un mensaje entrante responde a uno de
+ * nuestros salientes del mismo hilo, marca el saliente como respondido
+ * (`replied_at`) y registra un evento `reply`. Base para parar secuencias (Fase 5).
+ */
+async function markRepliesForInbound(
+  tx: Tx,
+  params: {
+    fromEmail: string;
+    inReplyTo: string | null;
+    inboundMessageId: string;
+    inboundProviderMessageId: string;
+    mailboxId: string;
+    ownerId: string;
+    receivedAt: Date;
+    referencesHeader: string | null;
+    threadId: string;
+  },
+): Promise<number> {
+  const outbound = await tx
+    .select({
+      id: emailMessages.id,
+      repliedAt: emailMessages.repliedAt,
+      rfcMessageId: emailMessages.rfcMessageId,
+      sentAt: emailMessages.sentAt,
+    })
+    .from(emailMessages)
+    .where(
+      and(
+        eq(emailMessages.threadId, params.threadId),
+        eq(emailMessages.ownerId, params.ownerId),
+        eq(emailMessages.direction, "outbound"),
+      ),
+    );
+  if (outbound.length === 0) return 0;
+
+  const refs = collectReferenceIds(params.inReplyTo, params.referencesHeader);
+  let matched = outbound.filter(
+    (message) =>
+      message.rfcMessageId &&
+      refs.has(normalizeMessageId(message.rfcMessageId)),
+  );
+
+  // Fallback: si los headers no enlazan, el último saliente sin responder
+  // enviado antes del entrante (en un hilo Gmail, un entrante es una respuesta).
+  if (matched.length === 0) {
+    const candidate = outbound
+      .filter(
+        (message) =>
+          !message.repliedAt &&
+          (!message.sentAt || message.sentAt <= params.receivedAt),
+      )
+      .sort(
+        (a, b) => (b.sentAt?.getTime() ?? 0) - (a.sentAt?.getTime() ?? 0),
+      )[0];
+    if (candidate) matched = [candidate];
+  }
+
+  let count = 0;
+  for (const message of matched) {
+    if (message.repliedAt) continue;
+    await tx
+      .update(emailMessages)
+      .set({ repliedAt: params.receivedAt })
+      .where(eq(emailMessages.id, message.id));
+
+    await tx
+      .insert(emailEvents)
+      .values({
+        mailboxId: params.mailboxId,
+        messageId: message.id,
+        meta: {
+          inboundMessageId: params.inboundMessageId,
+          inboundProviderMessageId: params.inboundProviderMessageId,
+          threadId: params.threadId,
+        },
+        occurredAt: params.receivedAt,
+        ownerId: params.ownerId,
+        provider: "gmail",
+        providerEventId: `gmail:reply:${message.id}:${params.inboundProviderMessageId}`,
+        recipientEmail: params.fromEmail,
+        type: "reply",
+      })
+      .onConflictDoNothing();
+    count += 1;
+  }
+
+  if (count > 0) {
+    await tx.insert(activityLog).values({
+      actorId: params.ownerId,
+      entityId: params.inboundMessageId,
+      entityType: "email_message",
+      payload: { from: params.fromEmail, threadId: params.threadId },
+      verb: "email_replied",
+    });
+  }
+
+  return count;
+}
+
 async function persistSyncedMessage({
   mailbox,
   mode,
@@ -643,6 +769,7 @@ async function persistSyncedMessage({
 
     const messageId = inserted?.id ?? existingMessage[0]?.id ?? null;
     const linkedContact = Boolean(contactLink && !thread.personId);
+    let repliesCount = 0;
     const receivedAtIso = parsed.receivedAt.toISOString();
     const baseThreadUpdate = {
       lastInboundAt: sql`greatest(coalesce(${emailThreads.lastInboundAt}, ${receivedAtIso}::timestamptz), ${receivedAtIso}::timestamptz)`,
@@ -700,6 +827,18 @@ async function persistSyncedMessage({
         },
         verb: "email_received",
       });
+
+      repliesCount = await markRepliesForInbound(tx, {
+        fromEmail: parsed.fromEmail,
+        inReplyTo: parsed.inReplyTo,
+        inboundMessageId: messageId,
+        inboundProviderMessageId: parsed.providerMessageId,
+        mailboxId: mailbox.id,
+        ownerId,
+        receivedAt: parsed.receivedAt,
+        referencesHeader: parsed.referencesHeader,
+        threadId: thread.id,
+      });
     } else {
       await tx
         .update(emailThreads)
@@ -726,6 +865,7 @@ async function persistSyncedMessage({
     return {
       inserted: Boolean(inserted),
       linkedContact,
+      replies: repliesCount,
     };
   });
 }
@@ -750,6 +890,7 @@ async function runFullSync(
     linkedContacts: 0,
     mailboxId: mailbox.id,
     mode: "full",
+    replies: 0,
     skipped: 0,
     updated: 0,
   };
@@ -773,6 +914,7 @@ async function runFullSync(
       if (persisted.inserted) result.inserted += 1;
       else result.updated += 1;
       if (persisted.linkedContact) result.linkedContacts += 1;
+      result.replies += persisted.replies;
     } catch (error) {
       if (error instanceof GmailApiHttpError && error.status === 404) {
         result.skipped += 1;
@@ -799,6 +941,7 @@ async function runPartialSync(
     linkedContacts: 0,
     mailboxId: mailbox.id,
     mode: "partial",
+    replies: 0,
     skipped: 0,
     updated: 0,
   };
@@ -822,6 +965,7 @@ async function runPartialSync(
       if (persisted.inserted) result.inserted += 1;
       else result.updated += 1;
       if (persisted.linkedContact) result.linkedContacts += 1;
+      result.replies += persisted.replies;
     } catch (error) {
       if (error instanceof GmailApiHttpError && error.status === 404) {
         result.skipped += 1;
@@ -860,6 +1004,7 @@ async function recordMailboxSyncResult(
           inserted: result.inserted,
           linkedContacts: result.linkedContacts,
           mode: result.mode,
+          replies: result.replies,
           skipped: result.skipped,
           updated: result.updated,
         },

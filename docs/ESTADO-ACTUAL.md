@@ -10,7 +10,7 @@
 
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
-- **Fase 3 · Email 1:1 (Gmail):** en marcha — **3.1–3.8 completas**. OAuth de
+- **Fase 3 · Email 1:1 (Gmail):** en marcha — **3.1–3.9 completas**. OAuth de
   Google pide `gmail.send` + `gmail.readonly`, con acceso offline e incremental;
   Auth.js conserva/actualiza tokens y scopes en `account`; `/inbox` muestra el
   estado seguro de conexión Gmail sin exponer tokens. Migración `0006_exotic_prism`
@@ -29,8 +29,11 @@
   `tracking_id`, añade pixel, reescribe enlaces HTTP/HTTPS a redirects firmados,
   registra eventos `open`/`click` y muestra contadores en la vista de hilo. **3.8**:
   `/inbox` ya es una bandeja unificada con lista de hilos, búsqueda, filtros de
-  lectura/vinculación, ordenación y acceso a cada conversación. Siguiente: detección
-  de respuestas (3.9).
+  lectura/vinculación, ordenación y acceso a cada conversación. **3.9**: al sincronizar,
+  un entrante que responde a un saliente del hilo (match por `In-Reply-To`/`References`,
+  con fallback al último saliente sin responder) marca `replied_at`, registra evento
+  `reply` y muestra "Respondido" en la conversación. Siguiente: límite diario de envío
+  por buzón + firma HTML (3.10), última de la fase.
 - **Fase 2 · Pipeline/Negocios:** **completa** — **Kanban operativo** (dnd-kit) con
   embudos múltiples, etapas configurables en Ajustes, totales por columna, previsión
   ponderada, estancado, ganado/perdido, **ficha de negocio** (`/deals/[id]`) con
@@ -81,10 +84,9 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 3 en marcha (3.1–3.8 hechas).** Continúa la **FASE 3 · Email 1:1 (Gmail)** en
-[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la primera tarea sin marcar:
-1. **3.9** Detección de respuestas.
-2. **3.10** Límite diario + firma.
+**Fase 3 en marcha (3.1–3.9 hechas).** Continúa la **FASE 3 · Email 1:1 (Gmail)** en
+[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la última tarea sin marcar:
+1. **3.10** Límite diario de envío por buzón (warm-up) + firma HTML — cierra la Fase 3.
 
 Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 - Columnas y **filtros por campo personalizado** en los listados (sobre las vistas
@@ -137,6 +139,20 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-19 (23) — Fase 3.9: detección de respuestas
+- **Relevo desde Codex:** verificados los gates tras el handoff (typecheck/lint/build
+  en verde).
+- **Detección de respuestas** en `gmail-sync`: al insertar un mensaje entrante,
+  `markRepliesForInbound` busca los salientes del hilo que coincidan por
+  `In-Reply-To`/`References` (normalizando `<id>`), con fallback al último saliente sin
+  responder; marca `email_messages.replied_at`, inserta un evento `reply` idempotente y
+  un apunte `email_replied` en `activity_log`. `GmailSyncResult` ahora cuenta `replies`.
+- **UI:** la conversación (`/inbox/[threadId]`) muestra "Respondido · fecha" en los
+  salientes con `replied_at`.
+- **Verificado** vía login de desarrollo (hilo sembrado): el saliente respondido marca
+  "Respondido" y el entrante no. La detección en vivo corre durante la sync de Gmail
+  (requiere conexión del usuario). Datos de prueba limpiados.
 
 ### 2026-06-19 (22) — Fase 3.8: bandeja unificada de ventas
 - **Datos:** `listInboxThreads` carga todos los hilos del usuario con ownership,

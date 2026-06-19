@@ -202,7 +202,11 @@ negocios, con plantillas y seguimiento de aperturas/clics.
       muestra los hilos sincronizados con búsqueda, filtros (todos/no leídos/
       vinculados/sin vincular), orden reciente/antiguo, contadores y acceso directo a
       `/inbox/[threadId]`.
-- [ ] **3.9** Detección de respuestas (marca `replied`) — base para parar secuencias.
+- [x] **3.9** Detección de respuestas (marca `replied`) — base para parar secuencias.
+      Al sincronizar, un mensaje entrante que responde a un saliente del hilo
+      (match por `In-Reply-To`/`References`, con fallback al último saliente sin
+      responder) marca `email_messages.replied_at`, registra un evento `reply` y un
+      apunte en `activity_log`. La conversación muestra "Respondido" en el saliente.
 - [ ] **3.10** Límite diario de envío por buzón (warm-up) y firma HTML.
 
 ### Criterios de aceptación
