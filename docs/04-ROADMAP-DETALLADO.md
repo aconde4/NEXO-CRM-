@@ -232,7 +232,7 @@ métricas.
 - [x] **4.3** Servicio Resend: envío individual y por lotes.
 - [x] **4.4** Constructor de segmentos por filtros (reutiliza el motor de filtros de
       la Fase 1); previsualización del tamaño de audiencia.
-- [ ] **4.5** Editor de campaña con React Email (bloques) + envío de prueba.
+- [x] **4.5** Editor de campaña con React Email (bloques) + envío de prueba.
 - [ ] **4.6** Programación de envío y troceado en lotes vía Inngest (respetar límites
       y ventana horaria).
 - [ ] **4.7** Gestión de bajas: página pública de unsubscribe + cabecera

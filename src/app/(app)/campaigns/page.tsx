@@ -1,24 +1,48 @@
-import { Megaphone } from "lucide-react";
 import type { Metadata } from "next";
 
-import { ComingSoon } from "@/components/coming-soon";
+import { buildMergeCatalog } from "@/lib/email/merge-tags";
+import { CampaignsView } from "@/components/campaigns/campaigns-view";
+import { PageHeader } from "@/components/page-header";
+import { requireUser } from "@/lib/session";
+import { listAllCustomFieldDefs } from "@/server/queries/custom-fields";
+import {
+  getCampaignComposerDefaults,
+  listCampaigns,
+} from "@/server/queries/campaigns";
+import { countSegmentAudience, listSegments } from "@/server/queries/segments";
 
 export const metadata: Metadata = { title: "Campañas" };
 
-export default function CampaignsPage() {
+export default async function CampaignsPage() {
+  const user = await requireUser();
+  const [campaigns, segments, defs, defaults] = await Promise.all([
+    listCampaigns(),
+    listSegments(),
+    listAllCustomFieldDefs(),
+    getCampaignComposerDefaults(),
+  ]);
+
+  const segmentOptions = await Promise.all(
+    segments.map(async (segment) => ({
+      id: segment.id,
+      name: segment.name,
+      audience: await countSegmentAudience(segment.definition),
+    })),
+  );
+
   return (
-    <ComingSoon
-      icon={Megaphone}
-      title="Campañas"
-      description="Envíos masivos a segmentos con plantillas, programación, bajas y métricas."
-      phase="Fase 4"
-      features={[
-        "Segmentos dinámicos por filtros",
-        "Editor de email con bloques (React Email)",
-        "Programación y envío por lotes",
-        "Gestión de bajas y cumplimiento RGPD",
-        "Métricas: aperturas, clics, rebotes y bajas",
-      ]}
-    />
+    <>
+      <PageHeader
+        title="Campañas"
+        description="Borradores de email masivo para segmentos, con bloques React Email y envío de prueba."
+      />
+      <CampaignsView
+        campaigns={campaigns}
+        segments={segmentOptions}
+        defaults={defaults}
+        catalog={buildMergeCatalog(defs.person, defs.organization, true)}
+        testEmail={user.email ?? ""}
+      />
+    </>
   );
 }

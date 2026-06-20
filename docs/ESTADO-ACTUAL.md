@@ -8,7 +8,15 @@
 
 ## 📍 Dónde estamos
 
-- **Fase 4 · Campañas masivas (Resend):** **en curso (4.2 + 4.3 + 4.4 hechas).**
+- **Fase 4 · Campañas masivas (Resend):** **en curso (4.2 + 4.3 + 4.4 + 4.5 hechas).**
+  - **4.5** editor de campañas: `/campaigns` deja de ser placeholder y muestra una
+    pantalla real de borradores. Incluye editor con bloques React Email (texto
+    enriquecido reutilizando `RichEmailEditor`, título, botón y separador), inserción de
+    merge tags en asunto/preheader/cuerpo, selector de segmento con audiencia, preview
+    HTML renderizada en servidor (`renderCampaignEmail`) y envío de prueba por Resend
+    (`sendCampaignTest`) con degradación clara si falta `RESEND_API_KEY` o remitente. Los
+    bloques se guardan en `campaigns.settings` y el HTML/texto de plantilla conserva las
+    variables para que 4.6 pueda personalizar por destinatario.
   - **4.4** constructor de segmentos: catálogo de filtros `src/lib/segments.ts`
     (nombre, email, cargo, origen, estado de marketing, etiqueta, empresa y fecha de
     alta, con operadores por campo), resolutor de audiencia `queries/segments.ts`
@@ -110,12 +118,13 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 4 en curso** (4.2 + 4.3 + 4.4 hechas). Continúa por la siguiente tarea sin
+**Fase 4 en curso** (4.2 + 4.3 + 4.4 + 4.5 hechas). Continúa por la siguiente tarea sin
 marcar en [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md):
-1. **4.5** Editor de campaña con React Email (bloques) + envío de prueba. No requiere
-   acción del usuario para empezar; reutiliza el `RichEmailEditor` y los merge tags, el
-   selector de segmento (`listSegmentOptions`) y el servicio Resend de la 4.3. El envío
-   de prueba real necesita la 4.1 (dominio verificado).
+1. **4.6** Programación de envío y troceado en lotes vía Inngest (respetar límites y
+   ventana horaria). Debe reutilizar los borradores de `campaigns.settings.blocks`, el
+   render React Email de `src/server/services/campaign-email.tsx`, el resolutor de
+   audiencia de segmentos y el servicio Resend de la 4.3. Antes de cualquier envío real,
+   comprobar `suppressions` (RGPD) y no mandar a contactos no suscritos.
 2. **4.1** (acción del usuario, en paralelo): crear cuenta en Resend y verificar el
    dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
    - Crear cuenta en https://resend.com y un **API key** → ponerlo en `.env.local` como
@@ -140,9 +149,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 4.2 (migración de campañas), 4.3 (servicio
-> Resend de transporte) y 4.4 (constructor de segmentos con previsualización de
-> audiencia). Antes: cierre de la Fase 3 (3.8–3.10).
+> **Hecho en la última sesión:** Fase 4.5 (editor de campañas con bloques React Email,
+> preview servidor y envío de prueba). Antes: 4.2 (migración de campañas), 4.3
+> (servicio Resend de transporte) y 4.4 (constructor de segmentos con previsualización
+> de audiencia).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -183,6 +193,27 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-20 (28) — Fase 4.5: editor de campañas
+- **Dependencias:** añadidos `@react-email/components` y `@react-email/render` para
+  renderizar emails de campaña en servidor.
+- **Modelo de editor:** `src/lib/campaign-blocks.ts` y
+  `src/lib/validations/campaign.ts` definen bloques (texto enriquecido, título, botón,
+  separador), validación Zod, URLs seguras y comprobación de contenido.
+- **Render React Email:** `src/server/services/campaign-email.tsx` genera HTML/texto
+  con React Email, conserva merge tags al guardar plantilla y los sustituye solo en modo
+  personalizado (prueba/envío futuro), escapando valores dentro de HTML enriquecido.
+- **Acciones/queries:** `src/server/actions/campaigns.ts` permite previsualizar,
+  guardar/editar/borrar borradores con autorización por dueño y enviar prueba por Resend;
+  `src/server/queries/campaigns.ts` lista campañas y defaults de remitente sin exponer
+  secretos.
+- **UI:** `/campaigns` deja de ser placeholder. Nueva `CampaignsView` con lista de
+  borradores, diálogo de edición, selector de segmento con audiencia, `RichEmailEditor`,
+  menú de merge tags, reordenado de bloques, preview HTML en iframe y envío de prueba.
+  La navegación ya muestra "Campañas" como sección activa, sin "próximamente".
+- **Verificado** con login de desarrollo leyendo DOM en `http://127.0.0.1:3100/campaigns`:
+  status 200, contiene "Campañas" y "Nueva campaña", y no renderiza el placeholder.
+  `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-20 (27) — Fase 4.4: constructor de segmentos
 - **Catálogo de filtros** `src/lib/segments.ts` (agnóstico): campos sobre `persons`

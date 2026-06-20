@@ -47,7 +47,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { title: "Bandeja", href: "/inbox", icon: Inbox },
       { title: "Segmentos", href: "/segments", icon: Target },
-      { title: "Campañas", href: "/campaigns", icon: Megaphone, soon: true },
+      { title: "Campañas", href: "/campaigns", icon: Megaphone },
       { title: "Secuencias", href: "/sequences", icon: Repeat, soon: true },
       {
         title: "Automatizaciones",
