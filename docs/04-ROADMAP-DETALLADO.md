@@ -229,7 +229,7 @@ métricas.
       guía paso a paso en el propio CRM.
 - [x] **4.2** Migración: `campaigns`, `campaign_recipients`, `segments`,
       `suppressions`.
-- [ ] **4.3** Servicio Resend: envío individual y por lotes.
+- [x] **4.3** Servicio Resend: envío individual y por lotes.
 - [ ] **4.4** Constructor de segmentos por filtros (reutiliza el motor de filtros de
       la Fase 1); previsualización del tamaño de audiencia.
 - [ ] **4.5** Editor de campaña con React Email (bloques) + envío de prueba.

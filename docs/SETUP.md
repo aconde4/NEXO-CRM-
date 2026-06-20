@@ -127,6 +127,37 @@ redeploy. Los enlaces ya enviados seguirán apuntando al dominio antiguo.
 2. Copia **Event Key** y **Signing Key** → variables en Vercel.
    (En local no hace falta nada: se usa el Dev Server de Inngest.)
 
+## 6. Resend (campañas masivas, Fase 4) — necesario para campañas
+
+Las campañas masivas se envían con **Resend** verificando tu dominio (no por Gmail).
+Sin `RESEND_API_KEY` la app degrada con elegancia: el módulo de campañas avisa de que
+Resend no está configurado y no intenta ningún envío.
+
+1. Crea una cuenta en https://resend.com (plan gratuito: 3.000 emails/mes, 100/día).
+2. **API Keys → Create API Key** (permiso de envío). Cópiala a `.env.local`:
+   ```env
+   RESEND_API_KEY="re_..."
+   ```
+3. **Domains → Add Domain** con tu dominio de envío (raíz `tudominio.com` o un
+   subdominio como `mg.tudominio.com`). Resend te dará varios registros DNS:
+   - **MX** (para el subdominio de rebotes/bounce) y **SPF** (`TXT` con
+     `v=spf1 include:amazonses.com ~all` o el que indique Resend).
+   - **DKIM** (`TXT`/`CNAME` con la clave pública; firma tus correos).
+   - **DMARC** (recomendado): `TXT` en `_dmarc.tudominio.com` con
+     `v=DMARC1; p=none; rua=mailto:tu@correo`.
+4. Añade esos registros en el DNS de tu dominio (Cloudflare, Namecheap, IONOS…) y pulsa
+   **Verify** en Resend hasta que el dominio quede **Verified** (suele tardar minutos).
+5. Define el remitente por defecto de campañas en `.env.local` (debe ser de ese
+   dominio verificado):
+   ```env
+   CAMPAIGN_FROM_EMAIL="campañas@tudominio.com"
+   CAMPAIGN_FROM_NAME="Tu Nombre o Empresa"
+   ```
+
+> En producción (Vercel) añade `RESEND_API_KEY`, `CAMPAIGN_FROM_EMAIL` y
+> `CAMPAIGN_FROM_NAME` como variables de entorno. Más adelante (4.8) configuraremos el
+> **webhook de Resend** para registrar entregas/aperturas/clics/rebotes.
+
 ---
 
 ## Cuando termines

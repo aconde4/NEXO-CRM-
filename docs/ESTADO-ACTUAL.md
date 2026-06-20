@@ -8,14 +8,22 @@
 
 ## 📍 Dónde estamos
 
-- **Fase 4 · Campañas masivas (Resend):** **en curso.** **4.2** hecha: migración
-  `0007_typical_kat_farrell` con `segments` (audiencias dinámicas/estáticas,
-  `definition` JSONB), `campaigns` (estado, proveedor Resend, plantilla, segmento,
-  `stats` JSONB), `campaign_recipients` (estado por destinatario, message id de Resend,
-  marcas de tiempo de entrega/apertura/clic/rebote/baja, único por campaña+email) y
-  `suppressions` (lista de supresión RGPD por dueño, único por dueño+email). Esquema en
-  `src/server/db/schema/marketing.ts`. **Pendiente del usuario:** 4.1 (cuenta Resend +
-  verificar dominio SPF/DKIM/DMARC) — ver "Siguiente paso".
+- **Fase 4 · Campañas masivas (Resend):** **en curso (4.2 + 4.3 hechas).**
+  - **4.2** migración `0007_typical_kat_farrell` con `segments` (audiencias
+    dinámicas/estáticas, `definition` JSONB), `campaigns` (estado, proveedor Resend,
+    plantilla, segmento, `stats` JSONB), `campaign_recipients` (estado por destinatario,
+    message id de Resend, marcas de tiempo de entrega/apertura/clic/rebote/baja, único
+    por campaña+email) y `suppressions` (lista de supresión RGPD por dueño, único por
+    dueño+email). Esquema en `src/server/db/schema/marketing.ts`.
+  - **4.3** servicio Resend `src/server/services/resend.ts` (transporte): envío
+    individual (`/emails`, con `Idempotency-Key`) y por lotes (`/emails/batch`, troceo
+    automático en grupos de 100), detección de configuración (`isResendConfigured`),
+    remitente por defecto (`CAMPAIGN_FROM_EMAIL`/`NAME`), errores tipados
+    (`ResendServiceError`) y degradación elegante sin `RESEND_API_KEY`. **No** consulta
+    la BD: el filtrado RGPD (`suppressions`) se aplicará en la orquestación (4.6/4.7)
+    antes de llamar al servicio.
+  - **Pendiente del usuario:** 4.1 (cuenta Resend + verificar dominio SPF/DKIM/DMARC) —
+    ver "Siguiente paso" y `SETUP.md` §6.
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
 - **Fase 3 · Email 1:1 (Gmail):** **completa** (3.1–3.10). OAuth de
@@ -93,13 +101,15 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 4 en curso** (4.2 hecha). Continúa por la siguiente tarea sin marcar en
+**Fase 4 en curso** (4.2 + 4.3 hechas). Continúa por la siguiente tarea sin marcar en
 [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md):
-1. **4.3** Servicio Resend (envío individual y por lotes) — no requiere acción del
-   usuario; se puede construir y verificar la detección de configuración aunque aún no
-   haya `RESEND_API_KEY`.
+1. **4.4** Constructor de segmentos por filtros (reutiliza el motor de filtros de la
+   Fase 1) con previsualización del tamaño de audiencia. No requiere acción del usuario.
+   Aquí conviene crear ya `queries/segments.ts` (resolver una `SegmentDefinition` a
+   contactos con email válido) y `queries/suppressions.ts` (set de supresión por dueño)
+   para el filtrado RGPD que usarán 4.5/4.6.
 2. **4.1** (acción del usuario, en paralelo): crear cuenta en Resend y verificar el
-   dominio de envío (SPF/DKIM/DMARC). Pasos:
+   dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
    - Crear cuenta en https://resend.com y un **API key** → ponerlo en `.env.local` como
      `RESEND_API_KEY`.
    - **Domains → Add Domain** con el dominio de envío (p. ej. `mg.tudominio.com` o el
@@ -122,8 +132,8 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 4.2 — migración de campañas (`segments`,
-> `campaigns`, `campaign_recipients`, `suppressions`). Antes: cierre de la Fase 3
+> **Hecho en la última sesión:** Fase 4.2 (migración de campañas) y 4.3 (servicio
+> Resend de transporte: envío individual y por lotes). Antes: cierre de la Fase 3
 > (3.8 bandeja unificada, 3.9 detección de respuestas, 3.10 límite diario + firma).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
@@ -165,6 +175,25 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-20 (26) — Fase 4.3: servicio Resend (transporte)
+- **Servicio** `src/server/services/resend.ts`: capa de transporte para campañas.
+  - `sendResendEmail` (POST `/emails`, con `Idempotency-Key` opcional para reintentos).
+  - `sendResendBatch` (POST `/emails/batch`, troceo automático en grupos de 100; los
+    resultados conservan el orden de entrada y los fallos por trozo se marcan por
+    elemento; 401/403/429 cortan el envío).
+  - `isResendConfigured`/`getResendApiKey` (degradación elegante sin `RESEND_API_KEY`),
+    `getDefaultCampaignFrom` (`CAMPAIGN_FROM_EMAIL`/`CAMPAIGN_FROM_NAME`), `formatFrom`
+    (sanea el nombre del remitente) y `ResendServiceError` con códigos
+    (`not_configured`/`invalid_input`/`rate_limited`/`api_error`).
+  - **RGPD:** el servicio NO consulta la BD; el filtrado por `suppressions` se hará en
+    la orquestación de la campaña (4.6/4.7) **antes** de llamar aquí.
+- **Docs:** `SETUP.md` §6 con los pasos de Resend (API key, verificación de dominio
+  SPF/DKIM/DMARC, `CAMPAIGN_FROM_EMAIL/NAME`).
+- **Verificado** con script `tsx` temporal (borrado): sin clave, `isResendConfigured()`
+  es `false`, `sendResendEmail` rechaza con `not_configured` (no envía nada), la
+  validación de lote marca fallidos sin tocar la red, y `formatFrom` sanea
+  comillas/`<>`. `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-20 (25) — Fase 4.2: migración de campañas
 - **Esquema** `src/server/db/schema/marketing.ts` con cuatro tablas:
