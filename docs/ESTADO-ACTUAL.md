@@ -85,9 +85,15 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 3 en marcha (3.1–3.9 hechas).** Continúa la **FASE 3 · Email 1:1 (Gmail)** en
-[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la última tarea sin marcar:
-1. **3.10** Límite diario de envío por buzón (warm-up) + firma HTML — cierra la Fase 3.
+**Fases 0–3 completas.** Empieza la **FASE 4 · Campañas masivas (Resend)** en
+[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la primera tarea sin marcar:
+1. **4.1** Crear cuenta Resend y verificar dominio (SPF/DKIM/DMARC) — requiere acción
+   del usuario; el código puede ir preparando la **4.2** migración (`campaigns`,
+   `campaign_recipients`, `segments`, `suppressions`) y **4.3** servicio Resend.
+
+> Reutiliza lo ya hecho: el **motor de merge tags** (`lib/email/merge-tags.ts`) y el
+> **modelo de email** de la Fase 3. La supresión (`suppressions`) debe comprobarse
+> antes de cualquier envío (RGPD).
 
 Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 - Columnas y **filtros por campo personalizado** en los listados (sobre las vistas
