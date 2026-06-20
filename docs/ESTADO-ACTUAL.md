@@ -8,7 +8,16 @@
 
 ## 📍 Dónde estamos
 
-- **Fase 4 · Campañas masivas (Resend):** **en curso (4.2 + 4.3 hechas).**
+- **Fase 4 · Campañas masivas (Resend):** **en curso (4.2 + 4.3 + 4.4 hechas).**
+  - **4.4** constructor de segmentos: catálogo de filtros `src/lib/segments.ts`
+    (nombre, email, cargo, origen, estado de marketing, etiqueta, empresa y fecha de
+    alta, con operadores por campo), resolutor de audiencia `queries/segments.ts`
+    (reusa `ilike`/`inArray`/`isNull` de la Fase 1; cuenta total/con email/alcanzables),
+    acciones CRUD + `previewSegmentAudience` (`actions/segments.ts`), página `/segments`
+    y constructor (`SegmentFormDialog`) con reglas dinámicas (todas/cualquiera) y
+    **previsualización del tamaño de audiencia en vivo**. Nuevo ítem "Segmentos" en la
+    navegación. Verificado vía login de desarrollo (audiencia 10/10/10 coincide con un
+    conteo independiente; ramas SQL de enum/etiqueta/fecha/empresa sin errores).
   - **4.2** migración `0007_typical_kat_farrell` con `segments` (audiencias
     dinámicas/estáticas, `definition` JSONB), `campaigns` (estado, proveedor Resend,
     plantilla, segmento, `stats` JSONB), `campaign_recipients` (estado por destinatario,
@@ -101,13 +110,12 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 4 en curso** (4.2 + 4.3 hechas). Continúa por la siguiente tarea sin marcar en
-[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md):
-1. **4.4** Constructor de segmentos por filtros (reutiliza el motor de filtros de la
-   Fase 1) con previsualización del tamaño de audiencia. No requiere acción del usuario.
-   Aquí conviene crear ya `queries/segments.ts` (resolver una `SegmentDefinition` a
-   contactos con email válido) y `queries/suppressions.ts` (set de supresión por dueño)
-   para el filtrado RGPD que usarán 4.5/4.6.
+**Fase 4 en curso** (4.2 + 4.3 + 4.4 hechas). Continúa por la siguiente tarea sin
+marcar en [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md):
+1. **4.5** Editor de campaña con React Email (bloques) + envío de prueba. No requiere
+   acción del usuario para empezar; reutiliza el `RichEmailEditor` y los merge tags, el
+   selector de segmento (`listSegmentOptions`) y el servicio Resend de la 4.3. El envío
+   de prueba real necesita la 4.1 (dominio verificado).
 2. **4.1** (acción del usuario, en paralelo): crear cuenta en Resend y verificar el
    dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
    - Crear cuenta en https://resend.com y un **API key** → ponerlo en `.env.local` como
@@ -132,9 +140,9 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 4.2 (migración de campañas) y 4.3 (servicio
-> Resend de transporte: envío individual y por lotes). Antes: cierre de la Fase 3
-> (3.8 bandeja unificada, 3.9 detección de respuestas, 3.10 límite diario + firma).
+> **Hecho en la última sesión:** Fase 4.2 (migración de campañas), 4.3 (servicio
+> Resend de transporte) y 4.4 (constructor de segmentos con previsualización de
+> audiencia). Antes: cierre de la Fase 3 (3.8–3.10).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -175,6 +183,30 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-20 (27) — Fase 4.4: constructor de segmentos
+- **Catálogo de filtros** `src/lib/segments.ts` (agnóstico): campos sobre `persons`
+  (nombre, email, cargo, origen, estado de marketing, etiqueta, empresa, fecha de alta)
+  con sus operadores (`contains`/`eq`/`is_set`/`has_label`/`before`/`after`…), helpers
+  (`isRuleComplete`, `describeRule`, `defaultRuleForField`) y tipos `SegmentDefinition`/
+  `SegmentRule` reutilizados por el esquema `marketing.ts`.
+- **Resolutor** `src/server/queries/segments.ts`: traduce las reglas a SQL reutilizando
+  las primitivas de la Fase 1 (`ilike`/`inArray`/`isNull`); `countSegmentAudience`
+  (total / con email / alcanzables = con email y suscrito) y `resolveSegmentPersons`
+  (base de un envío, con `reachableOnly`). CRUD `listSegments`/`getSegment` +
+  `listSegmentOptions`.
+- **Acciones** `src/server/actions/segments.ts`: crear/editar/borrar (autorización por
+  dueño, nombre único con mensaje claro) y `previewSegmentAudience` para el constructor.
+  Validación Zod en `src/lib/validations/segment.ts`.
+- **UI:** página `/segments`, `SegmentsView` (tarjetas con resumen de reglas y
+  audiencia) y `SegmentFormDialog` (constructor de reglas todas/cualquiera con
+  **previsualización del tamaño de audiencia en vivo**, debounce). Ítem "Segmentos" en
+  la navegación.
+- **Verificado** vía login de desarrollo (lectura de DOM): la página renderiza el
+  segmento sembrado, el resumen de reglas y la audiencia **10/10/10**, que coincide con
+  un conteo independiente; una definición compuesta (enum, etiqueta con subconsulta,
+  fecha y empresa) renderiza sin errores. Segmento de prueba limpiado.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-20 (26) — Fase 4.3: servicio Resend (transporte)
 - **Servicio** `src/server/services/resend.ts`: capa de transporte para campañas.

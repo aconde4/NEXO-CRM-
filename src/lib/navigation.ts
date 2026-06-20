@@ -9,6 +9,7 @@ import {
   Megaphone,
   Repeat,
   Settings,
+  Target,
   Users,
   Workflow,
   type LucideIcon,
@@ -45,6 +46,7 @@ export const navGroups: NavGroup[] = [
     label: "Comunicación",
     items: [
       { title: "Bandeja", href: "/inbox", icon: Inbox },
+      { title: "Segmentos", href: "/segments", icon: Target },
       { title: "Campañas", href: "/campaigns", icon: Megaphone, soon: true },
       { title: "Secuencias", href: "/sequences", icon: Repeat, soon: true },
       {

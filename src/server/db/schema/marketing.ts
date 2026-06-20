@@ -16,9 +16,12 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import type { SegmentDefinition } from "@/lib/segments";
 import { users } from "./auth";
 import { persons } from "./crm";
 import { emailTemplates } from "./email";
+
+export type { SegmentDefinition } from "@/lib/segments";
 
 export type SegmentKind = "dynamic" | "static";
 export type CampaignStatus =
@@ -45,24 +48,6 @@ export type SuppressionReason =
   | "bounce"
   | "complaint"
   | "manual";
-
-/**
- * Definición de un segmento: conjunto de reglas sobre contactos. Se concreta en la
- * 4.4 reutilizando el motor de filtros de la Fase 1. `static` congela una lista de
- * ids; `dynamic` se recalcula al usarse.
- */
-export type SegmentRule = {
-  field: string;
-  op: string;
-  value?: unknown;
-};
-
-export type SegmentDefinition = {
-  match?: "all" | "any";
-  rules?: SegmentRule[];
-  /** Para segmentos estáticos: ids de contacto congelados. */
-  personIds?: string[];
-};
 
 /** Contadores agregados de una campaña (se actualizan con los webhooks de Resend). */
 export type CampaignStats = {
