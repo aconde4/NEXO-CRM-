@@ -10,7 +10,7 @@
 
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
-- **Fase 3 · Email 1:1 (Gmail):** en marcha — **3.1–3.9 completas**. OAuth de
+- **Fase 3 · Email 1:1 (Gmail):** **completa** (3.1–3.10). OAuth de
   Google pide `gmail.send` + `gmail.readonly`, con acceso offline e incremental;
   Auth.js conserva/actualiza tokens y scopes en `account`; `/inbox` muestra el
   estado seguro de conexión Gmail sin exponer tokens. Migración `0006_exotic_prism`
@@ -32,8 +32,9 @@
   lectura/vinculación, ordenación y acceso a cada conversación. **3.9**: al sincronizar,
   un entrante que responde a un saliente del hilo (match por `In-Reply-To`/`References`,
   con fallback al último saliente sin responder) marca `replied_at`, registra evento
-  `reply` y muestra "Respondido" en la conversación. Siguiente: límite diario de envío
-  por buzón + firma HTML (3.10), última de la fase.
+  `reply` y muestra "Respondido" en la conversación. **3.10**: el envío respeta el
+  límite diario del buzón (reset a medianoche UTC) y añade la **firma HTML**; ajustes en
+  **Ajustes → Correo (Gmail)** (límite, firma saneada, uso de hoy). **Fase 3 cerrada.**
 - **Fase 2 · Pipeline/Negocios:** **completa** — **Kanban operativo** (dnd-kit) con
   embudos múltiples, etapas configurables en Ajustes, totales por columna, previsión
   ponderada, estancado, ganado/perdido, **ficha de negocio** (`/deals/[id]`) con
@@ -139,6 +140,19 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-19 (24) — Fase 3.10: límite diario + firma HTML (Fase 3 cerrada)
+- **Firma HTML** del buzón añadida al final de cada email enviado (HTML + texto) en
+  `gmail.ts`, tras `prepareSend` y antes del tracking.
+- **Ajustes del buzón:** query `getMailboxSettings` (límite, firma, uso de hoy con
+  reset a medianoche), action `updateMailboxSettings` (sanea la firma con
+  `sanitizeEmailHtml`), validación `mailbox.ts` y panel **Ajustes → Correo (Gmail)**
+  (`MailboxSettings`). El **límite diario** ya lo aplicaba el servicio de envío (Codex).
+- **Verificado** vía login de desarrollo: el panel renderiza (uso, límite, firma) y el
+  guardado persiste (límite 75 + firma saneada `<p>…<br />…</p>`); buzón restaurado a
+  valores por defecto tras la prueba. El envío real (con firma) lo prueba el usuario al
+  conectar Gmail.
+- Build, typecheck y lint en verde. **Fase 3 completa.**
 
 ### 2026-06-19 (23) — Fase 3.9: detección de respuestas
 - **Relevo desde Codex:** verificados los gates tras el handoff (typecheck/lint/build

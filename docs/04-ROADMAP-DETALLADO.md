@@ -207,7 +207,11 @@ negocios, con plantillas y seguimiento de aperturas/clics.
       (match por `In-Reply-To`/`References`, con fallback al último saliente sin
       responder) marca `email_messages.replied_at`, registra un evento `reply` y un
       apunte en `activity_log`. La conversación muestra "Respondido" en el saliente.
-- [ ] **3.10** Límite diario de envío por buzón (warm-up) y firma HTML.
+- [x] **3.10** Límite diario de envío por buzón (warm-up) y firma HTML. El servicio
+      de envío respeta `daily_limit` (reset a medianoche UTC, bloqueo y contador
+      `sent_today`); la **firma HTML** del buzón se añade al final de cada email
+      (HTML + texto). Ajustes en **Ajustes → Correo (Gmail)**: límite diario, firma
+      (saneada al guardar) y uso de hoy.
 
 ### Criterios de aceptación
 - Desde una ficha de contacto envías un email (con plantilla), lo recibes de vuelta y

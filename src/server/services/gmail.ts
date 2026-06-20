@@ -96,6 +96,35 @@ function makeRfcMessageId(fromEmail: string): string {
   return `<${crypto.randomUUID()}@${domain || "nexo.local"}>`;
 }
 
+/** Añade la firma HTML al cuerpo HTML (solo si ya hay cuerpo HTML). */
+function appendSignatureHtml(body: string | null, signatureHtml: string): string | null {
+  const base = (body ?? "").trim();
+  if (!base) return body;
+  return `${base}<br /><br />--<br />${signatureHtml}`;
+}
+
+/** Versión en texto plano de la firma (para el cuerpo de texto). */
+function signatureToText(signatureHtml: string): string {
+  return signatureHtml
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function appendSignatureText(body: string | null, signatureHtml: string): string | null {
+  const sigText = signatureToText(signatureHtml);
+  if (!sigText) return body;
+  const base = (body ?? "").trim();
+  return base ? `${base}\n\n--\n${sigText}` : sigText;
+}
+
 function effectiveDailyCounter(mailbox: {
   sentToday: number;
   sentTodayResetAt: Date | null;
@@ -389,6 +418,14 @@ export async function sendGmailEmail(userId: string, raw: SendEmailValues) {
   }
 
   const prepared = await prepareSend(userId, raw, localThread);
+
+  // Firma HTML del buzón (Fase 3.10): se añade al final del cuerpo.
+  const signatureHtml = cleanOptional(mailbox.signatureHtml);
+  if (signatureHtml) {
+    prepared.bodyHtml = appendSignatureHtml(prepared.bodyHtml, signatureHtml);
+    prepared.bodyText = appendSignatureText(prepared.bodyText, signatureHtml);
+  }
+
   const fromEmail = normalizeEmail(mailbox.email);
   const fromName =
     cleanOptional(mailbox.fromName) ?? cleanOptional(mailbox.displayName);

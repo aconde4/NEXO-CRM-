@@ -7,6 +7,45 @@ import { requireUser } from "@/lib/session";
 import { db } from "@/server/db";
 import { accounts, mailboxes } from "@/server/db/schema";
 
+export type MailboxSettings = {
+  id: string;
+  dailyLimit: number;
+  signatureHtml: string;
+  sentToday: number;
+  status: string;
+};
+
+/** Ajustes del buzón Gmail del usuario (límite diario, firma, uso de hoy). */
+export async function getMailboxSettings(): Promise<MailboxSettings | null> {
+  const user = await requireUser();
+  const [mailbox] = await db
+    .select({
+      id: mailboxes.id,
+      dailyLimit: mailboxes.dailyLimit,
+      signatureHtml: mailboxes.signatureHtml,
+      sentToday: mailboxes.sentToday,
+      sentTodayResetAt: mailboxes.sentTodayResetAt,
+      status: mailboxes.status,
+    })
+    .from(mailboxes)
+    .where(and(eq(mailboxes.ownerId, user.id), eq(mailboxes.provider, "gmail")))
+    .orderBy(desc(mailboxes.updatedAt))
+    .limit(1);
+
+  if (!mailbox) return null;
+
+  // El contador se reinicia a medianoche: si la marca de reinicio ya pasó, hoy es 0.
+  const resetValid =
+    mailbox.sentTodayResetAt != null && mailbox.sentTodayResetAt > new Date();
+  return {
+    id: mailbox.id,
+    dailyLimit: mailbox.dailyLimit,
+    signatureHtml: mailbox.signatureHtml ?? "",
+    sentToday: resetValid ? mailbox.sentToday : 0,
+    status: mailbox.status,
+  };
+}
+
 export async function getGmailConnectionStatus() {
   const user = await requireUser();
   const [account] = await db
