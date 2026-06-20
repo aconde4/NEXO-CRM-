@@ -8,6 +8,14 @@
 
 ## 📍 Dónde estamos
 
+- **Fase 4 · Campañas masivas (Resend):** **en curso.** **4.2** hecha: migración
+  `0007_typical_kat_farrell` con `segments` (audiencias dinámicas/estáticas,
+  `definition` JSONB), `campaigns` (estado, proveedor Resend, plantilla, segmento,
+  `stats` JSONB), `campaign_recipients` (estado por destinatario, message id de Resend,
+  marcas de tiempo de entrega/apertura/clic/rebote/baja, único por campaña+email) y
+  `suppressions` (lista de supresión RGPD por dueño, único por dueño+email). Esquema en
+  `src/server/db/schema/marketing.ts`. **Pendiente del usuario:** 4.1 (cuenta Resend +
+  verificar dominio SPF/DKIM/DMARC) — ver "Siguiente paso".
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
   Google verificado por el usuario ("funciona").
 - **Fase 3 · Email 1:1 (Gmail):** **completa** (3.1–3.10). OAuth de
@@ -85,11 +93,23 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fases 0–3 completas.** Empieza la **FASE 4 · Campañas masivas (Resend)** en
-[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md) por la primera tarea sin marcar:
-1. **4.1** Crear cuenta Resend y verificar dominio (SPF/DKIM/DMARC) — requiere acción
-   del usuario; el código puede ir preparando la **4.2** migración (`campaigns`,
-   `campaign_recipients`, `segments`, `suppressions`) y **4.3** servicio Resend.
+**Fase 4 en curso** (4.2 hecha). Continúa por la siguiente tarea sin marcar en
+[`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md):
+1. **4.3** Servicio Resend (envío individual y por lotes) — no requiere acción del
+   usuario; se puede construir y verificar la detección de configuración aunque aún no
+   haya `RESEND_API_KEY`.
+2. **4.1** (acción del usuario, en paralelo): crear cuenta en Resend y verificar el
+   dominio de envío (SPF/DKIM/DMARC). Pasos:
+   - Crear cuenta en https://resend.com y un **API key** → ponerlo en `.env.local` como
+     `RESEND_API_KEY`.
+   - **Domains → Add Domain** con el dominio de envío (p. ej. `mg.tudominio.com` o el
+     dominio raíz). Resend da varios registros DNS:
+     - **SPF/MX** (un `MX` para el subdominio de bounce + un `TXT` `v=spf1 include:...`).
+     - **DKIM** (registro `TXT`/`CNAME` con la clave pública).
+     - **DMARC** (opcional pero recomendado): `TXT` en `_dmarc.tudominio.com` con
+       `v=DMARC1; p=none; rua=mailto:tu@correo`.
+   - Añadir esos registros en el DNS del dominio y pulsar **Verify** en Resend hasta que
+     quede "Verified". Definir también `CAMPAIGN_FROM_EMAIL` (un `from` de ese dominio).
 
 > Reutiliza lo ya hecho: el **motor de merge tags** (`lib/email/merge-tags.ts`) y el
 > **modelo de email** de la Fase 3. La supresión (`suppressions`) debe comprobarse
@@ -102,10 +122,9 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 3.8 — bandeja unificada en `/inbox`.
-> Antes: 3.1–3.7 (OAuth Gmail, modelo de email, envío, sincronización de entrada,
-> vista de hilo de conversación, redactor Tiptap con plantillas y tracking propio) y
-> cierre de la Fase 2 (2.10).
+> **Hecho en la última sesión:** Fase 4.2 — migración de campañas (`segments`,
+> `campaigns`, `campaign_recipients`, `suppressions`). Antes: cierre de la Fase 3
+> (3.8 bandeja unificada, 3.9 detección de respuestas, 3.10 límite diario + firma).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -146,6 +165,25 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-20 (25) — Fase 4.2: migración de campañas
+- **Esquema** `src/server/db/schema/marketing.ts` con cuatro tablas:
+  - `segments` (audiencias): `kind` (dynamic/static), `definition` JSONB (reglas de
+    filtro de la Fase 1 / ids estáticos), único por dueño+nombre.
+  - `campaigns`: asunto, `from_name`/`from_email`/`reply_to`, `provider` (resend),
+    `status` (draft/scheduled/sending/sent/paused/failed), `template_id` (→
+    `email_templates`), cuerpo HTML/texto, `segment_id`, `scheduled_at`/`sent_at`,
+    `stats` y `settings` JSONB.
+  - `campaign_recipients`: estado por destinatario
+    (pending/sent/delivered/opened/clicked/bounced/complained/unsubscribed/suppressed/
+    failed), `provider_message_id` de Resend, marcas de tiempo de cada evento, único por
+    campaña+email normalizado.
+  - `suppressions` (RGPD): `reason` (unsubscribe/bounce/complaint/manual), `source`,
+    único por dueño+email normalizado; se comprobará antes de cada envío.
+- **Migración** `drizzle/0007_typical_kat_farrell.sql` generada y **aplicada**
+  (`pnpm db:migrate`). Verificado por BD (las 4 tablas existen) con script `tsx`
+  temporal (borrado).
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-19 (24) — Fase 3.10: límite diario + firma HTML (Fase 3 cerrada)
 - **Firma HTML** del buzón añadida al final de cada email enviado (HTML + texto) en

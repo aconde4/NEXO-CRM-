@@ -227,7 +227,7 @@ métricas.
 ### Tareas
 - [ ] **4.1** Crear cuenta Resend; verificar dominio de envío (SPF/DKIM/DMARC) —
       guía paso a paso en el propio CRM.
-- [ ] **4.2** Migración: `campaigns`, `campaign_recipients`, `segments`,
+- [x] **4.2** Migración: `campaigns`, `campaign_recipients`, `segments`,
       `suppressions`.
 - [ ] **4.3** Servicio Resend: envío individual y por lotes.
 - [ ] **4.4** Constructor de segmentos por filtros (reutiliza el motor de filtros de
