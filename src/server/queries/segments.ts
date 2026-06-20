@@ -31,6 +31,7 @@ import { db } from "@/server/db";
 import {
   type MarketingStatus,
   entityLabels,
+  organizations,
   persons,
   segments,
 } from "@/server/db/schema";
@@ -125,10 +126,7 @@ function segmentWhere(
   definition: SegmentDefinition,
   ownerId: string,
 ): SQL | undefined {
-  const base: SQL[] = [
-    eq(persons.ownerId, ownerId),
-    isNull(persons.deletedAt),
-  ];
+  const base: SQL[] = [eq(persons.ownerId, ownerId), isNull(persons.deletedAt)];
 
   if (definition.personIds && definition.personIds.length > 0) {
     base.push(inArray(persons.id, definition.personIds));
@@ -146,13 +144,36 @@ function segmentWhere(
   return and(...base);
 }
 
+function segmentConditions(
+  definition: SegmentDefinition,
+  ownerId: string,
+  opts: { reachableOnly?: boolean } = {},
+): SQL[] {
+  const where = segmentWhere(definition, ownerId);
+  const conditions = [where].filter((c): c is SQL => Boolean(c));
+  if (opts.reachableOnly) {
+    conditions.push(
+      isNotNull(persons.email),
+      ne(persons.email, ""),
+      eq(persons.marketingStatus, "subscribed"),
+    );
+  }
+  return conditions;
+}
+
 /** Cuenta la audiencia de un segmento (total / con email / alcanzable). */
 export async function countSegmentAudience(
   definition: SegmentDefinition,
 ): Promise<SegmentAudience> {
   const user = await requireUser();
-  const where = segmentWhere(definition, user.id);
+  return countSegmentAudienceForOwner(definition, user.id);
+}
 
+export async function countSegmentAudienceForOwner(
+  definition: SegmentDefinition,
+  ownerId: string,
+): Promise<SegmentAudience> {
+  const where = segmentWhere(definition, ownerId);
   const hasEmail = sql`${persons.email} is not null and ${persons.email} <> ''`;
   const [row] = await db
     .select({
@@ -178,6 +199,19 @@ export type SegmentMember = {
   marketingStatus: MarketingStatus;
 };
 
+export type SegmentRecipient = SegmentMember & {
+  phone: string | null;
+  title: string | null;
+  customFields: Record<string, unknown>;
+  organization: {
+    name: string;
+    tradeName: string | null;
+    website: string | null;
+    industry: string | null;
+    customFields: Record<string, unknown>;
+  } | null;
+};
+
 /**
  * Resuelve los contactos de un segmento. Por defecto devuelve todos los que cumplen;
  * con `reachableOnly` filtra a los alcanzables (con email y suscritos) — la base de un
@@ -188,17 +222,15 @@ export async function resolveSegmentPersons(
   opts: { limit?: number; reachableOnly?: boolean } = {},
 ): Promise<SegmentMember[]> {
   const user = await requireUser();
-  const where = segmentWhere(definition, user.id);
+  return resolveSegmentPersonsForOwner(definition, user.id, opts);
+}
 
-  const conditions = [where].filter((c): c is SQL => Boolean(c));
-  if (opts.reachableOnly) {
-    conditions.push(
-      isNotNull(persons.email),
-      ne(persons.email, ""),
-      eq(persons.marketingStatus, "subscribed"),
-    );
-  }
-
+export async function resolveSegmentPersonsForOwner(
+  definition: SegmentDefinition,
+  ownerId: string,
+  opts: { limit?: number; reachableOnly?: boolean } = {},
+): Promise<SegmentMember[]> {
+  const conditions = segmentConditions(definition, ownerId, opts);
   return db
     .select({
       id: persons.id,
@@ -211,6 +243,62 @@ export async function resolveSegmentPersons(
     .where(and(...conditions))
     .orderBy(asc(persons.firstName), asc(persons.lastName))
     .limit(opts.limit ?? 50_000);
+}
+
+export async function resolveSegmentRecipientsForOwner(
+  definition: SegmentDefinition,
+  ownerId: string,
+  opts: { limit?: number; reachableOnly?: boolean } = {},
+): Promise<SegmentRecipient[]> {
+  const conditions = segmentConditions(definition, ownerId, opts);
+  const rows = await db
+    .select({
+      id: persons.id,
+      firstName: persons.firstName,
+      lastName: persons.lastName,
+      email: persons.email,
+      phone: persons.phone,
+      title: persons.title,
+      customFields: persons.customFields,
+      marketingStatus: persons.marketingStatus,
+      orgName: organizations.name,
+      orgTradeName: organizations.tradeName,
+      orgWebsite: organizations.website,
+      orgIndustry: organizations.industry,
+      orgCustomFields: organizations.customFields,
+    })
+    .from(persons)
+    .leftJoin(
+      organizations,
+      and(
+        eq(persons.orgId, organizations.id),
+        eq(organizations.ownerId, ownerId),
+        isNull(organizations.deletedAt),
+      ),
+    )
+    .where(and(...conditions))
+    .orderBy(asc(persons.firstName), asc(persons.lastName))
+    .limit(opts.limit ?? 50_000);
+
+  return rows.map((row) => ({
+    id: row.id,
+    firstName: row.firstName,
+    lastName: row.lastName,
+    email: row.email,
+    phone: row.phone,
+    title: row.title,
+    customFields: row.customFields,
+    marketingStatus: row.marketingStatus,
+    organization: row.orgName
+      ? {
+          name: row.orgName,
+          tradeName: row.orgTradeName,
+          website: row.orgWebsite,
+          industry: row.orgIndustry,
+          customFields: row.orgCustomFields ?? {},
+        }
+      : null,
+  }));
 }
 
 // --- CRUD de segmentos ------------------------------------------------------

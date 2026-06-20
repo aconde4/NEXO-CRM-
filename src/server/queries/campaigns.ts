@@ -6,7 +6,7 @@ import type { CampaignEmailBlock } from "@/lib/campaign-blocks";
 import { campaignEmailBlocksSchema } from "@/lib/validations/campaign";
 import { requireUser } from "@/lib/session";
 import { db } from "@/server/db";
-import { campaigns, segments } from "@/server/db/schema";
+import { type CampaignStats, campaigns, segments } from "@/server/db/schema";
 import { isResendConfigured } from "@/server/services/resend";
 
 function cleanEnv(value: string | undefined): string {
@@ -34,6 +34,9 @@ export type CampaignListItem = {
   bodyHtml: string;
   bodyText: string;
   blocks: CampaignEmailBlock[];
+  scheduledAt: string | null;
+  sentAt: string | null;
+  stats: CampaignStats;
   updatedAt: string;
   createdAt: string;
 };
@@ -60,7 +63,10 @@ export async function listCampaigns(): Promise<CampaignListItem[]> {
       segmentName: segments.name,
       bodyHtml: campaigns.bodyHtml,
       bodyText: campaigns.bodyText,
+      scheduledAt: campaigns.scheduledAt,
       settings: campaigns.settings,
+      sentAt: campaigns.sentAt,
+      stats: campaigns.stats,
       updatedAt: campaigns.updatedAt,
       createdAt: campaigns.createdAt,
     })
@@ -86,6 +92,9 @@ export async function listCampaigns(): Promise<CampaignListItem[]> {
     bodyHtml: row.bodyHtml ?? "",
     bodyText: row.bodyText ?? "",
     blocks: blocksFromSettings(row.settings),
+    scheduledAt: row.scheduledAt?.toISOString() ?? null,
+    sentAt: row.sentAt?.toISOString() ?? null,
+    stats: row.stats,
     updatedAt: row.updatedAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
   }));

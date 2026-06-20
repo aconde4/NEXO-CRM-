@@ -77,5 +77,20 @@ export const campaignTestSchema = campaignDraftSchema.extend({
   testEmail: z.string().trim().email("Email de prueba no válido").max(320),
 });
 
+export const campaignIdSchema = z.string().uuid("Campaña no válida");
+
+export const campaignScheduleSchema = z.object({
+  campaignId: campaignIdSchema,
+  scheduledAt: z
+    .string()
+    .trim()
+    .min(1, "Indica fecha y hora")
+    .refine(
+      (value) => !Number.isNaN(new Date(value).getTime()),
+      "Fecha de programación no válida",
+    ),
+});
+
 export type CampaignDraftValues = z.infer<typeof campaignDraftSchema>;
 export type CampaignTestValues = z.infer<typeof campaignTestSchema>;
+export type CampaignScheduleValues = z.infer<typeof campaignScheduleSchema>;

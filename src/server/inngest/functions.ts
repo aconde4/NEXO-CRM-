@@ -4,6 +4,14 @@ import {
   listGmailSyncCandidates,
 } from "@/server/services/gmail-auth";
 import { syncGmailMailbox } from "@/server/services/gmail-sync";
+import {
+  CAMPAIGN_SEND_EVENT,
+  CampaignDispatchError,
+  getCampaignDeliveryConfig,
+  nextAllowedCampaignSendAt,
+  prepareCampaignForSend,
+  sendNextCampaignBatch,
+} from "@/server/services/campaign-dispatch";
 
 /**
  * Función de prueba para validar que Inngest está conectado (tarea 0.13).
@@ -25,10 +33,24 @@ const NON_RETRYABLE_GMAIL_SYNC_CODES = new Set([
   "mailbox_paused",
 ]);
 
+const NON_RETRYABLE_CAMPAIGN_CODES = new Set([
+  "cancelled",
+  "invalid_campaign",
+  "not_configured",
+  "not_found",
+  "transport_error",
+]);
+
 function gmailSyncUserId(event: { data?: unknown }) {
   if (!event.data || typeof event.data !== "object") return null;
   const data = event.data as Record<string, unknown>;
   return typeof data.userId === "string" ? data.userId : null;
+}
+
+function campaignIdFromEvent(event: { data?: unknown }) {
+  if (!event.data || typeof event.data !== "object") return null;
+  const data = event.data as Record<string, unknown>;
+  return typeof data.campaignId === "string" ? data.campaignId : null;
 }
 
 export const syncGmailMailboxes = inngest.createFunction(
@@ -79,5 +101,131 @@ export const syncGmailMailboxes = inngest.createFunction(
   },
 );
 
+export const sendCampaign = inngest.createFunction(
+  { id: "send-campaign", triggers: [{ event: CAMPAIGN_SEND_EVENT }] },
+  async ({ event, step }) => {
+    const campaignId = campaignIdFromEvent(event);
+    if (!campaignId) return { ok: false, reason: "missing_campaign_id" };
+
+    let preparation = await step.run("preparar-campana", async () => {
+      try {
+        return {
+          ok: true as const,
+          result: await prepareCampaignForSend(campaignId),
+        };
+      } catch (error) {
+        if (
+          error instanceof CampaignDispatchError &&
+          NON_RETRYABLE_CAMPAIGN_CODES.has(error.code)
+        ) {
+          return {
+            code: error.code,
+            message: error.message,
+            ok: false as const,
+          };
+        }
+        throw error;
+      }
+    });
+
+    if (!preparation.ok) return preparation;
+    if (preparation.result.state === "waiting") {
+      await step.sleepUntil(
+        "esperar-programacion",
+        new Date(preparation.result.waitUntil),
+      );
+      preparation = await step.run("preparar-campana-tras-espera", async () => {
+        try {
+          return {
+            ok: true as const,
+            result: await prepareCampaignForSend(campaignId),
+          };
+        } catch (error) {
+          if (
+            error instanceof CampaignDispatchError &&
+            NON_RETRYABLE_CAMPAIGN_CODES.has(error.code)
+          ) {
+            return {
+              code: error.code,
+              message: error.message,
+              ok: false as const,
+            };
+          }
+          throw error;
+        }
+      });
+      if (!preparation.ok) return preparation;
+    }
+
+    if (preparation.result.state !== "ready") return preparation.result;
+
+    const config = getCampaignDeliveryConfig();
+    let totalFailed = 0;
+    let totalSent = 0;
+
+    for (
+      let batchIndex = 1;
+      batchIndex <= config.maxBatchesPerRun;
+      batchIndex += 1
+    ) {
+      const now = new Date();
+      const nextAllowed = nextAllowedCampaignSendAt(now, config);
+      if (nextAllowed.getTime() > now.getTime() + 1000) {
+        await step.sleepUntil(
+          `esperar-ventana-envio-${batchIndex}`,
+          nextAllowed,
+        );
+      }
+
+      const batch = await step.run(`enviar-lote-${batchIndex}`, async () => {
+        try {
+          return {
+            ok: true as const,
+            result: await sendNextCampaignBatch(campaignId, batchIndex),
+          };
+        } catch (error) {
+          if (
+            error instanceof CampaignDispatchError &&
+            NON_RETRYABLE_CAMPAIGN_CODES.has(error.code)
+          ) {
+            return {
+              code: error.code,
+              message: error.message,
+              ok: false as const,
+            };
+          }
+          throw error;
+        }
+      });
+
+      if (!batch.ok) return batch;
+      totalFailed += batch.result.failed;
+      totalSent += batch.result.sent;
+      if (batch.result.done) {
+        return {
+          ok: true,
+          result: batch.result,
+          totalFailed,
+          totalSent,
+        };
+      }
+
+      if (config.batchDelaySeconds > 0) {
+        await step.sleep(
+          `pausa-limite-resend-${batchIndex}`,
+          `${config.batchDelaySeconds}s`,
+        );
+      }
+    }
+
+    return {
+      ok: false,
+      reason: "max_batches_reached",
+      totalFailed,
+      totalSent,
+    };
+  },
+);
+
 /** Todas las funciones registradas en el endpoint /api/inngest. */
-export const functions = [helloWorld, syncGmailMailboxes];
+export const functions = [helloWorld, syncGmailMailboxes, sendCampaign];

@@ -42,10 +42,17 @@ export async function listAllCustomFieldDefs(): Promise<{
   organization: CustomFieldDef[];
 }> {
   const user = await requireUser();
+  return listAllCustomFieldDefsForOwner(user.id);
+}
+
+export async function listAllCustomFieldDefsForOwner(ownerId: string): Promise<{
+  person: CustomFieldDef[];
+  organization: CustomFieldDef[];
+}> {
   const rows = await db
     .select()
     .from(customFieldDefs)
-    .where(eq(customFieldDefs.ownerId, user.id))
+    .where(eq(customFieldDefs.ownerId, ownerId))
     .orderBy(asc(customFieldDefs.position), asc(customFieldDefs.createdAt));
   const defs = rows.map(toDef);
   return {

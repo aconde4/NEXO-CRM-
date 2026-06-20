@@ -8,7 +8,16 @@
 
 ## 📍 Dónde estamos
 
-- **Fase 4 · Campañas masivas (Resend):** **en curso (4.2 + 4.3 + 4.4 + 4.5 hechas).**
+- **Fase 4 · Campañas masivas (Resend):** **en curso (4.2 + 4.3 + 4.4 + 4.5 + 4.6 hechas).**
+  - **4.6** programación y envío real por lotes: `scheduleCampaign`,
+    `sendCampaignNow` y `cancelScheduledCampaign` encolan `campaign/send.requested`
+    con Inngest; `sendCampaign` espera la fecha programada, respeta ventana horaria y
+    pausa entre lotes. El servicio `campaign-dispatch.ts` prepara audiencia de segmento
+    en el momento del envío, deduplica por email, excluye contactos no suscritos y
+    `suppressions`, personaliza merge tags por destinatario, envía con Resend batch +
+    idempotency key por lote y actualiza `campaign_recipients`, `campaigns.stats`,
+    `scheduled_at`/`sent_at`/estado. `/campaigns` muestra programación, acciones
+    Enviar ahora/Programar/Cancelar y métricas básicas.
   - **4.5** editor de campañas: `/campaigns` deja de ser placeholder y muestra una
     pantalla real de borradores. Incluye editor con bloques React Email (texto
     enriquecido reutilizando `RichEmailEditor`, título, botón y separador), inserción de
@@ -37,8 +46,8 @@
     automático en grupos de 100), detección de configuración (`isResendConfigured`),
     remitente por defecto (`CAMPAIGN_FROM_EMAIL`/`NAME`), errores tipados
     (`ResendServiceError`) y degradación elegante sin `RESEND_API_KEY`. **No** consulta
-    la BD: el filtrado RGPD (`suppressions`) se aplicará en la orquestación (4.6/4.7)
-    antes de llamar al servicio.
+    la BD: el filtrado RGPD (`suppressions`) se aplica en la orquestación 4.6 antes
+    de llamar al servicio; 4.7 añade la baja pública y cabeceras `List-Unsubscribe`.
   - **Pendiente del usuario:** 4.1 (cuenta Resend + verificar dominio SPF/DKIM/DMARC) —
     ver "Siguiente paso" y `SETUP.md` §6.
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
@@ -118,13 +127,12 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 4 en curso** (4.2 + 4.3 + 4.4 + 4.5 hechas). Continúa por la siguiente tarea sin
+**Fase 4 en curso** (4.2 + 4.3 + 4.4 + 4.5 + 4.6 hechas). Continúa por la siguiente tarea sin
 marcar en [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md):
-1. **4.6** Programación de envío y troceado en lotes vía Inngest (respetar límites y
-   ventana horaria). Debe reutilizar los borradores de `campaigns.settings.blocks`, el
-   render React Email de `src/server/services/campaign-email.tsx`, el resolutor de
-   audiencia de segmentos y el servicio Resend de la 4.3. Antes de cualquier envío real,
-   comprobar `suppressions` (RGPD) y no mandar a contactos no suscritos.
+1. **4.7** Gestión de bajas: página pública de unsubscribe + cabecera
+   `List-Unsubscribe` + comprobación de `suppressions` antes de enviar. La comprobación
+   previa ya existe en 4.6; falta el enlace público firmado, escritura en
+   `suppressions`/`marketing_status` y cabeceras en cada email de campaña.
 2. **4.1** (acción del usuario, en paralelo): crear cuenta en Resend y verificar el
    dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
    - Crear cuenta en https://resend.com y un **API key** → ponerlo en `.env.local` como
@@ -149,10 +157,11 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 4.5 (editor de campañas con bloques React Email,
-> preview servidor y envío de prueba). Antes: 4.2 (migración de campañas), 4.3
-> (servicio Resend de transporte) y 4.4 (constructor de segmentos con previsualización
-> de audiencia).
+> **Hecho en la última sesión:** Fase 4.6 (programación/envío real por lotes vía
+> Inngest, ventana horaria, supresiones previas y métricas básicas en campañas). Antes:
+> 4.5 (editor de campañas con bloques React Email, preview servidor y envío de prueba),
+> 4.2 (migración de campañas), 4.3 (servicio Resend de transporte) y 4.4 (constructor
+> de segmentos con previsualización de audiencia).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -193,6 +202,22 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-20 (29) — Fase 4.6: programación y envío por lotes
+- **Orquestación Inngest:** nueva función `sendCampaign` para el evento
+  `campaign/send.requested`; espera `scheduled_at`, respeta ventana horaria
+  configurable (`CAMPAIGN_SEND_WINDOW_START/END`, zona horaria) y pausa entre lotes.
+- **Servicio de dispatch:** `src/server/services/campaign-dispatch.ts` prepara la
+  audiencia al enviar, deduplica por email, filtra contactos no suscritos y
+  `suppressions`, personaliza merge tags por destinatario, manda por `sendResendBatch`
+  con idempotencia por lote y finaliza estado/métricas.
+- **Acciones/UI:** `scheduleCampaign`, `sendCampaignNow` y `cancelScheduledCampaign`;
+  `/campaigns` muestra estado programado/en curso/enviado, métricas básicas y botones
+  Enviar ahora/Programar/Cancelar.
+- **Datos auxiliares:** queries owner-aware para segmentos y campos personalizados, y
+  `CampaignStats.suppressed` para reflejar destinatarios excluidos.
+- **Verificado:** `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde. Dev-login +
+  `GET /campaigns` renderiza HTML autenticado sin runtime/build error.
 
 ### 2026-06-20 (28) — Fase 4.5: editor de campañas
 - **Dependencias:** añadidos `@react-email/components` y `@react-email/render` para

@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import {
   ArrowDown,
   ArrowUp,
+  CalendarClock,
+  Clock,
   Eye,
   Heading1,
   Link2,
@@ -17,6 +19,7 @@ import {
   Rows3,
   Send,
   Trash2,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,9 +37,12 @@ import {
   campaignDraftSchema,
 } from "@/lib/validations/campaign";
 import {
+  cancelScheduledCampaign,
   deleteCampaignDraft,
   previewCampaignEmail,
   saveCampaignDraft,
+  scheduleCampaign,
+  sendCampaignNow,
   sendCampaignTest,
 } from "@/server/actions/campaigns";
 import { Badge } from "@/components/ui/badge";
@@ -87,6 +93,20 @@ export type CampaignRow = {
   bodyHtml: string;
   bodyText: string;
   blocks: CampaignEmailBlock[];
+  scheduledAt: string | null;
+  sentAt: string | null;
+  stats: {
+    audience?: number;
+    sent?: number;
+    delivered?: number;
+    opened?: number;
+    clicked?: number;
+    bounced?: number;
+    complained?: number;
+    unsubscribed?: number;
+    suppressed?: number;
+    failed?: number;
+  };
   updatedAt: string;
   createdAt: string;
 };
@@ -141,6 +161,17 @@ function formatDate(value: string): string {
   }).format(new Date(value));
 }
 
+function toDateTimeLocalValue(value: Date): string {
+  const offsetMs = value.getTimezoneOffset() * 60_000;
+  return new Date(value.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function defaultScheduleValue(): string {
+  const date = new Date(Date.now() + 60 * 60 * 1000);
+  date.setMinutes(Math.ceil(date.getMinutes() / 15) * 15, 0, 0);
+  return toDateTimeLocalValue(date);
+}
+
 function statusLabel(status: CampaignRow["status"]): string {
   const labels: Record<CampaignRow["status"], string> = {
     draft: "Borrador",
@@ -151,6 +182,14 @@ function statusLabel(status: CampaignRow["status"]): string {
     failed: "Con error",
   };
   return labels[status];
+}
+
+function statusVariant(
+  status: CampaignRow["status"],
+): React.ComponentProps<typeof Badge>["variant"] {
+  if (status === "failed") return "destructive";
+  if (status === "scheduled" || status === "sending") return "default";
+  return "secondary";
 }
 
 function defaultValues(
@@ -202,6 +241,7 @@ export function CampaignsView({
 }) {
   const [dialog, setDialog] = React.useState<DialogState | null>(null);
   const [deleting, setDeleting] = React.useState<CampaignRow | null>(null);
+  const [scheduling, setScheduling] = React.useState<CampaignRow | null>(null);
 
   return (
     <div className="space-y-4">
@@ -239,7 +279,9 @@ export function CampaignsView({
             <CampaignCard
               key={campaign.id}
               campaign={campaign}
+              resendConfigured={defaults.resendConfigured}
               onEdit={() => setDialog({ mode: "edit", campaign })}
+              onSchedule={() => setScheduling(campaign)}
               onDelete={() => setDeleting(campaign)}
             />
           ))}
@@ -262,19 +304,78 @@ export function CampaignsView({
         campaign={deleting}
         onClose={() => setDeleting(null)}
       />
+
+      {scheduling ? (
+        <ScheduleCampaignDialog
+          key={scheduling.id}
+          campaign={scheduling}
+          onClose={() => setScheduling(null)}
+        />
+      ) : null}
     </div>
   );
 }
 
 function CampaignCard({
   campaign,
+  resendConfigured,
   onEdit,
+  onSchedule,
   onDelete,
 }: {
   campaign: CampaignRow;
+  resendConfigured: boolean;
   onEdit: () => void;
+  onSchedule: () => void;
   onDelete: () => void;
 }) {
+  const router = useRouter();
+  const [busy, setBusy] = React.useState<"send" | "cancel" | null>(null);
+  const canLaunch = campaign.status !== "sending" && campaign.status !== "sent";
+  const canCancel = campaign.status === "scheduled";
+
+  async function launchNow() {
+    if (!resendConfigured) {
+      toast.error("Configura RESEND_API_KEY antes de enviar campañas.");
+      return;
+    }
+    setBusy("send");
+    try {
+      await sendCampaignNow(campaign.id);
+      toast.success("Campaña encolada para envío");
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo enviar ahora",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function cancelSchedule() {
+    setBusy("cancel");
+    try {
+      await cancelScheduledCampaign(campaign.id);
+      toast.success("Programación cancelada");
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo cancelar",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function requestSchedule() {
+    if (!resendConfigured) {
+      toast.error("Configura RESEND_API_KEY antes de programar campañas.");
+      return;
+    }
+    onSchedule();
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -292,11 +393,15 @@ function CampaignCard({
               <MoreHorizontal className="size-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onEdit}>
+              <DropdownMenuItem disabled={!canLaunch} onClick={onEdit}>
                 <Pencil />
                 Editar
               </DropdownMenuItem>
-              <DropdownMenuItem variant="destructive" onClick={onDelete}>
+              <DropdownMenuItem
+                disabled={campaign.status === "sending"}
+                variant="destructive"
+                onClick={onDelete}
+              >
                 <Trash2 />
                 Eliminar
               </DropdownMenuItem>
@@ -306,7 +411,9 @@ function CampaignCard({
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary">{statusLabel(campaign.status)}</Badge>
+          <Badge variant={statusVariant(campaign.status)}>
+            {statusLabel(campaign.status)}
+          </Badge>
           {campaign.segmentName ? (
             <Badge variant="outline">{campaign.segmentName}</Badge>
           ) : (
@@ -318,11 +425,178 @@ function CampaignCard({
             {campaign.preheader}
           </p>
         ) : null}
+        <CampaignTiming campaign={campaign} />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <CampaignMetric label="Audiencia" value={campaign.stats.audience} />
+          <CampaignMetric label="Enviados" value={campaign.stats.sent} />
+          <CampaignMetric
+            label="Suprimidos"
+            value={campaign.stats.suppressed}
+          />
+          <CampaignMetric label="Fallidos" value={campaign.stats.failed} />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={!canLaunch || busy !== null}
+            onClick={launchNow}
+          >
+            <Send />
+            {busy === "send" ? "Encolando..." : "Enviar ahora"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={!canLaunch || busy !== null}
+            onClick={requestSchedule}
+          >
+            <CalendarClock />
+            Programar
+          </Button>
+          {canCancel ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy !== null}
+              onClick={cancelSchedule}
+            >
+              <XCircle />
+              {busy === "cancel" ? "Cancelando..." : "Cancelar"}
+            </Button>
+          ) : null}
+        </div>
         <p className="text-muted-foreground text-xs">
           Actualizada {formatDate(campaign.updatedAt)}
         </p>
       </CardContent>
     </Card>
+  );
+}
+
+function CampaignTiming({ campaign }: { campaign: CampaignRow }) {
+  if (campaign.status === "scheduled" && campaign.scheduledAt) {
+    return (
+      <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+        <Clock className="size-3.5" />
+        Programada para {formatDate(campaign.scheduledAt)}
+      </p>
+    );
+  }
+  if (campaign.status === "sent" && campaign.sentAt) {
+    return (
+      <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+        <MailCheck className="size-3.5" />
+        Enviada {formatDate(campaign.sentAt)}
+      </p>
+    );
+  }
+  if (campaign.status === "sending") {
+    return (
+      <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+        <Send className="size-3.5" />
+        Envío en curso por lotes
+      </p>
+    );
+  }
+  return null;
+}
+
+function CampaignMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | undefined;
+}) {
+  return (
+    <div className="rounded-md border px-2 py-1.5">
+      <p className="text-muted-foreground text-[0.7rem] leading-none">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-medium tabular-nums">{value ?? 0}</p>
+    </div>
+  );
+}
+
+function ScheduleCampaignDialog({
+  campaign,
+  onClose,
+}: {
+  campaign: CampaignRow;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [value, setValue] = React.useState(defaultScheduleValue);
+  const [busy, setBusy] = React.useState(false);
+
+  async function confirm() {
+    const scheduledAt = new Date(value);
+    if (Number.isNaN(scheduledAt.getTime())) {
+      toast.error("Indica una fecha y hora válidas.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await scheduleCampaign({
+        campaignId: campaign.id,
+        scheduledAt: scheduledAt.toISOString(),
+      });
+      toast.success("Campaña programada");
+      onClose();
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo programar",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Programar campaña</DialogTitle>
+          <DialogDescription>
+            {campaign.name} se enviara por lotes al segmento{" "}
+            <span className="text-foreground font-medium">
+              {campaign.segmentName ?? "sin segmento"}
+            </span>
+            .
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <div className="grid gap-1.5">
+            <Label>Fecha y hora</Label>
+            <Input
+              type="datetime-local"
+              min={toDateTimeLocalValue(new Date())}
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+            />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <CampaignMetric label="Audiencia" value={campaign.stats.audience} />
+            <CampaignMetric label="Enviados" value={campaign.stats.sent} />
+            <CampaignMetric label="Fallidos" value={campaign.stats.failed} />
+          </div>
+        </div>
+        <DialogFooter>
+          <DialogClose render={<Button type="button" variant="outline" />}>
+            Cancelar
+          </DialogClose>
+          <Button onClick={confirm} disabled={busy}>
+            <CalendarClock />
+            {busy ? "Programando..." : "Programar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

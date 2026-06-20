@@ -233,7 +233,7 @@ métricas.
 - [x] **4.4** Constructor de segmentos por filtros (reutiliza el motor de filtros de
       la Fase 1); previsualización del tamaño de audiencia.
 - [x] **4.5** Editor de campaña con React Email (bloques) + envío de prueba.
-- [ ] **4.6** Programación de envío y troceado en lotes vía Inngest (respetar límites
+- [x] **4.6** Programación de envío y troceado en lotes vía Inngest (respetar límites
       y ventana horaria).
 - [ ] **4.7** Gestión de bajas: página pública de unsubscribe + cabecera
       `List-Unsubscribe` + comprobación de `suppressions` antes de enviar.

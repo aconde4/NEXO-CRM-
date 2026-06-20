@@ -86,7 +86,10 @@ export function getDefaultCampaignFrom(): string | null {
 }
 
 /** Construye el campo `from` ("Nombre <correo>") saneando comillas del nombre. */
-export function formatFrom(name: string | null | undefined, email: string): string {
+export function formatFrom(
+  name: string | null | undefined,
+  email: string,
+): string {
   const cleanName = name?.trim().replace(/["<>]/g, "");
   return cleanName ? `${cleanName} <${email}>` : email;
 }
@@ -157,7 +160,12 @@ async function resendFetch(
   path: string,
   body: unknown,
   extraHeaders?: Record<string, string>,
-): Promise<{ ok: boolean; status: number; data: unknown; error: string | null }> {
+): Promise<{
+  ok: boolean;
+  status: number;
+  data: unknown;
+  error: string | null;
+}> {
   const apiKey = requireApiKey();
   const response = await fetch(`${RESEND_API_BASE}${path}`, {
     method: "POST",
@@ -228,10 +236,11 @@ function chunk<T>(items: T[], size: number): T[][] {
  */
 export async function sendResendBatch(
   inputs: ResendEmailInput[],
+  opts: { idempotencyKey?: string } = {},
 ): Promise<ResendBatchResult> {
   const results: ResendBatchItemResult[] = [];
 
-  for (const group of chunk(inputs, RESEND_BATCH_MAX)) {
+  for (const [index, group] of chunk(inputs, RESEND_BATCH_MAX).entries()) {
     let payloads: Record<string, unknown>[];
     try {
       payloads = group.map(toResendPayload);
@@ -245,7 +254,10 @@ export async function sendResendBatch(
       continue;
     }
 
-    const res = await resendFetch("/emails/batch", payloads);
+    const extra = opts.idempotencyKey
+      ? { "Idempotency-Key": `${opts.idempotencyKey}:${index}` }
+      : undefined;
+    const res = await resendFetch("/emails/batch", payloads, extra);
     if (!res.ok) {
       // 429 y errores de credenciales/configuración deben cortar todo el envío.
       if (res.status === 429 || res.status === 401 || res.status === 403) {

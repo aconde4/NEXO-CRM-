@@ -59,6 +59,7 @@ export type CampaignStats = {
   bounced?: number;
   complained?: number;
   unsubscribed?: number;
+  suppressed?: number;
   failed?: number;
 };
 
