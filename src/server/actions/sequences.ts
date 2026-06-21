@@ -1,19 +1,35 @@
 "use server";
 
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { textToHtml } from "@/lib/email/merge-tags";
 import { requireUser } from "@/lib/session";
 import {
+  type SequenceEnrollmentValues,
   type SequenceBuilderStepValues,
   type SequenceBuilderValues,
   sequenceBuilderSchema,
+  sequenceEnrollmentSchema,
   sequenceIdSchema,
 } from "@/lib/validations/sequence";
 import { db } from "@/server/db";
-import { enrollments, sequenceSteps, sequences } from "@/server/db/schema";
+import {
+  enrollments,
+  persons,
+  segments,
+  sequenceSteps,
+  sequences,
+  suppressions,
+} from "@/server/db/schema";
+import { inngest } from "@/server/inngest/client";
+import {
+  countSegmentAudienceForOwner,
+  resolveSegmentPersonsForOwner,
+} from "@/server/queries/segments";
 import { sanitizeEmailHtml } from "@/server/services/email-html";
+import { normalizeEmail } from "@/server/services/gmail-auth";
+import { SEQUENCE_RUN_EVENT } from "@/server/services/sequence-runner";
 
 function clean(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
@@ -23,6 +39,42 @@ function clean(value: string | null | undefined): string | null {
 function revalidateSequences() {
   revalidatePath("/sequences");
 }
+
+const MAX_MANUAL_SEQUENCE_ENROLLMENTS = 5_000;
+
+type EnrollmentCandidate = {
+  email: string | null;
+  id: string;
+  marketingStatus: string;
+  orgId: string | null;
+};
+
+type EnrollmentCandidateSource = {
+  personIds: string[];
+  requested: number;
+};
+
+export type SequenceEnrollmentResult = {
+  alreadyEnrolled: number;
+  enrolled: number;
+  queued: number;
+  requested: number;
+  skippedMissing: number;
+  skippedNoEmail: number;
+  skippedNotSubscribed: number;
+  skippedSuppressed: number;
+};
+
+const EMPTY_ENROLLMENT_RESULT: SequenceEnrollmentResult = {
+  alreadyEnrolled: 0,
+  enrolled: 0,
+  queued: 0,
+  requested: 0,
+  skippedMissing: 0,
+  skippedNoEmail: 0,
+  skippedNotSubscribed: 0,
+  skippedSuppressed: 0,
+};
 
 function postgresCode(error: unknown): string | null {
   if (typeof error !== "object" || error === null) return null;
@@ -145,6 +197,138 @@ async function assertOwnedSequence(ownerId: string, id: string) {
     .where(and(eq(sequences.id, id), eq(sequences.ownerId, ownerId)))
     .limit(1);
   if (!row) throw new Error("Secuencia no encontrada");
+}
+
+async function assertSequenceCanEnroll(ownerId: string, id: string) {
+  const [row] = await db
+    .select({ id: sequences.id, status: sequences.status })
+    .from(sequences)
+    .where(and(eq(sequences.id, id), eq(sequences.ownerId, ownerId)))
+    .limit(1);
+  if (!row) throw new Error("Secuencia no encontrada");
+  if (row.status !== "active") {
+    throw new Error("Activa la secuencia antes de inscribir contactos.");
+  }
+
+  const stepCount = await db.$count(
+    sequenceSteps,
+    and(eq(sequenceSteps.sequenceId, id), eq(sequenceSteps.ownerId, ownerId)),
+  );
+  if (stepCount === 0) {
+    throw new Error(
+      "La secuencia necesita al menos un paso antes de inscribir.",
+    );
+  }
+}
+
+async function resolveEnrollmentSource(
+  ownerId: string,
+  data: SequenceEnrollmentValues,
+): Promise<EnrollmentCandidateSource> {
+  if (data.source === "person") {
+    return { personIds: data.personId ? [data.personId] : [], requested: 1 };
+  }
+
+  if (!data.segmentId) return { personIds: [], requested: 0 };
+  const [segment] = await db
+    .select({ definition: segments.definition, id: segments.id })
+    .from(segments)
+    .where(and(eq(segments.id, data.segmentId), eq(segments.ownerId, ownerId)))
+    .limit(1);
+  if (!segment) throw new Error("Segmento no encontrado");
+
+  const audience = await countSegmentAudienceForOwner(
+    segment.definition,
+    ownerId,
+  );
+  if (audience.total > MAX_MANUAL_SEQUENCE_ENROLLMENTS) {
+    throw new Error(
+      `El segmento tiene ${audience.total} contactos. Reduce la audiencia por debajo de ${MAX_MANUAL_SEQUENCE_ENROLLMENTS} para una inscripción manual.`,
+    );
+  }
+
+  const members = await resolveSegmentPersonsForOwner(
+    segment.definition,
+    ownerId,
+    { limit: MAX_MANUAL_SEQUENCE_ENROLLMENTS, reachableOnly: false },
+  );
+  return {
+    personIds: members.map((member) => member.id),
+    requested: audience.total,
+  };
+}
+
+async function loadEnrollmentCandidates(ownerId: string, personIds: string[]) {
+  const uniqueIds = [...new Set(personIds)];
+  if (uniqueIds.length === 0) return [];
+  return db
+    .select({
+      email: persons.email,
+      id: persons.id,
+      marketingStatus: persons.marketingStatus,
+      orgId: persons.orgId,
+    })
+    .from(persons)
+    .where(
+      and(
+        eq(persons.ownerId, ownerId),
+        isNull(persons.deletedAt),
+        inArray(persons.id, uniqueIds),
+      ),
+    );
+}
+
+async function suppressedEmailSet(ownerId: string, emails: string[]) {
+  const uniqueEmails = [...new Set(emails)];
+  if (uniqueEmails.length === 0) return new Set<string>();
+  const rows = await db
+    .select({ email: suppressions.emailNormalized })
+    .from(suppressions)
+    .where(
+      and(
+        eq(suppressions.ownerId, ownerId),
+        inArray(suppressions.emailNormalized, uniqueEmails),
+      ),
+    );
+  return new Set(rows.map((row) => row.email));
+}
+
+async function existingEnrollmentPersonSet(
+  ownerId: string,
+  sequenceId: string,
+  personIds: string[],
+) {
+  if (personIds.length === 0) return new Set<string>();
+  const rows = await db
+    .select({ personId: enrollments.personId })
+    .from(enrollments)
+    .where(
+      and(
+        eq(enrollments.ownerId, ownerId),
+        eq(enrollments.sequenceId, sequenceId),
+        inArray(enrollments.personId, personIds),
+      ),
+    );
+  return new Set(rows.map((row) => row.personId));
+}
+
+async function queueSequenceRuns(
+  inserted: { id: string; personId: string }[],
+  input: SequenceEnrollmentValues,
+) {
+  if (inserted.length === 0) return;
+  await inngest.send(
+    inserted.map((enrollment) => ({
+      data: {
+        enrollmentId: enrollment.id,
+        personId: enrollment.personId,
+        segmentId: input.segmentId,
+        sequenceId: input.sequenceId,
+        source: input.source,
+      },
+      name: SEQUENCE_RUN_EVENT,
+    })),
+  );
 }
 
 export async function saveSequence(raw: SequenceBuilderValues) {
@@ -278,6 +462,121 @@ export async function saveSequence(raw: SequenceBuilderValues) {
     }
     throw error;
   }
+}
+
+export async function enrollInSequence(raw: SequenceEnrollmentValues) {
+  const user = await requireUser();
+  const data = sequenceEnrollmentSchema.parse(raw);
+  await assertSequenceCanEnroll(user.id, data.sequenceId);
+
+  const source = await resolveEnrollmentSource(user.id, data);
+  const result: SequenceEnrollmentResult = {
+    ...EMPTY_ENROLLMENT_RESULT,
+    requested: source.requested,
+  };
+
+  const uniquePersonIds = [...new Set(source.personIds)];
+  const candidates = await loadEnrollmentCandidates(user.id, uniquePersonIds);
+  result.skippedMissing = Math.max(
+    uniquePersonIds.length - candidates.length,
+    0,
+  );
+
+  const normalizedByPerson = new Map<string, string>();
+  for (const candidate of candidates) {
+    const email = normalizeEmail(candidate.email ?? "");
+    if (email) normalizedByPerson.set(candidate.id, email);
+  }
+  const suppressed = await suppressedEmailSet(user.id, [
+    ...normalizedByPerson.values(),
+  ]);
+
+  const eligible: EnrollmentCandidate[] = [];
+  for (const candidate of candidates) {
+    const email = normalizedByPerson.get(candidate.id);
+    if (!email) {
+      result.skippedNoEmail += 1;
+      continue;
+    }
+    if (candidate.marketingStatus !== "subscribed") {
+      result.skippedNotSubscribed += 1;
+      continue;
+    }
+    if (suppressed.has(email)) {
+      result.skippedSuppressed += 1;
+      continue;
+    }
+    eligible.push(candidate);
+  }
+
+  const existing = await existingEnrollmentPersonSet(
+    user.id,
+    data.sequenceId,
+    eligible.map((candidate) => candidate.id),
+  );
+  const toInsert = eligible.filter((candidate) => !existing.has(candidate.id));
+  result.alreadyEnrolled = eligible.length - toInsert.length;
+
+  if (toInsert.length === 0) {
+    revalidateSequences();
+    return result;
+  }
+
+  const now = new Date();
+  const inserted = await db
+    .insert(enrollments)
+    .values(
+      toInsert.map((candidate) => ({
+        context: {
+          enrolledBy: "manual",
+          segmentId: data.source === "segment" ? data.segmentId : null,
+          source: data.source,
+        },
+        currentStepPosition: 0,
+        enrolledAt: now,
+        nextRunAt: now,
+        orgId: candidate.orgId,
+        ownerId: user.id,
+        personId: candidate.id,
+        sequenceId: data.sequenceId,
+        status: "active" as const,
+        updatedAt: now,
+      })),
+    )
+    .onConflictDoNothing({
+      target: [enrollments.sequenceId, enrollments.personId],
+    })
+    .returning({ id: enrollments.id, personId: enrollments.personId });
+
+  result.enrolled = inserted.length;
+  result.alreadyEnrolled += toInsert.length - inserted.length;
+
+  try {
+    await queueSequenceRuns(inserted, data);
+    result.queued = inserted.length;
+  } catch (error) {
+    if (inserted.length > 0) {
+      await db.delete(enrollments).where(
+        and(
+          eq(enrollments.ownerId, user.id),
+          inArray(
+            enrollments.id,
+            inserted.map((row) => row.id),
+          ),
+        ),
+      );
+    }
+    const message =
+      error instanceof Error
+        ? `No se pudo encolar la secuencia en Inngest: ${error.message}`
+        : "No se pudo encolar la secuencia en Inngest.";
+    revalidateSequences();
+    throw new Error(message);
+  }
+
+  revalidateSequences();
+  if (data.personId) revalidatePath(`/contacts/${data.personId}`);
+  return result;
 }
 
 export async function deleteSequence(id: string) {

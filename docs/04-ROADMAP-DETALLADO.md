@@ -260,7 +260,7 @@ parada automática al responder. El diferenciador frente a Pipedrive Campaigns.
       días de espera, canal (Gmail 1:1 o Resend).
 - [x] **5.3** Workflow duradero en Inngest: ejecutar pasos con `step.sleep` (esperas
       de días) y `waitForEvent` (esperar respuesta/apertura).
-- [ ] **5.4** Inscripción manual (desde un contacto o un filtro/segmento).
+- [x] **5.4** Inscripción manual (desde un contacto o un filtro/segmento).
 - [ ] **5.5** Parada automática al responder/rebote/baja (`stop on reply`).
 - [ ] **5.6** Límite diario por buzón y ventana de envío aplicados a las secuencias.
 - [ ] **5.7** Variantes A/B por paso de email.

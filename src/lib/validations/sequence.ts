@@ -139,6 +139,39 @@ export const sequenceBuilderSchema = z
 
 export const sequenceIdSchema = z.string().uuid("Secuencia no válida");
 
+const enrollmentOptionalUuidSchema = z
+  .union([z.string(), z.null(), z.undefined()])
+  .transform((value) => (typeof value === "string" ? value.trim() : ""))
+  .refine(
+    (value) => !value || z.string().uuid().safeParse(value).success,
+    "Identificador no válido",
+  )
+  .transform((value) => value || null);
+
+export const sequenceEnrollmentSchema = z
+  .object({
+    personId: enrollmentOptionalUuidSchema,
+    segmentId: enrollmentOptionalUuidSchema,
+    sequenceId: sequenceIdSchema,
+    source: z.enum(["person", "segment"]),
+  })
+  .superRefine((data, ctx) => {
+    if (data.source === "person" && !data.personId) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Elige un contacto.",
+        path: ["personId"],
+      });
+    }
+    if (data.source === "segment" && !data.segmentId) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Elige un segmento.",
+        path: ["segmentId"],
+      });
+    }
+  });
+
 export type SequenceBuilderValues = z.infer<typeof sequenceBuilderSchema>;
 export type SequenceBuilderStepValues = z.infer<typeof sequenceStepSchema>;
 export type SequenceEmailStepValues = z.infer<typeof sequenceEmailStepSchema>;
@@ -147,3 +180,4 @@ export type SequenceConditionStepValues = z.infer<
   typeof sequenceConditionStepSchema
 >;
 export type SequenceTaskStepValues = z.infer<typeof sequenceTaskStepSchema>;
+export type SequenceEnrollmentValues = z.infer<typeof sequenceEnrollmentSchema>;

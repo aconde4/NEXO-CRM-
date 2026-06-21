@@ -1,16 +1,19 @@
 import "server-only";
 
-import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
+import { fullName } from "@/lib/format";
 import { requireUser } from "@/lib/session";
 import { db } from "@/server/db";
 import {
+  type MarketingStatus,
   type SequenceChannel,
   type SequenceEnrollmentStatus,
   type SequenceStatus,
   type SequenceStepCondition,
   type SequenceStepType,
   enrollments,
+  persons,
   sequenceSteps,
   sequences,
 } from "@/server/db/schema";
@@ -60,6 +63,21 @@ export type SequenceListItem = {
   enrollmentSummary: SequenceEnrollmentSummary;
   updatedAt: string;
   createdAt: string;
+};
+
+export type SequenceEnrollmentSequenceOption = {
+  canEnroll: boolean;
+  id: string;
+  name: string;
+  status: SequenceStatus;
+  stepCount: number;
+};
+
+export type SequenceEnrollmentPersonOption = {
+  email: string | null;
+  id: string;
+  marketingStatus: MarketingStatus;
+  name: string;
 };
 
 type EnrollmentSummaryRow = {
@@ -225,4 +243,56 @@ export async function listSequences(): Promise<SequenceListItem[]> {
 
 function statusCount(status: SequenceEnrollmentStatus) {
   return sql<number>`count(*) filter (where ${enrollments.status} = ${status})::int`;
+}
+
+export async function listSequenceEnrollmentOptions(): Promise<
+  SequenceEnrollmentSequenceOption[]
+> {
+  const user = await requireUser();
+  const rows = await db
+    .select({
+      id: sequences.id,
+      name: sequences.name,
+      status: sequences.status,
+      stepCount: sql<number>`count(${sequenceSteps.id})::int`,
+    })
+    .from(sequences)
+    .leftJoin(sequenceSteps, eq(sequenceSteps.sequenceId, sequences.id))
+    .where(eq(sequences.ownerId, user.id))
+    .groupBy(sequences.id)
+    .orderBy(asc(sequences.name))
+    .limit(500);
+
+  return rows.map((row) => ({
+    canEnroll: row.status === "active" && row.stepCount > 0,
+    id: row.id,
+    name: row.name,
+    status: row.status,
+    stepCount: row.stepCount,
+  }));
+}
+
+export async function listSequencePersonOptions(): Promise<
+  SequenceEnrollmentPersonOption[]
+> {
+  const user = await requireUser();
+  const rows = await db
+    .select({
+      email: persons.email,
+      firstName: persons.firstName,
+      id: persons.id,
+      lastName: persons.lastName,
+      marketingStatus: persons.marketingStatus,
+    })
+    .from(persons)
+    .where(and(eq(persons.ownerId, user.id), isNull(persons.deletedAt)))
+    .orderBy(asc(persons.firstName), asc(persons.lastName))
+    .limit(500);
+
+  return rows.map((person) => ({
+    email: person.email,
+    id: person.id,
+    marketingStatus: person.marketingStatus,
+    name: fullName(person.firstName, person.lastName),
+  }));
 }

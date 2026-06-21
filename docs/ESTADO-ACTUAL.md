@@ -9,6 +9,14 @@
 ## 📍 Dónde estamos
 
 - **Fase 5 · Secuencias / Drip:** **en curso**.
+  - **5.4** inscripción manual lista: `enrollInSequence` valida con Zod,
+    autorización owner-aware y secuencia activa con pasos; permite inscribir un
+    contacto individual o toda la audiencia de un segmento/filtro, deduplica por
+    `sequence_id + person_id`, excluye contactos sin email, no suscritos o en
+    `suppressions`, crea inscripciones activas con `next_run_at` inmediato y encola
+    `sequence/run.requested` en Inngest. La UI permite inscribir desde `/sequences`,
+    desde la ficha de contacto y desde tarjetas de `/segments`, con resumen de
+    inscritos/omitidos.
   - **5.3** workflow duradero en Inngest: nueva función `run-sequence` registrada en
     `/api/inngest`, disparada por `sequence/run.requested`. Ejecuta pasos en orden con
     `step.run`, esperas con `step.sleep`, condiciones con `waitForEvent` y consulta
@@ -178,8 +186,8 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **5.4** Inscripción manual (desde un contacto o un
-filtro/segmento).
+**Siguiente tarea de desarrollo:** **5.5** Parada automática al responder/rebote/baja
+(`stop on reply`).
 
 **Pendiente externo de Fase 4:** **4.1** (acción del usuario): crear cuenta en Resend y
 verificar el dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
@@ -205,8 +213,9 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 5.3 (workflow duradero de secuencias). Antes:
-> 5.2 (constructor de secuencias), 5.1 (migración de secuencias, pasos e
+> **Hecho en la última sesión:** Fase 5.4 (inscripción manual desde contacto o
+> segmento). Antes: 5.3 (workflow duradero de secuencias), 5.2 (constructor de
+> secuencias), 5.1 (migración de secuencias, pasos e
 > inscripciones), 4.10 (consentimiento/origen y pie RGPD con datos del remitente),
 > 4.9 (panel de resultados), 4.8 (webhooks de Resend), 4.7 (baja pública firmada),
 > 4.6 (programación/envío real por lotes vía Inngest), 4.5 (editor), 4.2 (migración),
@@ -251,6 +260,28 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-21 (37) — Fase 5.4: inscripción manual de secuencias
+- **Server Action:** `enrollInSequence` inscribe contactos con validación Zod,
+  ownership por usuario y guardas de secuencia activa con pasos. Acepta origen
+  `person` o `segment`, resuelve la audiencia del segmento con el motor de filtros,
+  limita inscripciones manuales masivas a 5.000 contactos y deduplica contra
+  inscripciones existentes.
+- **RGPD/lista de supresión:** antes de crear inscripciones se normaliza el email y se
+  omiten contactos sin email, no suscritos (`marketing_status != subscribed`) o presentes
+  en `suppressions`; el resultado muestra solicitados, inscritos, encolados y motivos de
+  omisión.
+- **Inngest:** cada inscripción nueva se crea activa con `next_run_at` inmediato y se
+  encola en lote como `sequence/run.requested`; si el encolado falla, se revierte la
+  inserción recién creada para no dejar contactos parados.
+- **UI:** nuevo diálogo reutilizable para inscribir en secuencias desde `/sequences`,
+  desde la ficha de contacto y desde tarjetas de `/segments`, con contacto/segmento
+  bloqueado cuando el contexto ya lo da y resumen posterior de la operación.
+- **Verificado:** `pnpm typecheck` y `pnpm lint` en verde; validación `tsx` de
+  `sequenceEnrollmentSchema`; login de desarrollo + fetch DOM de `/sequences`,
+  `/contacts/[id]` y `/segments` con segmento temporal creado y eliminado para comprobar
+  que la acción aparece en la superficie real.
+- **Siguiente:** 5.5 parada automática al responder/rebote/baja (`stop on reply`).
 
 ### 2026-06-21 (36) — Fase 5.3: workflow duradero de secuencias
 - **Inngest:** nueva función `run-sequence`, registrada junto al resto de funciones,

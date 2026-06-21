@@ -21,6 +21,7 @@ import { listEmailTemplates } from "@/server/queries/email-templates";
 import { listFilesFor } from "@/server/queries/files";
 import { getGmailConnectionStatus } from "@/server/queries/gmail";
 import { getLabelsForPerson, listLabels } from "@/server/queries/labels";
+import { listSequenceEnrollmentOptions } from "@/server/queries/sequences";
 import { isStorageConfigured } from "@/server/storage";
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
@@ -31,6 +32,7 @@ import { CustomFieldsList } from "@/components/custom-fields/custom-fields-list"
 import { EntityAvatar } from "@/components/entity-avatar";
 import { LabelPicker } from "@/components/contacts/label-picker";
 import { NoteComposer } from "@/components/note-composer";
+import { SequenceEnrollmentButton } from "@/components/sequences/sequence-enrollment-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,6 +61,7 @@ export default async function ContactDetailPage({
     emailThreads,
     emailTemplates,
     gmailStatus,
+    sequenceOptions,
   ] = await Promise.all([
     getPerson(id),
     listOrganizationOptions(),
@@ -68,6 +71,7 @@ export default async function ContactDetailPage({
     listEntityThreads({ personId: id }),
     listEmailTemplates(),
     getGmailConnectionStatus(),
+    listSequenceEnrollmentOptions(),
   ]);
 
   if (!person) notFound();
@@ -130,6 +134,12 @@ export default async function ContactDetailPage({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <SequenceEnrollmentButton
+            sequenceOptions={sequenceOptions}
+            personOptions={[]}
+            segmentOptions={[]}
+            lockedPerson={{ id: person.id, name, email: person.email }}
+          />
           <EmailComposerButton
             recipients={emailRecipients}
             catalog={mergeCatalog}

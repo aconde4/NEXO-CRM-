@@ -17,6 +17,7 @@ import {
   Repeat,
   Save,
   Trash2,
+  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -29,9 +30,12 @@ import {
 import { deleteSequence, saveSequence } from "@/server/actions/sequences";
 import type { EmailTemplateItem } from "@/server/queries/email-templates";
 import type {
+  SequenceEnrollmentPersonOption,
+  SequenceEnrollmentSequenceOption,
   SequenceListItem,
   SequenceStepListItem,
 } from "@/server/queries/sequences";
+import type { SegmentListItem } from "@/server/queries/segments";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -77,6 +81,10 @@ import {
   type RichEmailEditorHandle,
   type RichEmailEditorValue,
 } from "@/components/email/rich-email-editor";
+import {
+  SequenceEnrollmentButton,
+  SequenceEnrollmentDialog,
+} from "@/components/sequences/sequence-enrollment-dialog";
 
 type DialogState =
   | { mode: "create"; sequence: null }
@@ -346,17 +354,42 @@ export function SequencesView({
   sequences,
   templates,
   catalog,
+  personOptions,
+  segmentOptions,
 }: {
   sequences: SequenceListItem[];
   templates: EmailTemplateItem[];
   catalog: MergeTag[];
+  personOptions: SequenceEnrollmentPersonOption[];
+  segmentOptions: Pick<SegmentListItem, "id" | "name">[];
 }) {
   const [dialog, setDialog] = React.useState<DialogState | null>(null);
   const [deleting, setDeleting] = React.useState<SequenceListItem | null>(null);
+  const [enrollingSequenceId, setEnrollingSequenceId] = React.useState<
+    string | null
+  >(null);
+  const enrollmentSequenceOptions = React.useMemo<
+    SequenceEnrollmentSequenceOption[]
+  >(
+    () =>
+      sequences.map((sequence) => ({
+        canEnroll: sequence.status === "active" && sequence.steps.length > 0,
+        id: sequence.id,
+        name: sequence.name,
+        status: sequence.status,
+        stepCount: sequence.steps.length,
+      })),
+    [sequences],
+  );
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <SequenceEnrollmentButton
+          sequenceOptions={enrollmentSequenceOptions}
+          personOptions={personOptions}
+          segmentOptions={segmentOptions}
+        />
         <Button onClick={() => setDialog({ mode: "create", sequence: null })}>
           <Plus />
           Nueva secuencia
@@ -389,6 +422,7 @@ export function SequencesView({
             <SequenceCard
               key={sequence.id}
               sequence={sequence}
+              onEnroll={() => setEnrollingSequenceId(sequence.id)}
               onEdit={() => setDialog({ mode: "edit", sequence })}
               onDelete={() => setDeleting(sequence)}
             />
@@ -410,16 +444,32 @@ export function SequencesView({
         sequence={deleting}
         onClose={() => setDeleting(null)}
       />
+
+      {enrollingSequenceId ? (
+        <SequenceEnrollmentDialog
+          key={enrollingSequenceId}
+          open
+          onOpenChange={(open) => {
+            if (!open) setEnrollingSequenceId(null);
+          }}
+          defaultSequenceId={enrollingSequenceId}
+          sequenceOptions={enrollmentSequenceOptions}
+          personOptions={personOptions}
+          segmentOptions={segmentOptions}
+        />
+      ) : null}
     </div>
   );
 }
 
 function SequenceCard({
   sequence,
+  onEnroll,
   onEdit,
   onDelete,
 }: {
   sequence: SequenceListItem;
+  onEnroll: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -442,6 +492,15 @@ function SequenceCard({
               <MoreHorizontal className="size-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                disabled={
+                  sequence.status !== "active" || sequence.steps.length === 0
+                }
+                onClick={onEnroll}
+              >
+                <UserPlus />
+                Inscribir
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={onEdit}>
                 <Pencil />
                 Editar

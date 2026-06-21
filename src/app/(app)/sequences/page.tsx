@@ -5,16 +5,23 @@ import { PageHeader } from "@/components/page-header";
 import { SequencesView } from "@/components/sequences/sequences-view";
 import { listAllCustomFieldDefs } from "@/server/queries/custom-fields";
 import { listEmailTemplates } from "@/server/queries/email-templates";
-import { listSequences } from "@/server/queries/sequences";
+import { listSegmentOptions } from "@/server/queries/segments";
+import {
+  listSequencePersonOptions,
+  listSequences,
+} from "@/server/queries/sequences";
 
 export const metadata: Metadata = { title: "Secuencias" };
 
 export default async function SequencesPage() {
-  const [sequences, templates, defs] = await Promise.all([
-    listSequences(),
-    listEmailTemplates(),
-    listAllCustomFieldDefs(),
-  ]);
+  const [sequences, templates, defs, personOptions, segmentOptions] =
+    await Promise.all([
+      listSequences(),
+      listEmailTemplates(),
+      listAllCustomFieldDefs(),
+      listSequencePersonOptions(),
+      listSegmentOptions(),
+    ]);
 
   return (
     <>
@@ -26,6 +33,8 @@ export default async function SequencesPage() {
         sequences={sequences}
         templates={templates}
         catalog={buildMergeCatalog(defs.person, defs.organization, true)}
+        personOptions={personOptions}
+        segmentOptions={segmentOptions}
       />
     </>
   );

@@ -11,6 +11,7 @@ import {
   describeRule,
 } from "@/lib/segments";
 import type { SegmentAudience } from "@/server/queries/segments";
+import type { SequenceEnrollmentSequenceOption } from "@/server/queries/sequences";
 import { deleteSegment } from "@/server/actions/segments";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ import {
   type SegmentInitial,
   SegmentFormDialog,
 } from "@/components/segments/segment-form-dialog";
+import { SequenceEnrollmentButton } from "@/components/sequences/sequence-enrollment-dialog";
 
 export type SegmentRow = {
   id: string;
@@ -45,9 +47,11 @@ export type SegmentRow = {
 export function SegmentsView({
   segments,
   labels,
+  sequenceOptions,
 }: {
   segments: SegmentRow[];
   labels: LabelOption[];
+  sequenceOptions: SequenceEnrollmentSequenceOption[];
 }) {
   const [dialog, setDialog] = React.useState<SegmentInitial | "new" | null>(
     null,
@@ -92,6 +96,7 @@ export function SegmentsView({
               key={segment.id}
               segment={segment}
               labelsById={labelsById}
+              sequenceOptions={sequenceOptions}
               onEdit={() =>
                 setDialog({
                   id: segment.id,
@@ -119,10 +124,12 @@ export function SegmentsView({
 function SegmentCard({
   segment,
   labelsById,
+  sequenceOptions,
   onEdit,
 }: {
   segment: SegmentRow;
   labelsById: Record<string, string>;
+  sequenceOptions: SequenceEnrollmentSequenceOption[];
   onEdit: () => void;
 }) {
   const router = useRouter();
@@ -188,14 +195,23 @@ function SegmentCard({
           )}
         </p>
 
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="tabular-nums">
-            {segment.audience.reachable} alcanzables
-          </Badge>
-          <span className="text-muted-foreground text-xs">
-            {segment.audience.withEmail} con email · {segment.audience.total}{" "}
-            contactos
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Badge variant="secondary" className="tabular-nums">
+              {segment.audience.reachable} alcanzables
+            </Badge>
+            <span className="text-muted-foreground text-xs">
+              {segment.audience.withEmail} con email · {segment.audience.total}{" "}
+              contactos
+            </span>
+          </div>
+          <SequenceEnrollmentButton
+            label="Inscribir"
+            sequenceOptions={sequenceOptions}
+            personOptions={[]}
+            segmentOptions={[]}
+            lockedSegment={{ id: segment.id, name: segment.name }}
+          />
         </div>
       </CardContent>
     </Card>
