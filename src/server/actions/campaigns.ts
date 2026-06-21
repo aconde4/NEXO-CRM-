@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/session";
 import {
+  campaignComplianceErrorMessage,
   campaignIdSchema,
   type CampaignDraftValues,
   type CampaignScheduleValues,
@@ -20,6 +21,7 @@ import {
   type RenderedCampaignEmail,
   renderCampaignEmail,
 } from "@/server/services/campaign-email";
+import { appendCampaignUnsubscribeFooter } from "@/server/services/campaign-unsubscribe";
 import {
   CAMPAIGN_SEND_EVENT,
   CampaignDispatchError,
@@ -75,12 +77,13 @@ async function assertEditableCampaign(ownerId: string, id: string) {
 async function renderDraftForStorage(
   data: CampaignDraftValues,
 ): Promise<RenderedCampaignEmail> {
-  return renderCampaignEmail({
+  const rendered = await renderCampaignEmail({
     subject: data.subject,
     preheader: data.preheader,
     blocks: data.blocks,
     mode: "template",
   });
+  return appendComplianceFooterIfReady(rendered, data);
 }
 
 function testMergeContext(
@@ -120,6 +123,25 @@ function resendErrorMessage(error: unknown): string {
   if (error instanceof CampaignDispatchError) return error.message;
   if (error instanceof Error) return error.message;
   return "No se pudo enviar la prueba.";
+}
+
+function assertCampaignComplianceReady(data: CampaignDraftValues) {
+  const message = campaignComplianceErrorMessage(data.compliance);
+  if (message) throw new Error(message);
+  return data.compliance;
+}
+
+function appendComplianceFooterIfReady(
+  rendered: RenderedCampaignEmail,
+  data: CampaignDraftValues,
+): RenderedCampaignEmail {
+  if (campaignComplianceErrorMessage(data.compliance)) return rendered;
+  const body = appendCampaignUnsubscribeFooter({
+    compliance: data.compliance,
+    html: rendered.html,
+    text: rendered.text,
+  });
+  return { ...rendered, html: body.html, text: body.text };
 }
 
 async function queueCampaignDispatch(campaignId: string) {
@@ -177,6 +199,7 @@ export async function saveCampaignDraft(raw: CampaignDraftValues) {
     settings: {
       editor: "react-email-blocks",
       blocks: data.blocks,
+      compliance: data.compliance,
     },
   };
 
@@ -231,14 +254,21 @@ export async function sendCampaignTest(raw: CampaignTestValues) {
     mode: "personalized",
     mergeContext: testMergeContext(user, data.testEmail),
   });
+  const compliance = assertCampaignComplianceReady(data);
+  const body = appendCampaignUnsubscribeFooter({
+    compliance,
+    html: rendered.html,
+    recipientSource: "prueba interna",
+    text: rendered.text,
+  });
 
   try {
     const result = await sendResendEmail({
       from: resolveFrom(data),
       to: data.testEmail,
       subject: rendered.subject,
-      html: rendered.html,
-      text: rendered.text,
+      html: body.html,
+      text: body.text,
       replyTo: clean(data.replyTo) ?? undefined,
       tags: [{ name: "type", value: "campaign_test" }],
     });

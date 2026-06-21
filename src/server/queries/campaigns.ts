@@ -3,7 +3,11 @@ import "server-only";
 import { and, desc, eq, sql } from "drizzle-orm";
 
 import type { CampaignEmailBlock } from "@/lib/campaign-blocks";
-import { campaignEmailBlocksSchema } from "@/lib/validations/campaign";
+import {
+  type CampaignComplianceValues,
+  campaignEmailBlocksSchema,
+  normalizeCampaignCompliance,
+} from "@/lib/validations/campaign";
 import { requireUser } from "@/lib/session";
 import { db } from "@/server/db";
 import {
@@ -32,6 +36,58 @@ function blocksFromSettings(
   return parsed.success ? parsed.data : [];
 }
 
+function complianceDefaults(): CampaignComplianceValues {
+  const basis = cleanEnv(process.env.CAMPAIGN_CONSENT_BASIS);
+  return normalizeCampaignCompliance({
+    consentBasis:
+      basis === "legitimate_interest" ? "legitimate_interest" : "consent",
+    consentNotice: cleanEnv(process.env.CAMPAIGN_CONSENT_NOTICE),
+    contactEmail:
+      cleanEnv(process.env.CAMPAIGN_CONTACT_EMAIL) ||
+      cleanEnv(process.env.CAMPAIGN_FROM_EMAIL),
+    legalAddress: cleanEnv(process.env.CAMPAIGN_LEGAL_ADDRESS),
+    legalName:
+      cleanEnv(process.env.CAMPAIGN_LEGAL_NAME) ||
+      cleanEnv(process.env.CAMPAIGN_FROM_NAME),
+    privacyUrl: cleanEnv(process.env.CAMPAIGN_PRIVACY_URL),
+  });
+}
+
+function pickComplianceValue(value: string, fallback: string): string {
+  return value.trim() ? value : fallback;
+}
+
+function mergeComplianceDefaults(
+  compliance: CampaignComplianceValues,
+): CampaignComplianceValues {
+  const defaults = complianceDefaults();
+  return {
+    consentBasis: compliance.consentBasis ?? defaults.consentBasis,
+    consentNotice: pickComplianceValue(
+      compliance.consentNotice,
+      defaults.consentNotice,
+    ),
+    contactEmail: pickComplianceValue(
+      compliance.contactEmail,
+      defaults.contactEmail,
+    ),
+    legalAddress: pickComplianceValue(
+      compliance.legalAddress,
+      defaults.legalAddress,
+    ),
+    legalName: pickComplianceValue(compliance.legalName, defaults.legalName),
+    privacyUrl: pickComplianceValue(compliance.privacyUrl, defaults.privacyUrl),
+  };
+}
+
+function complianceFromSettings(
+  settings: Record<string, unknown>,
+): CampaignComplianceValues {
+  return mergeComplianceDefaults(
+    normalizeCampaignCompliance(settings.compliance),
+  );
+}
+
 export type CampaignListItem = {
   id: string;
   name: string;
@@ -46,6 +102,7 @@ export type CampaignListItem = {
   bodyHtml: string;
   bodyText: string;
   blocks: CampaignEmailBlock[];
+  compliance: CampaignComplianceValues;
   scheduledAt: string | null;
   sentAt: string | null;
   stats: CampaignStats;
@@ -54,6 +111,7 @@ export type CampaignListItem = {
 };
 
 export type CampaignComposerDefaults = {
+  compliance: CampaignComplianceValues;
   fromName: string;
   fromEmail: string;
   resendConfigured: boolean;
@@ -103,6 +161,7 @@ export type CampaignResults = {
     stats: CampaignStats;
     updatedAt: string;
     createdAt: string;
+    compliance: CampaignComplianceValues;
   };
   recipients: CampaignResultsRecipient[];
   recipientCount: number;
@@ -159,6 +218,7 @@ export async function listCampaigns(): Promise<CampaignListItem[]> {
     bodyHtml: row.bodyHtml ?? "",
     bodyText: row.bodyText ?? "",
     blocks: blocksFromSettings(row.settings),
+    compliance: complianceFromSettings(row.settings),
     scheduledAt: row.scheduledAt?.toISOString() ?? null,
     sentAt: row.sentAt?.toISOString() ?? null,
     stats: row.stats,
@@ -188,6 +248,7 @@ export async function getCampaignResults(
       stats: campaigns.stats,
       updatedAt: campaigns.updatedAt,
       createdAt: campaigns.createdAt,
+      settings: campaigns.settings,
     })
     .from(campaigns)
     .leftJoin(
@@ -307,6 +368,7 @@ export async function getCampaignResults(
       stats: { ...row.stats, ...computedStats },
       updatedAt: row.updatedAt.toISOString(),
       createdAt: row.createdAt.toISOString(),
+      compliance: complianceFromSettings(row.settings),
     },
     recipients: recipients.map((recipient) => ({
       id: recipient.id,
@@ -343,6 +405,7 @@ export async function getCampaignResults(
 export async function getCampaignComposerDefaults(): Promise<CampaignComposerDefaults> {
   await requireUser();
   return {
+    compliance: complianceDefaults(),
     fromName: cleanEnv(process.env.CAMPAIGN_FROM_NAME),
     fromEmail: cleanEnv(process.env.CAMPAIGN_FROM_EMAIL),
     resendConfigured: isResendConfigured(),

@@ -240,7 +240,7 @@ métricas.
 - [x] **4.8** Webhooks de Resend: entregas, aperturas, clics, rebotes, quejas →
       `email_events` y actualización de `marketing_status`.
 - [x] **4.9** Panel de resultados de campaña (enviados/abiertos/clics/rebotes/bajas).
-- [ ] **4.10** Consentimiento/origen y pie RGPD con datos del remitente.
+- [x] **4.10** Consentimiento/origen y pie RGPD con datos del remitente.
 
 ### Criterios de aceptación
 - Creas un segmento, diseñas una campaña, envías una prueba, programas el envío real,

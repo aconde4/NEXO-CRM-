@@ -4,7 +4,13 @@ import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 
 import type { CampaignEmailBlock } from "@/lib/campaign-blocks";
 import { buildMergeContext } from "@/lib/email/merge-tags";
-import { campaignEmailBlocksSchema } from "@/lib/validations/campaign";
+import {
+  type CampaignComplianceValues,
+  campaignComplianceErrorMessage,
+  campaignEmailBlocksSchema,
+  completeCampaignComplianceSchema,
+  normalizeCampaignCompliance,
+} from "@/lib/validations/campaign";
 import { db } from "@/server/db";
 import {
   type CampaignStats,
@@ -94,6 +100,10 @@ type TimeParts = {
 function clean(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function cleanEnv(value: string | undefined): string {
+  return value?.trim() ?? "";
 }
 
 function clampInt(
@@ -291,6 +301,56 @@ function blocksFromSettings(
   return parsed.success ? parsed.data : [];
 }
 
+function complianceFromSettings(settings: Record<string, unknown>) {
+  return mergeComplianceDefaults(
+    normalizeCampaignCompliance(settings.compliance),
+  );
+}
+
+function complianceDefaults(): CampaignComplianceValues {
+  const basis = cleanEnv(process.env.CAMPAIGN_CONSENT_BASIS);
+  return normalizeCampaignCompliance({
+    consentBasis:
+      basis === "legitimate_interest" ? "legitimate_interest" : "consent",
+    consentNotice: cleanEnv(process.env.CAMPAIGN_CONSENT_NOTICE),
+    contactEmail:
+      cleanEnv(process.env.CAMPAIGN_CONTACT_EMAIL) ||
+      cleanEnv(process.env.CAMPAIGN_FROM_EMAIL),
+    legalAddress: cleanEnv(process.env.CAMPAIGN_LEGAL_ADDRESS),
+    legalName:
+      cleanEnv(process.env.CAMPAIGN_LEGAL_NAME) ||
+      cleanEnv(process.env.CAMPAIGN_FROM_NAME),
+    privacyUrl: cleanEnv(process.env.CAMPAIGN_PRIVACY_URL),
+  });
+}
+
+function pickComplianceValue(value: string, fallback: string): string {
+  return value.trim() ? value : fallback;
+}
+
+function mergeComplianceDefaults(
+  compliance: CampaignComplianceValues,
+): CampaignComplianceValues {
+  const defaults = complianceDefaults();
+  return {
+    consentBasis: compliance.consentBasis ?? defaults.consentBasis,
+    consentNotice: pickComplianceValue(
+      compliance.consentNotice,
+      defaults.consentNotice,
+    ),
+    contactEmail: pickComplianceValue(
+      compliance.contactEmail,
+      defaults.contactEmail,
+    ),
+    legalAddress: pickComplianceValue(
+      compliance.legalAddress,
+      defaults.legalAddress,
+    ),
+    legalName: pickComplianceValue(compliance.legalName, defaults.legalName),
+    privacyUrl: pickComplianceValue(compliance.privacyUrl, defaults.privacyUrl),
+  };
+}
+
 function mergeSettings(
   settings: Record<string, unknown>,
   patch: Record<string, unknown>,
@@ -481,6 +541,12 @@ function assertLaunchable(campaign: CampaignWithSegment): CampaignEmailBlock[] {
       "invalid_campaign",
     );
   }
+  const complianceError = campaignComplianceErrorMessage(
+    complianceFromSettings(campaign.settings),
+  );
+  if (complianceError) {
+    throw new CampaignDispatchError(complianceError, "invalid_campaign");
+  }
   return blocks;
 }
 
@@ -600,6 +666,7 @@ async function loadRecipientMergeData(
       lastName: persons.lastName,
       email: persons.email,
       phone: persons.phone,
+      source: persons.source,
       title: persons.title,
       customFields: persons.customFields,
       marketingStatus: persons.marketingStatus,
@@ -635,6 +702,7 @@ async function loadRecipientMergeData(
         lastName: row.lastName,
         email: row.email,
         phone: row.phone,
+        source: row.source,
         title: row.title,
         customFields: row.customFields,
         marketingStatus: row.marketingStatus,
@@ -663,6 +731,7 @@ function fallbackPerson(recipient: PendingRecipient) {
     firstName,
     lastName: rest.join(" ") || null,
     phone: null,
+    source: null,
     title: null,
   };
 }
@@ -768,6 +837,9 @@ export async function sendNextCampaignBatch(
   ]);
   const from = resolveCampaignFrom(campaign);
   const replyTo = clean(campaign.replyTo) ?? undefined;
+  const compliance = completeCampaignComplianceSchema.parse(
+    complianceFromSettings(campaign.settings),
+  );
 
   const emails = await Promise.all(
     sendable.map(async (recipient) => {
@@ -794,7 +866,9 @@ export async function sendNextCampaignBatch(
       });
       const body = appendCampaignUnsubscribeFooter({
         confirmationUrl: unsubscribeLinks.confirmationUrl,
+        compliance,
         html: rendered.html,
+        recipientSource: person.source,
         text: rendered.text,
       });
       return {

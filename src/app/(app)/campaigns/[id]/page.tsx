@@ -345,6 +345,23 @@ export default async function CampaignResultsPage({
               {campaign.preheader || "Sin preheader"}
             </InfoLine>
             <InfoLine label="Proveedor">Resend</InfoLine>
+            <InfoLine label="Responsable">
+              {campaign.compliance.legalName || "No configurado"}
+            </InfoLine>
+            <InfoLine label="Dirección legal">
+              {campaign.compliance.legalAddress || "No configurada"}
+            </InfoLine>
+            <InfoLine label="Base legal">
+              {campaign.compliance.consentBasis === "legitimate_interest"
+                ? "Interés legítimo"
+                : "Consentimiento"}
+            </InfoLine>
+            <InfoLine label="Origen/consentimiento">
+              {campaign.compliance.consentNotice || "No configurado"}
+            </InfoLine>
+            <InfoLine label="Contacto RGPD">
+              {campaign.compliance.contactEmail || "No configurado"}
+            </InfoLine>
           </CardContent>
         </Card>
       </div>

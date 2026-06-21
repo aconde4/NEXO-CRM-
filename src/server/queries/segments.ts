@@ -196,6 +196,7 @@ export type SegmentMember = {
   firstName: string;
   lastName: string | null;
   email: string | null;
+  source: string | null;
   marketingStatus: MarketingStatus;
 };
 
@@ -237,6 +238,7 @@ export async function resolveSegmentPersonsForOwner(
       firstName: persons.firstName,
       lastName: persons.lastName,
       email: persons.email,
+      source: persons.source,
       marketingStatus: persons.marketingStatus,
     })
     .from(persons)
@@ -258,6 +260,7 @@ export async function resolveSegmentRecipientsForOwner(
       lastName: persons.lastName,
       email: persons.email,
       phone: persons.phone,
+      source: persons.source,
       title: persons.title,
       customFields: persons.customFields,
       marketingStatus: persons.marketingStatus,
@@ -286,6 +289,7 @@ export async function resolveSegmentRecipientsForOwner(
     lastName: row.lastName,
     email: row.email,
     phone: row.phone,
+    source: row.source,
     title: row.title,
     customFields: row.customFields,
     marketingStatus: row.marketingStatus,

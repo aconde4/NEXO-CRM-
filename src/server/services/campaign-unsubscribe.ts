@@ -4,6 +4,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 
 import { escapeHtml } from "@/lib/email/merge-tags";
+import type { CampaignComplianceValues } from "@/lib/validations/campaign";
 import { db } from "@/server/db";
 import {
   campaignRecipients,
@@ -154,15 +155,45 @@ export function campaignUnsubscribeHeaders(input: {
 }
 
 export function appendCampaignUnsubscribeFooter(input: {
-  confirmationUrl: string;
+  compliance: CampaignComplianceValues;
+  confirmationUrl?: string;
   html: string;
+  recipientSource?: string | null;
   text: string;
 }) {
-  const url = escapeHtml(input.confirmationUrl);
-  const footerHtml = `<hr style="border:none;border-top:1px solid #e5e7eb;margin:28px 0 16px;" /><p style="color:#6b7280;font-size:12px;line-height:1.5;margin:0;">Recibes este correo porque estás suscrito a comunicaciones de Nexo CRM. <a href="${url}" style="color:#2563eb;text-decoration:underline;">Darte de baja</a>.</p>`;
+  const url = input.confirmationUrl ? escapeHtml(input.confirmationUrl) : null;
+  const legalName = input.compliance.legalName.trim();
+  const legalAddress = input.compliance.legalAddress.trim();
+  const contactEmail = input.compliance.contactEmail.trim();
+  const consentNotice = input.compliance.consentNotice.trim();
+  const privacyUrl = input.compliance.privacyUrl.trim();
+  const recipientSource = input.recipientSource?.trim();
+  const basis =
+    input.compliance.consentBasis === "legitimate_interest"
+      ? "interés legítimo"
+      : "consentimiento";
+  const unsubscribeHtml = url
+    ? `<a href="${url}" style="color:#2563eb;text-decoration:underline;">Darte de baja</a>`
+    : "El enlace personal de baja se añadirá en el envío real";
+  const privacyHtml = privacyUrl
+    ? ` · <a href="${escapeHtml(privacyUrl)}" style="color:#2563eb;text-decoration:underline;">Política de privacidad</a>`
+    : "";
+  const sourceHtml = recipientSource
+    ? ` Origen del contacto: ${escapeHtml(recipientSource)}.`
+    : "";
+  const footerHtml = `<hr style="border:none;border-top:1px solid #e5e7eb;margin:28px 0 16px;" /><p style="color:#6b7280;font-size:12px;line-height:1.5;margin:0;">Recibes este correo porque ${escapeHtml(consentNotice)}. Base legal: ${escapeHtml(basis)}.${sourceHtml}</p><p style="color:#6b7280;font-size:12px;line-height:1.5;margin:8px 0 0;">Remitente: ${escapeHtml(legalName)} · ${escapeHtml(legalAddress)} · Contacto: <a href="mailto:${escapeHtml(contactEmail)}" style="color:#2563eb;text-decoration:underline;">${escapeHtml(contactEmail)}</a>${privacyHtml} · ${unsubscribeHtml}.</p>`;
+  const sourceText = recipientSource
+    ? `\nOrigen del contacto: ${recipientSource}.`
+    : "";
+  const privacyText = privacyUrl
+    ? `\nPolitica de privacidad: ${privacyUrl}`
+    : "";
+  const unsubscribeText = input.confirmationUrl
+    ? `\nPara dejar de recibir estas campanas: ${input.confirmationUrl}`
+    : "\nEl enlace personal de baja se añadira en el envio real.";
   return {
     html: `${input.html}\n${footerHtml}`,
-    text: `${input.text.trim()}\n\nPara dejar de recibir estas campañas: ${input.confirmationUrl}`,
+    text: `${input.text.trim()}\n\nRecibes este correo porque ${consentNotice}. Base legal: ${basis}.${sourceText}\nRemitente: ${legalName} - ${legalAddress}\nContacto: ${contactEmail}${privacyText}${unsubscribeText}`,
   };
 }
 

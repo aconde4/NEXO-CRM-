@@ -14,6 +14,101 @@ const optionalEmailSchema = z
     "Email no válido",
   );
 
+const optionalHttpUrlSchema = z
+  .string()
+  .trim()
+  .max(500, "URL demasiado larga")
+  .refine((value) => {
+    if (!value) return true;
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" || url.protocol === "http:";
+    } catch {
+      return false;
+    }
+  }, "Usa una URL http(s) válida");
+
+export const campaignConsentBasisSchema = z.enum([
+  "consent",
+  "legitimate_interest",
+]);
+
+export const emptyCampaignCompliance = {
+  consentBasis: "consent" as const,
+  consentNotice: "",
+  contactEmail: "",
+  legalAddress: "",
+  legalName: "",
+  privacyUrl: "",
+};
+
+export const campaignComplianceSchema = z.object({
+  consentBasis: campaignConsentBasisSchema,
+  consentNotice: z.string().trim().max(500, "Texto demasiado largo"),
+  contactEmail: optionalEmailSchema,
+  legalAddress: z.string().trim().max(500, "Dirección demasiado larga"),
+  legalName: z.string().trim().max(160, "Nombre legal demasiado largo"),
+  privacyUrl: optionalHttpUrlSchema,
+});
+
+export const completeCampaignComplianceSchema = campaignComplianceSchema.extend(
+  {
+    consentNotice: z
+      .string()
+      .trim()
+      .min(1, "Explica por qué recibe la campaña")
+      .max(500, "Texto demasiado largo"),
+    contactEmail: z
+      .string()
+      .trim()
+      .min(1, "Indica un email de contacto")
+      .email("Email no válido")
+      .max(320, "Email demasiado largo"),
+    legalAddress: z
+      .string()
+      .trim()
+      .min(1, "Indica la dirección postal del remitente")
+      .max(500, "Dirección demasiado larga"),
+    legalName: z
+      .string()
+      .trim()
+      .min(1, "Indica el nombre legal del remitente")
+      .max(160, "Nombre legal demasiado largo"),
+  },
+);
+
+const complianceFieldLabels: Record<string, string> = {
+  consentNotice: "motivo/origen del consentimiento",
+  contactEmail: "email de contacto",
+  legalAddress: "dirección postal",
+  legalName: "nombre legal",
+  privacyUrl: "URL de privacidad",
+};
+
+export function normalizeCampaignCompliance(
+  value: unknown,
+): CampaignComplianceValues {
+  const parsed = campaignComplianceSchema.safeParse(value);
+  return parsed.success ? parsed.data : emptyCampaignCompliance;
+}
+
+export function campaignComplianceErrorMessage(value: unknown): string | null {
+  const parsed = completeCampaignComplianceSchema.safeParse(value);
+  if (parsed.success) return null;
+
+  const labels = [
+    ...new Set(
+      parsed.error.issues.map((issue) => {
+        const key = issue.path[0];
+        return typeof key === "string"
+          ? (complianceFieldLabels[key] ?? key)
+          : "datos RGPD";
+      }),
+    ),
+  ];
+  return `Completa los datos RGPD antes de enviar: ${labels.join(", ")}.`;
+}
+
 const richTextBlockSchema = z.object({
   id: z.string().trim().min(1).max(80),
   type: z.literal("richText"),
@@ -67,6 +162,7 @@ export const campaignDraftSchema = z
     replyTo: optionalEmailSchema,
     segmentId: z.string().uuid().nullable(),
     blocks: campaignEmailBlocksSchema,
+    compliance: campaignComplianceSchema,
   })
   .refine((data) => campaignBlocksHaveContent(data.blocks), {
     message: "El email necesita contenido",
@@ -92,5 +188,6 @@ export const campaignScheduleSchema = z.object({
 });
 
 export type CampaignDraftValues = z.infer<typeof campaignDraftSchema>;
+export type CampaignComplianceValues = z.infer<typeof campaignComplianceSchema>;
 export type CampaignTestValues = z.infer<typeof campaignTestSchema>;
 export type CampaignScheduleValues = z.infer<typeof campaignScheduleSchema>;

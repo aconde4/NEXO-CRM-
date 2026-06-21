@@ -20,6 +20,7 @@ import {
   Plus,
   Rows3,
   Send,
+  ShieldCheck,
   Trash2,
   XCircle,
 } from "lucide-react";
@@ -35,7 +36,9 @@ import {
 } from "@/lib/campaign-blocks";
 import type { MergeTag } from "@/lib/email/merge-tags";
 import {
+  type CampaignComplianceValues,
   type CampaignDraftValues,
+  campaignComplianceErrorMessage,
   campaignDraftSchema,
 } from "@/lib/validations/campaign";
 import {
@@ -74,6 +77,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { MergeTagMenu } from "@/components/email/merge-tag-menu";
 import {
   RichEmailEditor,
@@ -95,6 +99,7 @@ export type CampaignRow = {
   bodyHtml: string;
   bodyText: string;
   blocks: CampaignEmailBlock[];
+  compliance: CampaignComplianceValues;
   scheduledAt: string | null;
   sentAt: string | null;
   stats: {
@@ -124,6 +129,7 @@ export type CampaignSegmentOption = {
 };
 
 export type CampaignDefaults = {
+  compliance: CampaignComplianceValues;
   fromName: string;
   fromEmail: string;
   resendConfigured: boolean;
@@ -194,10 +200,55 @@ function statusVariant(
   return "secondary";
 }
 
+function complianceReady(compliance: CampaignComplianceValues): boolean {
+  return campaignComplianceErrorMessage(compliance) === null;
+}
+
+function preferCampaignComplianceValue(
+  value: string | undefined,
+  fallback: string,
+): string {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : fallback;
+}
+
+function mergeComplianceValues(
+  defaults: CampaignComplianceValues,
+  campaign: CampaignComplianceValues | undefined,
+): CampaignComplianceValues {
+  return {
+    consentBasis: campaign?.consentBasis ?? defaults.consentBasis,
+    consentNotice: preferCampaignComplianceValue(
+      campaign?.consentNotice,
+      defaults.consentNotice,
+    ),
+    contactEmail: preferCampaignComplianceValue(
+      campaign?.contactEmail,
+      defaults.contactEmail,
+    ),
+    legalAddress: preferCampaignComplianceValue(
+      campaign?.legalAddress,
+      defaults.legalAddress,
+    ),
+    legalName: preferCampaignComplianceValue(
+      campaign?.legalName,
+      defaults.legalName,
+    ),
+    privacyUrl: preferCampaignComplianceValue(
+      campaign?.privacyUrl,
+      defaults.privacyUrl,
+    ),
+  };
+}
+
 function defaultValues(
   campaign: CampaignRow | null,
   defaults: CampaignDefaults,
 ): CampaignDraftValues {
+  const compliance = mergeComplianceValues(
+    defaults.compliance,
+    campaign?.compliance,
+  );
   return {
     id: campaign?.id,
     name: campaign?.name ?? "",
@@ -207,6 +258,7 @@ function defaultValues(
     fromEmail: campaign?.fromEmail || defaults.fromEmail,
     replyTo: campaign?.replyTo ?? "",
     segmentId: campaign?.segmentId ?? null,
+    compliance,
     blocks:
       campaign?.blocks && campaign.blocks.length > 0
         ? campaign.blocks
@@ -333,12 +385,19 @@ function CampaignCard({
 }) {
   const router = useRouter();
   const [busy, setBusy] = React.useState<"send" | "cancel" | null>(null);
-  const canLaunch = campaign.status !== "sending" && campaign.status !== "sent";
+  const canEdit = campaign.status !== "sending" && campaign.status !== "sent";
+  const isComplianceReady = complianceReady(campaign.compliance);
+  const canLaunch = canEdit;
   const canCancel = campaign.status === "scheduled";
 
   async function launchNow() {
     if (!resendConfigured) {
       toast.error("Configura RESEND_API_KEY antes de enviar campañas.");
+      return;
+    }
+    const complianceError = campaignComplianceErrorMessage(campaign.compliance);
+    if (complianceError) {
+      toast.error(complianceError);
       return;
     }
     setBusy("send");
@@ -375,6 +434,11 @@ function CampaignCard({
       toast.error("Configura RESEND_API_KEY antes de programar campañas.");
       return;
     }
+    const complianceError = campaignComplianceErrorMessage(campaign.compliance);
+    if (complianceError) {
+      toast.error(complianceError);
+      return;
+    }
     onSchedule();
   }
 
@@ -395,7 +459,7 @@ function CampaignCard({
               <MoreHorizontal className="size-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem disabled={!canLaunch} onClick={onEdit}>
+              <DropdownMenuItem disabled={!canEdit} onClick={onEdit}>
                 <Pencil />
                 Editar
               </DropdownMenuItem>
@@ -421,6 +485,14 @@ function CampaignCard({
           ) : (
             <Badge variant="outline">Sin segmento</Badge>
           )}
+          {!isComplianceReady ? (
+            <Badge
+              variant="outline"
+              className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+            >
+              RGPD pendiente
+            </Badge>
+          ) : null}
         </div>
         {campaign.preheader ? (
           <p className="text-muted-foreground line-clamp-2 text-sm">
@@ -773,6 +845,13 @@ function CampaignEditorDialog({
       toast.error("Indica el email de prueba.");
       return;
     }
+    const complianceError = campaignComplianceErrorMessage(
+      getValues("compliance"),
+    );
+    if (complianceError) {
+      toast.error(complianceError);
+      return;
+    }
 
     setTesting(true);
     try {
@@ -920,6 +999,113 @@ function CampaignEditorDialog({
                       {errors.replyTo.message}
                     </p>
                   ) : null}
+                </div>
+              </div>
+
+              <div className="grid gap-4 rounded-lg border p-3">
+                <div className="flex items-start gap-2">
+                  <ShieldCheck className="text-muted-foreground mt-0.5 size-4" />
+                  <div>
+                    <p className="text-sm font-medium">
+                      RGPD y datos del remitente
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      Estos datos se aÃ±aden al pie legal de cada email real de
+                      campaÃ±a.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-1.5">
+                    <Label>
+                      Nombre legal<span className="text-destructive"> *</span>
+                    </Label>
+                    <Input
+                      {...register("compliance.legalName")}
+                      placeholder="Tu empresa, S.L."
+                    />
+                    {errors.compliance?.legalName ? (
+                      <p className="text-destructive text-xs">
+                        {errors.compliance.legalName.message}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label>
+                      Email de contacto
+                      <span className="text-destructive"> *</span>
+                    </Label>
+                    <Input
+                      {...register("compliance.contactEmail")}
+                      placeholder="privacidad@tudominio.com"
+                    />
+                    {errors.compliance?.contactEmail ? (
+                      <p className="text-destructive text-xs">
+                        {errors.compliance.contactEmail.message}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="grid gap-1.5 sm:col-span-2">
+                    <Label>
+                      DirecciÃ³n postal
+                      <span className="text-destructive"> *</span>
+                    </Label>
+                    <Input
+                      {...register("compliance.legalAddress")}
+                      placeholder="Calle, ciudad, paÃ­s"
+                    />
+                    {errors.compliance?.legalAddress ? (
+                      <p className="text-destructive text-xs">
+                        {errors.compliance.legalAddress.message}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label>Base legal</Label>
+                    <select
+                      className={selectClass}
+                      {...register("compliance.consentBasis")}
+                    >
+                      <option value="consent">Consentimiento</option>
+                      <option value="legitimate_interest">
+                        InterÃ©s legÃ­timo
+                      </option>
+                    </select>
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label>PolÃ­tica de privacidad</Label>
+                    <Input
+                      {...register("compliance.privacyUrl")}
+                      placeholder="https://tudominio.com/privacidad"
+                    />
+                    {errors.compliance?.privacyUrl ? (
+                      <p className="text-destructive text-xs">
+                        {errors.compliance.privacyUrl.message}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="grid gap-1.5 sm:col-span-2">
+                    <Label>
+                      Motivo u origen del consentimiento
+                      <span className="text-destructive"> *</span>
+                    </Label>
+                    <Textarea
+                      {...register("compliance.consentNotice")}
+                      rows={3}
+                      placeholder="te registraste en nuestra web, solicitaste informaciÃ³n o eres cliente/contacto profesional de la empresa"
+                    />
+                    {errors.compliance?.consentNotice ? (
+                      <p className="text-destructive text-xs">
+                        {errors.compliance.consentNotice.message}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
               </div>
 

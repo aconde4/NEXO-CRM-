@@ -8,7 +8,14 @@
 
 ## 📍 Dónde estamos
 
-- **Fase 4 · Campañas masivas (Resend):** **en curso (4.2 + 4.3 + 4.4 + 4.5 + 4.6 + 4.7 + 4.8 + 4.9 hechas).**
+- **Fase 4 · Campañas masivas (Resend):** **implementación completa (4.2–4.10 hechas; 4.1 queda como acción externa del usuario).**
+  - **4.10** consentimiento/origen y pie RGPD: el editor de campañas guarda
+    `settings.compliance` con nombre legal, dirección postal, email de contacto,
+    política de privacidad, base legal y explicación de origen/consentimiento. La UI
+    marca "RGPD pendiente" si falta algo; el servidor bloquea prueba/envío/programación
+    hasta completar los datos. El pie final incluye remitente, dirección, contacto,
+    política de privacidad, base legal, origen del contacto (`persons.source`) y baja
+    personalizada. `SETUP.md` documenta defaults por entorno.
   - **4.9** panel de resultados de campaña: `/campaigns/[id]` muestra un detalle
     owner-aware con estado, asunto, segmento, remitente, métricas de audiencia,
     enviados, entregados, aperturas, clics, rebotes, quejas, bajas, suprimidos y
@@ -147,10 +154,8 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 4 en curso** (4.2 + 4.3 + 4.4 + 4.5 + 4.6 + 4.7 + 4.8 + 4.9 hechas). Continúa por la siguiente tarea sin
-marcar en [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md):
-1. **4.10** Consentimiento/origen y pie RGPD con datos del remitente.
-2. **4.1** (acción del usuario, en paralelo): crear cuenta en Resend y verificar el
+**Fase 4 técnica completa** (4.2–4.10 hechas). Lo único pendiente de Fase 4 es externo:
+1. **4.1** (acción del usuario): crear cuenta en Resend y verificar el
    dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
    - Crear cuenta en https://resend.com y un **API key** → ponerlo en `.env.local` como
      `RESEND_API_KEY`.
@@ -162,6 +167,8 @@ marcar en [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md):
        `v=DMARC1; p=none; rua=mailto:tu@correo`.
    - Añadir esos registros en el DNS del dominio y pulsar **Verify** en Resend hasta que
      quede "Verified". Definir también `CAMPAIGN_FROM_EMAIL` (un `from` de ese dominio).
+2. **Siguiente tarea de desarrollo:** **5.1** Migración de secuencias
+   (`sequences`, `sequence_steps`, `enrollments`) cuando quieras empezar Fase 5.
 
 > Reutiliza lo ya hecho: el **motor de merge tags** (`lib/email/merge-tags.ts`) y el
 > **modelo de email** de la Fase 3. La supresión (`suppressions`) debe comprobarse
@@ -174,9 +181,9 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 4.9 (panel de resultados de campaña con detalle,
-> métricas, tasas, destinatarios y eventos de Resend). Antes: 4.8 (webhooks de Resend),
-> 4.7 (baja pública firmada), 4.6 (programación/envío real por lotes vía Inngest), 4.5
+> **Hecho en la última sesión:** Fase 4.10 (consentimiento/origen y pie RGPD con datos
+> del remitente). Antes: 4.9 (panel de resultados), 4.8 (webhooks de Resend), 4.7
+> (baja pública firmada), 4.6 (programación/envío real por lotes vía Inngest), 4.5
 > (editor), 4.2 (migración), 4.3 (Resend) y 4.4 (segmentos).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
@@ -218,6 +225,25 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-21 (33) — Fase 4.10: consentimiento/origen y pie RGPD
+- **Modelo sin migración:** cada campaña guarda `settings.compliance` con nombre legal,
+  dirección postal, email de contacto, URL de privacidad, base legal y texto de
+  origen/consentimiento.
+- **Editor:** `/campaigns` añade una sección "RGPD y datos del remitente"; las tarjetas
+  muestran "RGPD pendiente" si faltan datos y el envío/programación/prueba se bloquean
+  en servidor hasta completarlos.
+- **Pie final:** los emails reales de campaña incluyen base legal, explicación de
+  consentimiento, origen del contacto (`persons.source`), datos del remitente, política
+  de privacidad y enlace personal de baja. Las pruebas incluyen el pie legal sin enlace
+  real de baja.
+- **Defaults:** `SETUP.md` documenta variables `CAMPAIGN_LEGAL_*`,
+  `CAMPAIGN_CONTACT_EMAIL`, `CAMPAIGN_PRIVACY_URL`, `CAMPAIGN_CONSENT_BASIS` y
+  `CAMPAIGN_CONSENT_NOTICE`.
+- **Resultados:** `/campaigns/[id]` muestra también el snapshot legal de la campaña.
+- **Verificado:** prueba HTTP con login de desarrollo y campaña temporal con datos RGPD;
+  listado + detalle renderizaron los datos legales. Datos temporales eliminados.
+  `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-21 (32) — Fase 4.9: panel de resultados de campaña
 - **Detalle de resultados:** nueva ruta `/campaigns/[id]` con cabecera de campaña,
