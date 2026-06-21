@@ -24,11 +24,13 @@ import {
   hasSequenceSignal,
   loadSequenceRun,
   markEnrollmentStep,
+  parseSequenceSignal,
   sendSequenceEmailStep,
   sequenceConditionSignalType,
   sequenceConditionTimeout,
   sequenceSignalMatchExpression,
   sequenceStepSleepDuration,
+  stopEnrollmentOnSignal,
   type SequenceRunErrorCode,
 } from "@/server/services/sequence-runner";
 
@@ -312,6 +314,24 @@ export const runSequence = inngest.createFunction(
   },
 );
 
+export const stopSequenceOnSignal = inngest.createFunction(
+  { id: "stop-sequence-on-signal", triggers: [{ event: SEQUENCE_SIGNAL_EVENT }] },
+  async ({ event, step }) => {
+    const signal = parseSequenceSignal(event.data);
+    if (!signal) return { ok: false, reason: "invalid_signal" };
+
+    const result = await step.run("detener-inscripcion", () =>
+      stopEnrollmentOnSignal({
+        enrollmentId: signal.enrollmentId,
+        occurredAt: signal.occurredAt,
+        ownerId: signal.ownerId,
+        type: signal.type,
+      }),
+    );
+    return { ok: true, result };
+  },
+);
+
 export const sendCampaign = inngest.createFunction(
   { id: "send-campaign", triggers: [{ event: CAMPAIGN_SEND_EVENT }] },
   async ({ event, step }) => {
@@ -444,4 +464,5 @@ export const functions = [
   syncGmailMailboxes,
   sendCampaign,
   runSequence,
+  stopSequenceOnSignal,
 ];

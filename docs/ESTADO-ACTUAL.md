@@ -9,6 +9,16 @@
 ## 📍 Dónde estamos
 
 - **Fase 5 · Secuencias / Drip:** **en curso**.
+  - **5.5** parada automática (`stop on reply`): nueva función Inngest
+    `stop-sequence-on-signal` (en `/api/inngest`) que escucha `sequence/signal.received`
+    y detiene la inscripción **activa** ante respuesta/rebote/baja, en cualquier punto
+    del flujo (incluida una espera), no solo en pasos de condición.
+    `stopEnrollmentOnSignal` respeta `stop_on_reply` y `settings.stopOnBounce`/
+    `stopOnUnsubscribe` (por defecto `true`); aperturas y clics nunca detienen. La
+    actualización es idempotente (solo afecta a `status='active'`) y owner-aware. Marca
+    `status` (replied/bounced/unsubscribed), `stopReason`, `stoppedAt` y limpia
+    `nextRunAt`. Cuando el workflow despierta de un `step.sleep`, `loadSequenceRun`
+    devuelve noop y no envía el siguiente paso.
   - **5.4** inscripción manual lista: `enrollInSequence` valida con Zod,
     autorización owner-aware y secuencia activa con pasos; permite inscribir un
     contacto individual o toda la audiencia de un segmento/filtro, deduplica por
@@ -186,8 +196,10 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **5.5** Parada automática al responder/rebote/baja
-(`stop on reply`).
+**Siguiente tarea de desarrollo:** **5.6** Límite diario por buzón y ventana de envío
+aplicados a las secuencias (el esquema ya guarda `dailyLimit`, `windowStart`/`windowEnd`
+y `timeZone` por secuencia; falta aplicarlos en el runner al enviar cada paso de email,
+igual que hace el dispatch de campañas con su ventana).
 
 **Pendiente externo de Fase 4:** **4.1** (acción del usuario): crear cuenta en Resend y
 verificar el dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
@@ -213,13 +225,13 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 5.4 (inscripción manual desde contacto o
-> segmento). Antes: 5.3 (workflow duradero de secuencias), 5.2 (constructor de
-> secuencias), 5.1 (migración de secuencias, pasos e
-> inscripciones), 4.10 (consentimiento/origen y pie RGPD con datos del remitente),
-> 4.9 (panel de resultados), 4.8 (webhooks de Resend), 4.7 (baja pública firmada),
-> 4.6 (programación/envío real por lotes vía Inngest), 4.5 (editor), 4.2 (migración),
-> 4.3 (Resend) y 4.4 (segmentos).
+> **Hecho en la última sesión:** Fase 5.5 (parada automática al responder/rebote/baja)
+> y commit de la 5.4 (inscripción manual desde contacto o segmento). Antes: 5.3
+> (workflow duradero de secuencias), 5.2 (constructor de secuencias), 5.1 (migración de
+> secuencias, pasos e inscripciones), 4.10 (consentimiento/origen y pie RGPD con datos
+> del remitente), 4.9 (panel de resultados), 4.8 (webhooks de Resend), 4.7 (baja pública
+> firmada), 4.6 (programación/envío real por lotes vía Inngest), 4.5 (editor),
+> 4.2 (migración), 4.3 (Resend) y 4.4 (segmentos).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -260,6 +272,24 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-21 (38) — Fase 5.5: parada automática (stop on reply/bounce/baja)
+- **Handler global de señales:** nueva función Inngest `stop-sequence-on-signal`
+  (registrada en `/api/inngest`) que escucha `sequence/signal.received` y, además del
+  `waitForEvent` de los pasos de condición, detiene la inscripción **en cualquier punto
+  del flujo** (incluida una espera o una secuencia sin condiciones).
+- **`stopEnrollmentOnSignal`** (en `sequence-runner.ts`): owner-aware e idempotente
+  (solo actúa sobre `status='active'`). Detiene si `reply` y `stop_on_reply`, o si
+  `bounce`/`unsubscribe` y `settings.stopOnBounce`/`stopOnUnsubscribe` (por defecto
+  `true`). Aperturas/clics nunca detienen. Marca `status`
+  (replied/bounced/unsubscribed), `stopReason`, `stoppedAt` y limpia `nextRunAt`; el
+  workflow, al despertar de un `step.sleep`, recarga y hace noop sin enviar el siguiente
+  paso. Añadido `parseSequenceSignal` para reconstruir el payload del evento.
+- **Verificado** con script `tsx` temporal (borrado) contra la BD: reply→replied
+  (idempotente: 2.ª vez `already_replied`), `stop_on_reply=false` no detiene,
+  bounce por defecto→bounced, `stopOnBounce=false` no detiene, open→noop y
+  aislamiento por propietario (owner ajeno → `not_found`).
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-21 (37) — Fase 5.4: inscripción manual de secuencias
 - **Server Action:** `enrollInSequence` inscribe contactos con validación Zod,

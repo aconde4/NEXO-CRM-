@@ -273,6 +273,50 @@ export async function emitSequenceSignals(payloads: SequenceSignalPayload[]) {
   }
 }
 
+const SEQUENCE_SIGNAL_TYPES: SequenceSignalType[] = [
+  "bounce",
+  "click",
+  "open",
+  "reply",
+  "unsubscribe",
+];
+
+/** Reconstruye el payload de señal desde los datos crudos de un evento Inngest. */
+export function parseSequenceSignal(
+  data: unknown,
+): SequenceSignalPayload | null {
+  if (!data || typeof data !== "object") return null;
+  const d = data as Record<string, unknown>;
+  const { enrollmentId, ownerId, sequenceId, type } = d;
+  if (
+    typeof enrollmentId !== "string" ||
+    typeof ownerId !== "string" ||
+    typeof sequenceId !== "string" ||
+    typeof type !== "string" ||
+    !SEQUENCE_SIGNAL_TYPES.includes(type as SequenceSignalType)
+  ) {
+    return null;
+  }
+  return {
+    enrollmentId,
+    messageId: typeof d.messageId === "string" ? d.messageId : undefined,
+    occurredAt:
+      typeof d.occurredAt === "string"
+        ? d.occurredAt
+        : new Date().toISOString(),
+    ownerId,
+    providerEventId:
+      typeof d.providerEventId === "string" ? d.providerEventId : undefined,
+    recipientEmail:
+      typeof d.recipientEmail === "string" ? d.recipientEmail : null,
+    sequenceId,
+    stepId: typeof d.stepId === "string" ? d.stepId : "",
+    trackingId: typeof d.trackingId === "string" ? d.trackingId : null,
+    type: type as SequenceSignalType,
+    url: typeof d.url === "string" ? d.url : null,
+  };
+}
+
 function eventTypeForSignal(type: SequenceSignalType): EmailEventType {
   return type === "unsubscribe" ? "unsubscribe" : type;
 }
@@ -851,4 +895,98 @@ export async function handleConditionResult(input: {
   }
 
   return { matched: input.matched, stop: false as const };
+}
+
+/** Estado de parada asociado a cada señal que detiene una inscripción. */
+const STOP_STATUS_BY_SIGNAL: Partial<
+  Record<SequenceSignalType, SequenceEnrollmentStatus>
+> = {
+  bounce: "bounced",
+  reply: "replied",
+  unsubscribe: "unsubscribed",
+};
+
+export type SequenceStopOutcome =
+  | { outcome: "stopped"; reason: string; status: SequenceEnrollmentStatus }
+  | { outcome: "noop"; reason: string };
+
+/**
+ * Parada automática (Fase 5.5): ante una señal de respuesta/rebote/baja, detiene la
+ * inscripción **activa** si la secuencia lo pide (`stop_on_reply`, o
+ * `settings.stopOnBounce`/`stopOnUnsubscribe`, ambos por defecto `true`). Funciona en
+ * cualquier punto del flujo (incluida una espera), no solo en pasos de condición.
+ * Aperturas y clics nunca detienen. La actualización es idempotente: solo afecta a
+ * inscripciones que sigan en estado `active`.
+ */
+export async function stopEnrollmentOnSignal(input: {
+  enrollmentId: string;
+  occurredAt?: string;
+  ownerId: string;
+  type: SequenceSignalType;
+}): Promise<SequenceStopOutcome> {
+  const targetStatus = STOP_STATUS_BY_SIGNAL[input.type];
+  if (!targetStatus) return { outcome: "noop", reason: "non_stopping_signal" };
+
+  const [row] = await db
+    .select({
+      enrollmentStatus: enrollments.status,
+      sequenceSettings: sequences.settings,
+      stopOnReply: sequences.stopOnReply,
+    })
+    .from(enrollments)
+    .innerJoin(
+      sequences,
+      and(
+        eq(enrollments.sequenceId, sequences.id),
+        eq(sequences.ownerId, enrollments.ownerId),
+      ),
+    )
+    .where(
+      and(
+        eq(enrollments.id, input.enrollmentId),
+        eq(enrollments.ownerId, input.ownerId),
+      ),
+    )
+    .limit(1);
+
+  if (!row) return { outcome: "noop", reason: "not_found" };
+  if (row.enrollmentStatus !== "active") {
+    return { outcome: "noop", reason: `already_${row.enrollmentStatus}` };
+  }
+
+  const shouldStop =
+    input.type === "reply"
+      ? row.stopOnReply
+      : input.type === "bounce"
+        ? row.sequenceSettings.stopOnBounce ?? true
+        : (row.sequenceSettings.stopOnUnsubscribe ?? true);
+  if (!shouldStop) {
+    return { outcome: "noop", reason: `stop_${input.type}_disabled` };
+  }
+
+  const occurred = input.occurredAt ? new Date(input.occurredAt) : new Date();
+  const stoppedAt = Number.isNaN(occurred.getTime()) ? new Date() : occurred;
+  const reason = `${input.type}_received`;
+
+  const updated = await db
+    .update(enrollments)
+    .set({
+      lastEventAt: new Date(),
+      nextRunAt: null,
+      status: targetStatus,
+      stopReason: reason,
+      stoppedAt,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(enrollments.id, input.enrollmentId),
+        eq(enrollments.ownerId, input.ownerId),
+        eq(enrollments.status, "active"),
+      ),
+    )
+    .returning({ id: enrollments.id });
+
+  if (updated.length === 0) return { outcome: "noop", reason: "race_lost" };
+  return { outcome: "stopped", reason, status: targetStatus };
 }
