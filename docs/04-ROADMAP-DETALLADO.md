@@ -262,7 +262,7 @@ parada automática al responder. El diferenciador frente a Pipedrive Campaigns.
       de días) y `waitForEvent` (esperar respuesta/apertura).
 - [x] **5.4** Inscripción manual (desde un contacto o un filtro/segmento).
 - [x] **5.5** Parada automática al responder/rebote/baja (`stop on reply`).
-- [ ] **5.6** Límite diario por buzón y ventana de envío aplicados a las secuencias.
+- [x] **5.6** Límite diario por buzón y ventana de envío aplicados a las secuencias.
 - [ ] **5.7** Variantes A/B por paso de email.
 - [ ] **5.8** Panel de la secuencia: inscritos, paso actual, tasas de apertura/
       respuesta, bajas.

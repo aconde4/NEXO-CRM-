@@ -20,6 +20,7 @@ import {
   completeEnrollment,
   createSequenceTaskStep,
   failEnrollment,
+  gateSequenceEmailSend,
   handleConditionResult,
   hasSequenceSignal,
   loadSequenceRun,
@@ -224,6 +225,36 @@ export const runSequence = inngest.createFunction(
       }
 
       if (current.type === "email") {
+        // 5.6: respetar la ventana de envío y el límite diario de la secuencia.
+        let canSend = false;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          const gate = await step.run(
+            `evaluar-envio-${stepNumber}-${attempt}`,
+            () =>
+              runSequenceWork(enrollmentId, () =>
+                gateSequenceEmailSend(enrollmentId),
+              ),
+          );
+          if (!gate.ok) return gate;
+          if (isSequenceNoopResult(gate.result)) {
+            return { ok: true, result: gate.result };
+          }
+          if (gate.result.decision.action === "send") {
+            canSend = true;
+            break;
+          }
+          await step.sleepUntil(
+            `esperar-envio-${stepNumber}-${attempt}`,
+            new Date(gate.result.decision.until),
+          );
+        }
+        if (!canSend) {
+          return {
+            ok: true,
+            result: { reason: "send_window_unavailable", state: "noop" as const },
+          };
+        }
+
         const sent = await step.run(`enviar-email-${stepNumber}`, () =>
           runSequenceWork(enrollmentId, () =>
             sendSequenceEmailStep({

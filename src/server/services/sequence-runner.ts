@@ -1,12 +1,19 @@
 import "server-only";
 
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, gte, isNull, sql } from "drizzle-orm";
 
 import {
   buildMergeContext,
   renderMergeTags,
   textToHtml,
 } from "@/lib/email/merge-tags";
+import {
+  type SendWindow,
+  isWithinSendWindow,
+  nextAllowedSendAt,
+  nextDayWindowOpen,
+  startOfLocalDayUtc,
+} from "@/lib/send-window";
 import type { SendEmailValues } from "@/lib/validations/email";
 import { db } from "@/server/db";
 import {
@@ -788,6 +795,95 @@ export async function sendSequenceEmailStep(input: {
     }
     throw error;
   }
+}
+
+export type SequenceSendDecision =
+  | { action: "send" }
+  | { action: "wait"; reason: "window" | "daily_limit"; until: string };
+
+export type SequenceSendGate =
+  | { reason: string; state: "noop" }
+  | { decision: SequenceSendDecision; state: "ready" };
+
+/** Cuenta los emails que la secuencia ya ha enviado desde `since` (eventos `sent`). */
+async function countSequenceEmailsSentSince(
+  ownerId: string,
+  sequenceId: string,
+  since: Date,
+): Promise<number> {
+  const [row] = await db
+    .select({ total: sql<string>`count(*)` })
+    .from(emailEvents)
+    .where(
+      and(
+        eq(emailEvents.ownerId, ownerId),
+        eq(emailEvents.type, "sent"),
+        gte(emailEvents.occurredAt, since),
+        sql`${emailEvents.meta}->'sequence'->>'sequenceId' = ${sequenceId}`,
+      ),
+    );
+  return Number(row?.total ?? 0);
+}
+
+/**
+ * Decide si la secuencia puede enviar ahora (Fase 5.6): respeta la ventana horaria y el
+ * límite diario de la secuencia (contado en su zona). Si no, indica cuándo reintentar:
+ * la apertura de la ventana (si está cerrada) o la del día siguiente (si se agotó el
+ * cupo diario, que se reinicia a medianoche local).
+ */
+export async function getSequenceEmailSendDecision(input: {
+  dailyLimit: number;
+  now?: Date;
+  ownerId: string;
+  sequenceId: string;
+  window: SendWindow;
+}): Promise<SequenceSendDecision> {
+  const now = input.now ?? new Date();
+
+  if (!isWithinSendWindow(now, input.window)) {
+    return {
+      action: "wait",
+      reason: "window",
+      until: nextAllowedSendAt(now, input.window).toISOString(),
+    };
+  }
+
+  if (input.dailyLimit > 0) {
+    const since = startOfLocalDayUtc(now, input.window.timeZone);
+    const sentToday = await countSequenceEmailsSentSince(
+      input.ownerId,
+      input.sequenceId,
+      since,
+    );
+    if (sentToday >= input.dailyLimit) {
+      return {
+        action: "wait",
+        reason: "daily_limit",
+        until: nextDayWindowOpen(now, input.window).toISOString(),
+      };
+    }
+  }
+
+  return { action: "send" };
+}
+
+/** Puerta de envío de un paso de email: recarga la inscripción y decide (5.6). */
+export async function gateSequenceEmailSend(
+  enrollmentId: string,
+): Promise<SequenceSendGate> {
+  const state = await loadSequenceRun(enrollmentId);
+  if (state.state !== "ready") return state;
+  const decision = await getSequenceEmailSendDecision({
+    dailyLimit: state.sequence.dailyLimit,
+    ownerId: state.ownerId,
+    sequenceId: state.sequence.id,
+    window: {
+      timeZone: state.sequence.timeZone,
+      windowEnd: state.sequence.windowEnd,
+      windowStart: state.sequence.windowStart,
+    },
+  });
+  return { decision, state: "ready" };
 }
 
 function taskSetting(settings: Record<string, unknown>, key: string): string {

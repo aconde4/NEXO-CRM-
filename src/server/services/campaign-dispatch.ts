@@ -5,6 +5,12 @@ import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import type { CampaignEmailBlock } from "@/lib/campaign-blocks";
 import { buildMergeContext } from "@/lib/email/merge-tags";
 import {
+  isWithinSendWindow,
+  nextAllowedSendAt,
+  parseTime,
+  validTimeZone,
+} from "@/lib/send-window";
+import {
   type CampaignComplianceValues,
   campaignComplianceErrorMessage,
   campaignEmailBlocksSchema,
@@ -88,15 +94,6 @@ type DeliveryConfig = {
   windowStart: string;
 };
 
-type TimeParts = {
-  day: number;
-  hour: number;
-  minute: number;
-  month: number;
-  second: number;
-  year: number;
-};
-
 function clean(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -115,93 +112,6 @@ function clampInt(
   const parsed = Number.parseInt(value ?? "", 10);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.min(max, Math.max(min, parsed));
-}
-
-function parseTime(value: string | undefined, fallback: string): string {
-  const candidate = value?.trim() || fallback;
-  return /^\d{2}:\d{2}$/.test(candidate) ? candidate : fallback;
-}
-
-function validTimeZone(value: string | undefined): string {
-  const timeZone = value?.trim() || "Europe/Madrid";
-  try {
-    new Intl.DateTimeFormat("en-GB", { timeZone }).format(new Date());
-    return timeZone;
-  } catch {
-    return "Europe/Madrid";
-  }
-}
-
-function timeToMinutes(value: string): number {
-  const [hour = "0", minute = "0"] = value.split(":");
-  return Number(hour) * 60 + Number(minute);
-}
-
-function getTimeParts(date: Date, timeZone: string): TimeParts {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    hour: "2-digit",
-    hourCycle: "h23",
-    minute: "2-digit",
-    month: "2-digit",
-    second: "2-digit",
-    timeZone,
-    year: "numeric",
-  }).formatToParts(date);
-  const value = (type: Intl.DateTimeFormatPartTypes) =>
-    Number(parts.find((part) => part.type === type)?.value ?? 0);
-  return {
-    day: value("day"),
-    hour: value("hour"),
-    minute: value("minute"),
-    month: value("month"),
-    second: value("second"),
-    year: value("year"),
-  };
-}
-
-function zonedTimeToUtc(
-  parts: Omit<TimeParts, "second">,
-  timeZone: string,
-): Date {
-  const guess = Date.UTC(
-    parts.year,
-    parts.month - 1,
-    parts.day,
-    parts.hour,
-    parts.minute,
-  );
-  const rendered = getTimeParts(new Date(guess), timeZone);
-  const renderedAsUtc = Date.UTC(
-    rendered.year,
-    rendered.month - 1,
-    rendered.day,
-    rendered.hour,
-    rendered.minute,
-    rendered.second,
-  );
-  return new Date(guess - (renderedAsUtc - guess));
-}
-
-function nextLocalDay(parts: TimeParts): Omit<TimeParts, "second"> {
-  const next = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + 1));
-  return {
-    day: next.getUTCDate(),
-    hour: 0,
-    minute: 0,
-    month: next.getUTCMonth() + 1,
-    year: next.getUTCFullYear(),
-  };
-}
-
-function minuteIsInsideWindow(
-  current: number,
-  start: number,
-  end: number,
-): boolean {
-  if (start === end) return true;
-  if (start < end) return current >= start && current < end;
-  return current >= start || current < end;
 }
 
 export function getCampaignDeliveryConfig(): DeliveryConfig {
@@ -234,53 +144,14 @@ export function isWithinCampaignSendWindow(
   date = new Date(),
   config = getCampaignDeliveryConfig(),
 ): boolean {
-  const parts = getTimeParts(date, config.timeZone);
-  return minuteIsInsideWindow(
-    parts.hour * 60 + parts.minute,
-    timeToMinutes(config.windowStart),
-    timeToMinutes(config.windowEnd),
-  );
+  return isWithinSendWindow(date, config);
 }
 
 export function nextAllowedCampaignSendAt(
   date = new Date(),
   config = getCampaignDeliveryConfig(),
 ): Date {
-  if (isWithinCampaignSendWindow(date, config)) return date;
-
-  const parts = getTimeParts(date, config.timeZone);
-  const current = parts.hour * 60 + parts.minute;
-  const start = timeToMinutes(config.windowStart);
-  const end = timeToMinutes(config.windowEnd);
-  const [startHour = "0", startMinute = "0"] = config.windowStart.split(":");
-
-  let target = {
-    day: parts.day,
-    hour: Number(startHour),
-    minute: Number(startMinute),
-    month: parts.month,
-    year: parts.year,
-  };
-
-  if (start < end && current >= end) {
-    target = {
-      ...nextLocalDay(parts),
-      hour: Number(startHour),
-      minute: Number(startMinute),
-    };
-  }
-
-  if (start > end && current < start && current >= end) {
-    target = {
-      day: parts.day,
-      hour: Number(startHour),
-      minute: Number(startMinute),
-      month: parts.month,
-      year: parts.year,
-    };
-  }
-
-  return zonedTimeToUtc(target, config.timeZone);
+  return nextAllowedSendAt(date, config);
 }
 
 function normalizeEmail(value: string | null | undefined): string | null {

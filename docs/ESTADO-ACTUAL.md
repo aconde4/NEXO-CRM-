@@ -9,6 +9,15 @@
 ## 📍 Dónde estamos
 
 - **Fase 5 · Secuencias / Drip:** **en curso**.
+  - **5.6** límite diario y ventana de envío aplicados a las secuencias: módulo
+    compartido `src/lib/send-window.ts` (lógica pura de ventana con zona horaria,
+    extraída de campañas para reutilizar en ambos). El workflow `run-sequence` consulta
+    `gateSequenceEmailSend` antes de cada paso de email: si está fuera de la ventana
+    horaria de la secuencia espera (`step.sleepUntil`) a su apertura; si se agotó el
+    `dailyLimit` de la secuencia (contado por eventos `sent` etiquetados, en su zona),
+    espera a la apertura del día siguiente; si no, envía. El límite del buzón Gmail
+    sigue aplicándose en su servicio. `campaign-dispatch` ahora usa el módulo común
+    (`isWithinSendWindow`/`nextAllowedSendAt`).
   - **5.5** parada automática (`stop on reply`): nueva función Inngest
     `stop-sequence-on-signal` (en `/api/inngest`) que escucha `sequence/signal.received`
     y detiene la inscripción **activa** ante respuesta/rebote/baja, en cualquier punto
@@ -196,10 +205,10 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **5.6** Límite diario por buzón y ventana de envío
-aplicados a las secuencias (el esquema ya guarda `dailyLimit`, `windowStart`/`windowEnd`
-y `timeZone` por secuencia; falta aplicarlos en el runner al enviar cada paso de email,
-igual que hace el dispatch de campañas con su ventana).
+**Siguiente tarea de desarrollo:** **5.7** Variantes A/B por paso de email (el esquema
+ya tiene `sequence_steps.variants` con `id`/`weight`/`subject`/`bodyHtml`/`bodyText`/
+`templateId` y `enrollments.context.variantAssignments`; falta el constructor de
+variantes en la UI y la selección ponderada por inscripción en el runner al enviar).
 
 **Pendiente externo de Fase 4:** **4.1** (acción del usuario): crear cuenta en Resend y
 verificar el dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
@@ -225,8 +234,9 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 5.5 (parada automática al responder/rebote/baja)
-> y commit de la 5.4 (inscripción manual desde contacto o segmento). Antes: 5.3
+> **Hecho en la última sesión:** Fase 5.6 (límite diario + ventana en secuencias) y
+> 5.5 (parada automática al responder/rebote/baja), más el commit de la 5.4
+> (inscripción manual desde contacto o segmento). Antes: 5.3
 > (workflow duradero de secuencias), 5.2 (constructor de secuencias), 5.1 (migración de
 > secuencias, pasos e inscripciones), 4.10 (consentimiento/origen y pie RGPD con datos
 > del remitente), 4.9 (panel de resultados), 4.8 (webhooks de Resend), 4.7 (baja pública
@@ -272,6 +282,23 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-21 (39) — Fase 5.6: límite diario y ventana en secuencias
+- **Módulo compartido** `src/lib/send-window.ts`: lógica pura de ventana de envío con
+  zona horaria (`isWithinSendWindow`, `nextAllowedSendAt`, `nextDayWindowOpen`,
+  `startOfLocalDayUtc`). Se extrajo de `campaign-dispatch` (que ahora la importa) para
+  reutilizarla en campañas y secuencias sin duplicar.
+- **Runner de secuencias:** `getSequenceEmailSendDecision` + `gateSequenceEmailSend`
+  deciden, antes de cada paso de email, si enviar o esperar: fuera de la ventana de la
+  secuencia → `step.sleepUntil` a su apertura; `dailyLimit` de la secuencia agotado
+  (contado por eventos `sent` con `meta.sequence.sequenceId` desde la medianoche local)
+  → espera a la apertura del día siguiente; si no, envía. El cupo del buzón Gmail se
+  sigue aplicando en su servicio (segunda capa).
+- **Verificado** con script `tsx` temporal (borrado): funciones de ventana en
+  `Europe/Madrid` (dentro/fuera, próxima apertura hoy/mañana, inicio de día y apertura
+  del día siguiente en CEST) y la decisión (ventana cerrada→wait window, cupo
+  agotado→wait daily_limit, bajo cupo→send contando eventos por metadata de secuencia).
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-21 (38) — Fase 5.5: parada automática (stop on reply/bounce/baja)
 - **Handler global de señales:** nueva función Inngest `stop-sequence-on-signal`
