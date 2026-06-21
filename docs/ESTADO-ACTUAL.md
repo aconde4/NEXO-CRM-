@@ -8,7 +8,14 @@
 
 ## 📍 Dónde estamos
 
-- **Fase 4 · Campañas masivas (Resend):** **en curso (4.2 + 4.3 + 4.4 + 4.5 + 4.6 + 4.7 hechas).**
+- **Fase 4 · Campañas masivas (Resend):** **en curso (4.2 + 4.3 + 4.4 + 4.5 + 4.6 + 4.7 + 4.8 hechas).**
+  - **4.8** webhooks de Resend: `/api/webhooks/resend` recibe eventos públicos sin
+    login, valida la firma Svix con `RESEND_WEBHOOK_SECRET` sobre el cuerpo crudo,
+    procesa eventos de envío, entrega, apertura, clic, rebote, queja, supresión,
+    fallo y retraso, y guarda cada webhook en `email_events` con idempotencia por
+    `svix-id`. Los eventos actualizan `campaign_recipients` sin degradar estados si
+    llegan desordenados; rebotes/quejas/supresiones añaden `suppressions`, actualizan
+    `marketing_status` del contacto y refrescan `campaigns.stats`.
   - **4.7** bajas de campañas: cada email real de campaña añade cabeceras
     `List-Unsubscribe`/`List-Unsubscribe-Post`, un enlace visible de baja y URLs
     firmadas por destinatario. `/unsubscribe/[token]` muestra una página pública de
@@ -134,12 +141,11 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 4 en curso** (4.2 + 4.3 + 4.4 + 4.5 + 4.6 + 4.7 hechas). Continúa por la siguiente tarea sin
+**Fase 4 en curso** (4.2 + 4.3 + 4.4 + 4.5 + 4.6 + 4.7 + 4.8 hechas). Continúa por la siguiente tarea sin
 marcar en [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md):
-1. **4.8** Webhooks de Resend: entregas, aperturas, clics, rebotes, quejas →
-   `email_events`, `campaign_recipients` y actualización de `marketing_status`. Debe
-   validar firma/webhook de Resend, ser idempotente por `provider_event_id`, actualizar
-   métricas de campaña y añadir rebotes/quejas a `suppressions`.
+1. **4.9** Panel de resultados de campaña: vista de detalle con enviados, entregas,
+   aperturas, clics, rebotes, quejas, bajas, supresiones/fallos, tasa por métrica y
+   tabla de destinatarios/eventos principales.
 2. **4.1** (acción del usuario, en paralelo): crear cuenta en Resend y verificar el
    dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
    - Crear cuenta en https://resend.com y un **API key** → ponerlo en `.env.local` como
@@ -164,11 +170,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 4.7 (baja pública firmada, cabeceras
-> `List-Unsubscribe`, one-click POST, actualización de `suppressions`/contacto/
-> destinatario/evento). Antes: 4.6 (programación/envío real por lotes vía Inngest,
-> ventana horaria, supresiones previas y métricas básicas en campañas), 4.5 (editor de
-> campañas), 4.2 (migración), 4.3 (Resend) y 4.4 (segmentos).
+> **Hecho en la última sesión:** Fase 4.8 (webhook público de Resend con firma Svix,
+> idempotencia, actualización de destinatarios/eventos/métricas y supresión por
+> rebote/queja). Antes: 4.7 (baja pública firmada), 4.6 (programación/envío real por
+> lotes vía Inngest), 4.5 (editor), 4.2 (migración), 4.3 (Resend) y 4.4 (segmentos).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -209,6 +214,29 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-21 (31) — Fase 4.8: webhooks de Resend
+- **Ruta pública:** `/api/webhooks/resend` queda fuera del proxy de login y responde
+  JSON sin caché. Lee `request.text()` para conservar el cuerpo crudo requerido por la
+  firma.
+- **Firma:** verificación compatible con Svix (`svix-id`, `svix-timestamp`,
+  `svix-signature`) usando `RESEND_WEBHOOK_SECRET`, tolerancia temporal y comparación
+  constante.
+- **Validación:** payloads de Resend parseados con Zod; se soportan `email.sent`,
+  `email.delivered`, `email.opened`, `email.clicked`, `email.bounced`,
+  `email.complained`, `email.suppressed`, `email.failed` y `email.delivery_delayed`.
+- **Persistencia idempotente:** cada webhook se guarda en `email_events` con
+  `provider_event_id=resend:<svix-id>` y `onConflictDoNothing`; el estado del
+  destinatario se actualiza sin degradar eventos fuera de orden.
+- **RGPD/entregabilidad:** rebotes, quejas y supresiones crean/actualizan
+  `suppressions`, marcan el contacto como `bounced`/`complained` y refrescan métricas
+  de campaña.
+- **Setup:** `docs/SETUP.md` documenta la URL del webhook, eventos a seleccionar y
+  `RESEND_WEBHOOK_SECRET`.
+- **Verificado:** script temporal `tsx` (borrado) contra `next start` con payload
+  `email.bounced` firmado: primer POST `processed`, segundo POST `duplicate`, evento
+  único, destinatario `bounced`, contacto `bounced`, supresión creada y métricas
+  actualizadas. `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-21 (30) — Fase 4.7: bajas públicas de campañas
 - **Tokens firmados:** `campaign-unsubscribe.ts` genera enlaces duraderos por

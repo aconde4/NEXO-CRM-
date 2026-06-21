@@ -32,13 +32,16 @@ export type EmailMessageStatus =
   | "received"
   | "bounced";
 export type EmailEventType =
+  | "delivery_delayed"
   | "queued"
   | "sent"
   | "delivered"
+  | "failed"
   | "open"
   | "click"
   | "bounce"
   | "complaint"
+  | "suppressed"
   | "unsubscribe"
   | "reply"
   | "sync";

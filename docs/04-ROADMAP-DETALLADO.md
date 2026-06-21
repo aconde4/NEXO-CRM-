@@ -237,7 +237,7 @@ métricas.
       y ventana horaria).
 - [x] **4.7** Gestión de bajas: página pública de unsubscribe + cabecera
       `List-Unsubscribe` + comprobación de `suppressions` antes de enviar.
-- [ ] **4.8** Webhooks de Resend: entregas, aperturas, clics, rebotes, quejas →
+- [x] **4.8** Webhooks de Resend: entregas, aperturas, clics, rebotes, quejas →
       `email_events` y actualización de `marketing_status`.
 - [ ] **4.9** Panel de resultados de campaña (enviados/abiertos/clics/rebotes/bajas).
 - [ ] **4.10** Consentimiento/origen y pie RGPD con datos del remitente.

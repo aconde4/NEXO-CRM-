@@ -153,10 +153,24 @@ Resend no está configurado y no intenta ningún envío.
    CAMPAIGN_FROM_EMAIL="campañas@tudominio.com"
    CAMPAIGN_FROM_NAME="Tu Nombre o Empresa"
    ```
+6. **Webhooks → Add Webhook**. Usa esta URL pública:
+   ```text
+   https://TU-APP.vercel.app/api/webhooks/resend
+   ```
+   Selecciona estos eventos: `email.sent`, `email.delivered`, `email.opened`,
+   `email.clicked`, `email.bounced`, `email.complained`, `email.suppressed`,
+   `email.failed` y `email.delivery_delayed`.
+7. Copia el **Signing Secret** del webhook (empieza por `whsec_`) y añádelo a
+   `.env.local`:
+   ```env
+   RESEND_WEBHOOK_SECRET="whsec_..."
+   ```
 
 > En producción (Vercel) añade `RESEND_API_KEY`, `CAMPAIGN_FROM_EMAIL` y
-> `CAMPAIGN_FROM_NAME` como variables de entorno. Más adelante (4.8) configuraremos el
-> **webhook de Resend** para registrar entregas/aperturas/clics/rebotes.
+> `CAMPAIGN_FROM_NAME` como variables de entorno. Añade también
+> `RESEND_WEBHOOK_SECRET` para que Nexo CRM pueda validar y registrar entregas,
+> aperturas, clics, rebotes y quejas. En local necesitas exponer `pnpm dev` con un
+> túnel público si quieres probar webhooks reales desde Resend.
 
 ---
 
