@@ -9,6 +9,13 @@
 ## 📍 Dónde estamos
 
 - **Fase 5 · Secuencias / Drip:** **en curso**.
+  - **5.2** constructor de secuencias: `/sequences` deja de ser placeholder y muestra
+    un listado real con estado, canal, límites, ventana horaria, métricas de
+    inscripciones y preview de pasos. El editor crea/actualiza secuencias con pasos
+    email/espera/condición/tarea, reordenación, canal por paso de email, plantillas,
+    merge tags, editor rico Tiptap, parada al responder, límite diario y ventana de
+    envío. Las Server Actions validan con Zod, sanitizan HTML, preservan IDs de pasos
+    existentes al reordenar/editar y bloquean el borrado si hay inscripciones activas.
   - **5.1** migración `0008_flowery_peter_parker` aplicada con `sequences`,
     `sequence_steps` y `enrollments`. El esquema está en
     `src/server/db/schema/sequences.ts` y cubre estados draft/active/paused/archived,
@@ -162,8 +169,8 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **5.2** Constructor de secuencias: pasos
-email/espera/condición/tarea, orden, días de espera y canal (Gmail 1:1 o Resend).
+**Siguiente tarea de desarrollo:** **5.3** Workflow duradero en Inngest: ejecutar pasos
+con `step.sleep` (esperas de días) y `waitForEvent` (esperar respuesta/apertura).
 
 **Pendiente externo de Fase 4:** **4.1** (acción del usuario): crear cuenta en Resend y
 verificar el dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
@@ -189,11 +196,11 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 5.1 (migración de secuencias, pasos e
-> inscripciones). Antes: 4.10 (consentimiento/origen y pie RGPD con datos del
-> remitente), 4.9 (panel de resultados), 4.8 (webhooks de Resend), 4.7 (baja pública
-> firmada), 4.6 (programación/envío real por lotes vía Inngest), 4.5 (editor),
-> 4.2 (migración), 4.3 (Resend) y 4.4 (segmentos).
+> **Hecho en la última sesión:** Fase 5.2 (constructor de secuencias). Antes: 5.1
+> (migración de secuencias, pasos e inscripciones), 4.10 (consentimiento/origen y pie
+> RGPD con datos del remitente), 4.9 (panel de resultados), 4.8 (webhooks de Resend),
+> 4.7 (baja pública firmada), 4.6 (programación/envío real por lotes vía Inngest),
+> 4.5 (editor), 4.2 (migración), 4.3 (Resend) y 4.4 (segmentos).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -234,6 +241,25 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-21 (35) — Fase 5.2: constructor de secuencias
+- **UI real:** `/sequences` sustituye el placeholder por listado de secuencias, tarjetas
+  con estado, canal, pasos, inscripciones, límite diario, ventana horaria y acciones.
+- **Constructor:** diálogo profesional para crear/editar secuencias con configuración
+  general, parada al responder, límite diario, ventana de envío y zona horaria.
+- **Pasos:** editor reordenable para email, espera, condición y tarea. Los pasos de email
+  soportan canal Gmail 1:1/Resend, plantillas, asunto, preheader, editor rico Tiptap y
+  merge tags; las esperas guardan días/horas; las condiciones guardan tipo/valor; las
+  tareas guardan asunto, notas y retraso.
+- **Datos:** `queries/sequences.ts` carga secuencias owner-aware con pasos e
+  inscripciones agregadas. `actions/sequences.ts` valida con Zod, sanitiza HTML, guarda
+  pasos en transacción, preserva IDs de pasos existentes al editar/reordenar y bloquea
+  eliminar secuencias con inscripciones activas.
+- **Verificado:** DOM de `/sequences` vía login de desarrollo (200, título y acción
+  renderizados, sin placeholder) y script temporal de BD con secuencia + 4 pasos
+  email/espera/condición/tarea, limpiando datos al terminar. `pnpm typecheck`,
+  `pnpm lint` y `pnpm build` en verde.
+- **Siguiente:** 5.3 workflow duradero en Inngest.
 
 ### 2026-06-21 (34) — Fase 5.1: migración de secuencias
 - **Esquema:** nuevo `src/server/db/schema/sequences.ts` con `sequences`,
