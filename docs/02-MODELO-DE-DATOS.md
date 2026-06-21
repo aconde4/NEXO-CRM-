@@ -161,19 +161,27 @@ Pueden ser dinámicos (se recalculan) o estáticos.
 ## 6. Secuencias / Drip (Fase 5)
 
 ### `sequences`
-`name`, `status` (`active`/`paused`/`archived`), `channel`
-(`gmail_1to1`/`resend`), `settings` (límite diario, ventana de envío,
-parar al responder bool).
+Tabla creada en la migración `0008_flowery_peter_parker`. Campos principales:
+`owner_id`, `name`, `description`, `status` (`draft`/`active`/`paused`/`archived`),
+`channel` (`gmail_1to1`/`resend`), `stop_on_reply`, `daily_limit`, `window_start`,
+`window_end`, `time_zone`, `settings` (JSONB para opciones avanzadas).
 
 ### `sequence_steps`
-`sequence_id`, `order`, `type` (`email`/`wait`/`condition`/`task`),
-`wait_days`/`wait_hours` (para `wait`), `template_id` o cuerpo inline,
-`condition` (JSONB, p.ej. "si abrió"/"si respondió"), variantes A/B.
+Tabla creada en la migración `0008_flowery_peter_parker`. Campos principales:
+`owner_id`, `sequence_id`, `position`, `type` (`email`/`wait`/`condition`/`task`),
+`name`, `channel`, `wait_days`, `wait_hours`, `template_id`, `subject`, `preheader`,
+`body_html`, `body_text`, `condition` (JSONB), `variants` (JSONB para A/B) y
+`settings` (JSONB). Índice único por `sequence_id + position`.
 
 ### `enrollments` (inscripciones)
-`sequence_id`, `person_id`, `current_step`, `status`
-(`active`/`completed`/`stopped`/`bounced`/`replied`), `enrolled_at`,
-`next_run_at`, `inngest_run_id` (para correlacionar con el workflow duradero).
+Tabla creada en la migración `0008_flowery_peter_parker`. Campos principales:
+`owner_id`, `sequence_id`, `person_id`, vínculos opcionales `org_id`/`deal_id`,
+`current_step_id`, `current_step_position`, `status`
+(`active`/`paused`/`completed`/`stopped`/`bounced`/`replied`/`unsubscribed`/`failed`),
+`stop_reason`, `inngest_run_id`, `last_message_id`, `last_event_at`, `last_error`,
+`retry_count`, `enrolled_at`, `next_run_at`, `completed_at`, `stopped_at` y
+`context` (JSONB para variantes, contadores y trazabilidad). Índice único por
+`sequence_id + person_id`.
 
 ---
 

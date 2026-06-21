@@ -8,6 +8,14 @@
 
 ## 📍 Dónde estamos
 
+- **Fase 5 · Secuencias / Drip:** **en curso**.
+  - **5.1** migración `0008_flowery_peter_parker` aplicada con `sequences`,
+    `sequence_steps` y `enrollments`. El esquema está en
+    `src/server/db/schema/sequences.ts` y cubre estados draft/active/paused/archived,
+    canal Gmail 1:1 o Resend, límite diario, ventana horaria, parada al responder,
+    pasos email/espera/condición/tarea con plantilla o cuerpo inline, variantes A/B,
+    inscripción por contacto con paso actual, `next_run_at`, `inngest_run_id`, último
+    mensaje, errores/reintentos y estados de parada por respuesta, rebote, baja o fallo.
 - **Fase 4 · Campañas masivas (Resend):** **implementación completa (4.2–4.10 hechas; 4.1 queda como acción externa del usuario).**
   - **4.10** consentimiento/origen y pie RGPD: el editor de campañas guarda
     `settings.compliance` con nombre legal, dirección postal, email de contacto,
@@ -154,21 +162,21 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 4 técnica completa** (4.2–4.10 hechas). Lo único pendiente de Fase 4 es externo:
-1. **4.1** (acción del usuario): crear cuenta en Resend y verificar el
-   dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
-   - Crear cuenta en https://resend.com y un **API key** → ponerlo en `.env.local` como
-     `RESEND_API_KEY`.
-   - **Domains → Add Domain** con el dominio de envío (p. ej. `mg.tudominio.com` o el
-     dominio raíz). Resend da varios registros DNS:
-     - **SPF/MX** (un `MX` para el subdominio de bounce + un `TXT` `v=spf1 include:...`).
-     - **DKIM** (registro `TXT`/`CNAME` con la clave pública).
-     - **DMARC** (opcional pero recomendado): `TXT` en `_dmarc.tudominio.com` con
-       `v=DMARC1; p=none; rua=mailto:tu@correo`.
-   - Añadir esos registros en el DNS del dominio y pulsar **Verify** en Resend hasta que
-     quede "Verified". Definir también `CAMPAIGN_FROM_EMAIL` (un `from` de ese dominio).
-2. **Siguiente tarea de desarrollo:** **5.1** Migración de secuencias
-   (`sequences`, `sequence_steps`, `enrollments`) cuando quieras empezar Fase 5.
+**Siguiente tarea de desarrollo:** **5.2** Constructor de secuencias: pasos
+email/espera/condición/tarea, orden, días de espera y canal (Gmail 1:1 o Resend).
+
+**Pendiente externo de Fase 4:** **4.1** (acción del usuario): crear cuenta en Resend y
+verificar el dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
+- Crear cuenta en https://resend.com y un **API key** → ponerlo en `.env.local` como
+  `RESEND_API_KEY`.
+- **Domains → Add Domain** con el dominio de envío (p. ej. `mg.tudominio.com` o el
+  dominio raíz). Resend da varios registros DNS:
+  - **SPF/MX** (un `MX` para el subdominio de bounce + un `TXT` `v=spf1 include:...`).
+  - **DKIM** (registro `TXT`/`CNAME` con la clave pública).
+  - **DMARC** (opcional pero recomendado): `TXT` en `_dmarc.tudominio.com` con
+    `v=DMARC1; p=none; rua=mailto:tu@correo`.
+- Añadir esos registros en el DNS del dominio y pulsar **Verify** en Resend hasta que
+  quede "Verified". Definir también `CAMPAIGN_FROM_EMAIL` (un `from` de ese dominio).
 
 > Reutiliza lo ya hecho: el **motor de merge tags** (`lib/email/merge-tags.ts`) y el
 > **modelo de email** de la Fase 3. La supresión (`suppressions`) debe comprobarse
@@ -181,10 +189,11 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 4.10 (consentimiento/origen y pie RGPD con datos
-> del remitente). Antes: 4.9 (panel de resultados), 4.8 (webhooks de Resend), 4.7
-> (baja pública firmada), 4.6 (programación/envío real por lotes vía Inngest), 4.5
-> (editor), 4.2 (migración), 4.3 (Resend) y 4.4 (segmentos).
+> **Hecho en la última sesión:** Fase 5.1 (migración de secuencias, pasos e
+> inscripciones). Antes: 4.10 (consentimiento/origen y pie RGPD con datos del
+> remitente), 4.9 (panel de resultados), 4.8 (webhooks de Resend), 4.7 (baja pública
+> firmada), 4.6 (programación/envío real por lotes vía Inngest), 4.5 (editor),
+> 4.2 (migración), 4.3 (Resend) y 4.4 (segmentos).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -225,6 +234,22 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-21 (34) — Fase 5.1: migración de secuencias
+- **Esquema:** nuevo `src/server/db/schema/sequences.ts` con `sequences`,
+  `sequence_steps` y `enrollments`, exportado desde el punto único de esquema.
+- **Secuencias:** estado `draft`/`active`/`paused`/`archived`, canal Gmail 1:1 o Resend,
+  parada al responder, límite diario, ventana horaria, zona horaria y `settings` JSONB.
+- **Pasos:** orden por `position`, tipos email/espera/condición/tarea, espera en días y
+  horas, plantilla o cuerpo inline, `condition` JSONB, variantes A/B y settings por paso.
+- **Inscripciones:** contacto inscrito con vínculos opcionales a empresa/negocio, paso
+  actual, `next_run_at`, `inngest_run_id`, último mensaje, errores/reintentos y estados
+  para completado, pausado, respondido, rebotado, baja o fallo.
+- **Migración:** `drizzle/0008_flowery_peter_parker.sql` generada y aplicada con
+  `pnpm db:generate` + `pnpm db:migrate`.
+- **Docs:** roadmap marcado en 5.1 y modelo de datos actualizado. Siguiente tarea: 5.2
+  constructor de secuencias.
+- **Verificado:** `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-21 (33) — Fase 4.10: consentimiento/origen y pie RGPD
 - **Modelo sin migración:** cada campaña guarda `settings.compliance` con nombre legal,

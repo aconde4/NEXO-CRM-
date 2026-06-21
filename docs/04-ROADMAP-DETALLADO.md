@@ -255,7 +255,7 @@ métricas.
 parada automática al responder. El diferenciador frente a Pipedrive Campaigns.
 
 ### Tareas
-- [ ] **5.1** Migración: `sequences`, `sequence_steps`, `enrollments`.
+- [x] **5.1** Migración: `sequences`, `sequence_steps`, `enrollments`.
 - [ ] **5.2** Constructor de secuencias: pasos email/espera/condición/tarea, orden,
       días de espera, canal (Gmail 1:1 o Resend).
 - [ ] **5.3** Workflow duradero en Inngest: ejecutar pasos con `step.sleep` (esperas
