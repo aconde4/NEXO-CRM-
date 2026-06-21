@@ -9,6 +9,15 @@
 ## 📍 Dónde estamos
 
 - **Fase 5 · Secuencias / Drip:** **en curso**.
+  - **5.3** workflow duradero en Inngest: nueva función `run-sequence` registrada en
+    `/api/inngest`, disparada por `sequence/run.requested`. Ejecuta pasos en orden con
+    `step.run`, esperas con `step.sleep`, condiciones con `waitForEvent` y consulta
+    previa de `email_events` para no perder señales que lleguen durante una espera.
+    El runner carga inscripciones owner-aware, personaliza emails con merge tags,
+    envía por Gmail 1:1 o Resend según el paso, crea tareas con su retraso configurado,
+    avanza/completa inscripciones y marca fallos no reintentables. Aperturas/clics de
+    Gmail, respuestas detectadas por sync y webhooks de Resend con `tags.type=sequence`
+    emiten `sequence/signal.received` y guardan metadata de secuencia en `email_events`.
   - **5.2** constructor de secuencias: `/sequences` deja de ser placeholder y muestra
     un listado real con estado, canal, límites, ventana horaria, métricas de
     inscripciones y preview de pasos. El editor crea/actualiza secuencias con pasos
@@ -169,8 +178,8 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **5.3** Workflow duradero en Inngest: ejecutar pasos
-con `step.sleep` (esperas de días) y `waitForEvent` (esperar respuesta/apertura).
+**Siguiente tarea de desarrollo:** **5.4** Inscripción manual (desde un contacto o un
+filtro/segmento).
 
 **Pendiente externo de Fase 4:** **4.1** (acción del usuario): crear cuenta en Resend y
 verificar el dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
@@ -196,11 +205,12 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 5.2 (constructor de secuencias). Antes: 5.1
-> (migración de secuencias, pasos e inscripciones), 4.10 (consentimiento/origen y pie
-> RGPD con datos del remitente), 4.9 (panel de resultados), 4.8 (webhooks de Resend),
-> 4.7 (baja pública firmada), 4.6 (programación/envío real por lotes vía Inngest),
-> 4.5 (editor), 4.2 (migración), 4.3 (Resend) y 4.4 (segmentos).
+> **Hecho en la última sesión:** Fase 5.3 (workflow duradero de secuencias). Antes:
+> 5.2 (constructor de secuencias), 5.1 (migración de secuencias, pasos e
+> inscripciones), 4.10 (consentimiento/origen y pie RGPD con datos del remitente),
+> 4.9 (panel de resultados), 4.8 (webhooks de Resend), 4.7 (baja pública firmada),
+> 4.6 (programación/envío real por lotes vía Inngest), 4.5 (editor), 4.2 (migración),
+> 4.3 (Resend) y 4.4 (segmentos).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -241,6 +251,26 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-21 (36) — Fase 5.3: workflow duradero de secuencias
+- **Inngest:** nueva función `run-sequence`, registrada junto al resto de funciones,
+  para ejecutar inscripciones por evento `sequence/run.requested`. Cada paso crítico
+  va en `step.run`; las esperas usan `step.sleep`; las condiciones esperan
+  `sequence/signal.received` con `waitForEvent`.
+- **Runner:** `sequence-runner.ts` carga la inscripción activa, valida secuencia/contacto,
+  respeta supresión y `marketing_status`, personaliza con merge tags, envía emails por
+  Gmail 1:1 o Resend, crea tareas con retraso, avanza/completa inscripciones y marca
+  errores no reintentables sin duplicar envíos dentro del workflow.
+- **Señales:** aperturas/clics Gmail, respuestas detectadas por Gmail Sync y webhooks de
+  Resend con `tags.type=sequence` guardan metadata de secuencia en `email_events` y
+  emiten señales `open`/`click`/`reply`/`bounce`/`unsubscribe` para las condiciones.
+- **Robustez:** antes de esperar una condición se consulta `email_events`, evitando
+  perder eventos que llegasen durante una espera previa. Las emisiones desde tracking y
+  sync son best-effort para no romper pixel, redirect ni sincronización.
+- **Verificado:** script temporal `tsx` con alias CLI de `server-only` validó helpers,
+  carga real de una secuencia temporal con 3 pasos, inscripción activa y detección de
+  señal persistida. `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
+- **Siguiente:** 5.4 inscripción manual desde contacto o filtro/segmento.
 
 ### 2026-06-21 (35) — Fase 5.2: constructor de secuencias
 - **UI real:** `/sequences` sustituye el placeholder por listado de secuencias, tarjetas

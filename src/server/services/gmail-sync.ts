@@ -25,6 +25,11 @@ import {
   markMailboxNeedsReauth,
   normalizeEmail,
 } from "@/server/services/gmail-auth";
+import {
+  emitSequenceSignalSafely,
+  sequenceSignalFromMessageMetadata,
+  type SequenceSignalPayload,
+} from "@/server/services/sequence-runner";
 
 const GMAIL_API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
 const DEFAULT_FULL_SYNC_LIMIT = 50;
@@ -138,6 +143,7 @@ type PersistResult = {
   inserted: boolean;
   linkedContact: boolean;
   replies: number;
+  sequenceSignals: SequenceSignalPayload[];
 };
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -542,10 +548,11 @@ async function markRepliesForInbound(
     referencesHeader: string | null;
     threadId: string;
   },
-): Promise<number> {
+): Promise<{ count: number; sequenceSignals: SequenceSignalPayload[] }> {
   const outbound = await tx
     .select({
       id: emailMessages.id,
+      metadata: emailMessages.metadata,
       repliedAt: emailMessages.repliedAt,
       rfcMessageId: emailMessages.rfcMessageId,
       sentAt: emailMessages.sentAt,
@@ -558,7 +565,7 @@ async function markRepliesForInbound(
         eq(emailMessages.direction, "outbound"),
       ),
     );
-  if (outbound.length === 0) return 0;
+  if (outbound.length === 0) return { count: 0, sequenceSignals: [] };
 
   const refs = collectReferenceIds(params.inReplyTo, params.referencesHeader);
   let matched = outbound.filter(
@@ -583,12 +590,24 @@ async function markRepliesForInbound(
   }
 
   let count = 0;
+  const sequenceSignals: SequenceSignalPayload[] = [];
   for (const message of matched) {
     if (message.repliedAt) continue;
     await tx
       .update(emailMessages)
       .set({ repliedAt: params.receivedAt })
       .where(eq(emailMessages.id, message.id));
+
+    const providerEventId = `gmail:reply:${message.id}:${params.inboundProviderMessageId}`;
+    const signal = sequenceSignalFromMessageMetadata({
+      messageId: message.id,
+      metadata: message.metadata,
+      occurredAt: params.receivedAt,
+      ownerId: params.ownerId,
+      providerEventId,
+      recipientEmail: params.fromEmail,
+      type: "reply",
+    });
 
     await tx
       .insert(emailEvents)
@@ -598,16 +617,27 @@ async function markRepliesForInbound(
         meta: {
           inboundMessageId: params.inboundMessageId,
           inboundProviderMessageId: params.inboundProviderMessageId,
+          ...(signal
+            ? {
+                sequence: {
+                  enrollmentId: signal.enrollmentId,
+                  sequenceId: signal.sequenceId,
+                  stepId: signal.stepId,
+                },
+              }
+            : {}),
           threadId: params.threadId,
         },
         occurredAt: params.receivedAt,
         ownerId: params.ownerId,
         provider: "gmail",
-        providerEventId: `gmail:reply:${message.id}:${params.inboundProviderMessageId}`,
+        providerEventId,
         recipientEmail: params.fromEmail,
         type: "reply",
       })
       .onConflictDoNothing();
+
+    if (signal) sequenceSignals.push(signal);
     count += 1;
   }
 
@@ -621,7 +651,7 @@ async function markRepliesForInbound(
     });
   }
 
-  return count;
+  return { count, sequenceSignals };
 }
 
 async function persistSyncedMessage({
@@ -770,6 +800,7 @@ async function persistSyncedMessage({
     const messageId = inserted?.id ?? existingMessage[0]?.id ?? null;
     const linkedContact = Boolean(contactLink && !thread.personId);
     let repliesCount = 0;
+    let sequenceSignals: SequenceSignalPayload[] = [];
     const receivedAtIso = parsed.receivedAt.toISOString();
     const baseThreadUpdate = {
       lastInboundAt: sql`greatest(coalesce(${emailThreads.lastInboundAt}, ${receivedAtIso}::timestamptz), ${receivedAtIso}::timestamptz)`,
@@ -828,7 +859,7 @@ async function persistSyncedMessage({
         verb: "email_received",
       });
 
-      repliesCount = await markRepliesForInbound(tx, {
+      const replyResult = await markRepliesForInbound(tx, {
         fromEmail: parsed.fromEmail,
         inReplyTo: parsed.inReplyTo,
         inboundMessageId: messageId,
@@ -839,6 +870,8 @@ async function persistSyncedMessage({
         referencesHeader: parsed.referencesHeader,
         threadId: thread.id,
       });
+      repliesCount = replyResult.count;
+      sequenceSignals = replyResult.sequenceSignals;
     } else {
       await tx
         .update(emailThreads)
@@ -866,6 +899,7 @@ async function persistSyncedMessage({
       inserted: Boolean(inserted),
       linkedContact,
       replies: repliesCount,
+      sequenceSignals,
     };
   });
 }
@@ -915,6 +949,11 @@ async function runFullSync(
       else result.updated += 1;
       if (persisted.linkedContact) result.linkedContacts += 1;
       result.replies += persisted.replies;
+      await Promise.all(
+        persisted.sequenceSignals.map((signal) =>
+          emitSequenceSignalSafely(signal),
+        ),
+      );
     } catch (error) {
       if (error instanceof GmailApiHttpError && error.status === 404) {
         result.skipped += 1;
@@ -966,6 +1005,11 @@ async function runPartialSync(
       else result.updated += 1;
       if (persisted.linkedContact) result.linkedContacts += 1;
       result.replies += persisted.replies;
+      await Promise.all(
+        persisted.sequenceSignals.map((signal) =>
+          emitSequenceSignalSafely(signal),
+        ),
+      );
     } catch (error) {
       if (error instanceof GmailApiHttpError && error.status === 404) {
         result.skipped += 1;

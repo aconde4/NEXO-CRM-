@@ -7,6 +7,11 @@ import { escapeHtml, textToHtml } from "@/lib/email/merge-tags";
 import { db } from "@/server/db";
 import { emailEvents, emailMessages } from "@/server/db/schema";
 import { sanitizeEmailHtml } from "@/server/services/email-html";
+import {
+  emitSequenceSignalSafely,
+  sequenceSignalFromMessageMetadata,
+  type SequenceSignalPayload,
+} from "@/server/services/sequence-runner";
 
 const LOCAL_APP_URL = "http://localhost:3000";
 
@@ -161,6 +166,7 @@ async function getTrackedMessage(trackingId: string) {
       clickedAt: emailMessages.clickedAt,
       id: emailMessages.id,
       mailboxId: emailMessages.mailboxId,
+      metadata: emailMessages.metadata,
       openedAt: emailMessages.openedAt,
       ownerId: emailMessages.ownerId,
       toRecipients: emailMessages.toRecipients,
@@ -175,6 +181,18 @@ function primaryRecipient(
   recipients: { email: string; name?: string | null }[],
 ): string | null {
   return recipients[0]?.email ?? null;
+}
+
+function sequenceEventMeta(signal: SequenceSignalPayload | null) {
+  return signal
+    ? {
+        sequence: {
+          enrollmentId: signal.enrollmentId,
+          sequenceId: signal.sequenceId,
+          stepId: signal.stepId,
+        },
+      }
+    : {};
 }
 
 export async function recordEmailOpen(
@@ -193,11 +211,21 @@ export async function recordEmailOpen(
     })
     .where(eq(emailMessages.id, message.id));
 
+  const signal = sequenceSignalFromMessageMetadata({
+    messageId: message.id,
+    metadata: message.metadata,
+    occurredAt: now,
+    ownerId: message.ownerId,
+    recipientEmail: primaryRecipient(message.toRecipients),
+    trackingId,
+    type: "open",
+  });
+
   await db.insert(emailEvents).values({
     ipAddress: clientIp(request),
     mailboxId: message.mailboxId,
     messageId: message.id,
-    meta: { source: "pixel" },
+    meta: { source: "pixel", ...sequenceEventMeta(signal) },
     occurredAt: now,
     ownerId: message.ownerId,
     provider: "gmail",
@@ -206,6 +234,8 @@ export async function recordEmailOpen(
     type: "open",
     userAgent: userAgent(request),
   });
+
+  await emitSequenceSignalSafely(signal);
 
   return true;
 }
@@ -227,11 +257,22 @@ export async function recordEmailClick(input: {
     })
     .where(eq(emailMessages.id, message.id));
 
+  const signal = sequenceSignalFromMessageMetadata({
+    messageId: message.id,
+    metadata: message.metadata,
+    occurredAt: now,
+    ownerId: message.ownerId,
+    recipientEmail: primaryRecipient(message.toRecipients),
+    trackingId: input.trackingId,
+    type: "click",
+    url: input.targetUrl,
+  });
+
   await db.insert(emailEvents).values({
     ipAddress: clientIp(input.request),
     mailboxId: message.mailboxId,
     messageId: message.id,
-    meta: { source: "redirect" },
+    meta: { source: "redirect", ...sequenceEventMeta(signal) },
     occurredAt: now,
     ownerId: message.ownerId,
     provider: "gmail",
@@ -241,6 +282,8 @@ export async function recordEmailClick(input: {
     url: input.targetUrl,
     userAgent: userAgent(input.request),
   });
+
+  await emitSequenceSignalSafely(signal);
 
   return true;
 }

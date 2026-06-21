@@ -13,10 +13,16 @@ import {
   type EmailEventType,
   campaignRecipients,
   emailEvents,
+  enrollments,
   persons,
   suppressions,
 } from "@/server/db/schema";
 import { refreshCampaignStats } from "@/server/services/campaign-stats";
+import {
+  emitSequenceSignalSafely,
+  sequenceSignalFromResendTags,
+  type SequenceSignalType,
+} from "@/server/services/sequence-runner";
 
 export type ResendWebhookProcessResult =
   | {
@@ -46,6 +52,12 @@ type RecipientRow = {
   providerMessageId: string | null;
   sentAt: Date | null;
   status: CampaignRecipientStatus;
+};
+
+type SequenceRecipientRow = {
+  enrollmentId: string;
+  ownerId: string;
+  sequenceId: string;
 };
 
 type EventMapping = {
@@ -208,6 +220,39 @@ async function loadRecipient(
   return byMessage ?? null;
 }
 
+async function loadSequenceRecipient(
+  event: ResendWebhookEvent,
+): Promise<SequenceRecipientRow | null> {
+  const tags = event.data.tags;
+  if (tags.type !== "sequence") return null;
+  const { enrollmentId, sequenceId } = tags;
+  if (
+    !enrollmentId ||
+    !sequenceId ||
+    !UUID_RE.test(enrollmentId) ||
+    !UUID_RE.test(sequenceId)
+  ) {
+    return null;
+  }
+
+  const [row] = await db
+    .select({
+      enrollmentId: enrollments.id,
+      ownerId: enrollments.ownerId,
+      sequenceId: enrollments.sequenceId,
+    })
+    .from(enrollments)
+    .where(
+      and(
+        eq(enrollments.id, enrollmentId),
+        eq(enrollments.sequenceId, sequenceId),
+      ),
+    )
+    .limit(1);
+
+  return row ?? null;
+}
+
 function nextStatus(
   current: CampaignRecipientStatus,
   incoming: CampaignRecipientStatus | undefined,
@@ -237,15 +282,44 @@ function recipientPatch(
 }
 
 function eventMeta(event: ResendWebhookEvent, svixId: string) {
+  const sequence =
+    event.data.tags.type === "sequence"
+      ? {
+          enrollmentId: event.data.tags.enrollmentId ?? null,
+          sequenceId: event.data.tags.sequenceId ?? null,
+          stepId: event.data.tags.stepId ?? null,
+        }
+      : undefined;
+
   return {
     bounce: event.data.bounce ?? null,
     campaignId: event.data.tags.campaignId ?? null,
     emailId: event.data.email_id,
     rawType: event.type,
     recipientId: event.data.tags.recipientId ?? null,
+    ...(sequence ? { sequence } : {}),
     svixId,
     tags: event.data.tags,
   };
+}
+
+function sequenceSignalTypeForEvent(
+  eventType: EmailEventType,
+): SequenceSignalType | null {
+  switch (eventType) {
+    case "bounce":
+    case "complaint":
+    case "suppressed":
+      return "bounce";
+    case "click":
+      return "click";
+    case "open":
+      return "open";
+    case "unsubscribe":
+      return "unsubscribe";
+    default:
+      return null;
+  }
 }
 
 function suppressionNote(
@@ -292,6 +366,59 @@ export async function processResendWebhookEvent(input: {
       eventType: input.event.type,
       ok: true,
       status: "duplicate",
+    };
+  }
+
+  const sequenceRecipient = await loadSequenceRecipient(input.event);
+  if (sequenceRecipient) {
+    const occurredAt = eventOccurredAt(input.event);
+    const mapping = mapEvent(input.event.type);
+    const [eventRow] = await db
+      .insert(emailEvents)
+      .values({
+        ipAddress: input.event.data.click?.ipAddress ?? null,
+        meta: eventMeta(input.event, input.svixId),
+        occurredAt,
+        ownerId: sequenceRecipient.ownerId,
+        provider: "resend",
+        providerEventId,
+        recipientEmail: primaryRecipient(input.event),
+        type: mapping.eventType,
+        url: input.event.data.click?.link ?? null,
+        userAgent: input.event.data.click?.userAgent?.slice(0, 1000) ?? null,
+      })
+      .onConflictDoNothing()
+      .returning({ id: emailEvents.id });
+
+    if (!eventRow) {
+      return {
+        eventId: providerEventId,
+        eventType: input.event.type,
+        ok: true,
+        status: "duplicate",
+      };
+    }
+
+    const signalType = sequenceSignalTypeForEvent(mapping.eventType);
+    if (signalType) {
+      await emitSequenceSignalSafely(
+        sequenceSignalFromResendTags({
+          occurredAt,
+          ownerId: sequenceRecipient.ownerId,
+          providerEventId,
+          recipientEmail: primaryRecipient(input.event),
+          tags: input.event.data.tags,
+          type: signalType,
+          url: input.event.data.click?.link ?? null,
+        }),
+      );
+    }
+
+    return {
+      eventId: providerEventId,
+      eventType: input.event.type,
+      ok: true,
+      status: "processed",
     };
   }
 

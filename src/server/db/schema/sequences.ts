@@ -41,7 +41,7 @@ export type SequenceSettings = {
 };
 
 export type SequenceStepCondition = {
-  kind?: "opened" | "clicked" | "replied" | "field" | "segment";
+  kind?: "opened" | "clicked" | "replied" | "not_replied" | "field" | "segment";
   operator?: string;
   value?: unknown;
   [key: string]: unknown;
@@ -93,10 +93,7 @@ export const sequences = pgTable(
     windowStart: text("window_start").default("09:00").notNull(),
     windowEnd: text("window_end").default("18:00").notNull(),
     timeZone: text("time_zone").default("Europe/Madrid").notNull(),
-    settings: jsonb("settings")
-      .$type<SequenceSettings>()
-      .default({})
-      .notNull(),
+    settings: jsonb("settings").$type<SequenceSettings>().default({}).notNull(),
     ...timestamps,
   },
   (t) => [
