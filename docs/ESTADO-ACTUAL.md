@@ -8,7 +8,15 @@
 
 ## 📍 Dónde estamos
 
-- **Fase 5 · Secuencias / Drip:** **en curso**.
+- **Fase 5 · Secuencias / Drip:** **completa (5.1–5.8).**
+  - **5.8** panel de la secuencia: página `/sequences/[id]` con métricas (inscritos,
+    activos, completados, respondieron, pausados, emails enviados, aperturas, clics,
+    bajas, rebotes), **tasas** sobre los emails enviados (apertura/clic/respuesta/
+    rebote/baja), **desglose A/B por variante** (enviados/aperturas/clics por variante,
+    con tasas) en los pasos con prueba A/B, y tabla de **inscritos** (estado, paso
+    actual, fechas, motivo de parada). Query `getSequencePanel`/`getSequencePanelForOwner`
+    (métricas desde `email_events.meta.sequence`, opens/clics únicos por
+    enrollment+step). Enlace "Ver panel" y título enlazable en cada tarjeta.
   - **5.7** variantes A/B por paso de email: el paso base es la "Variante A" (peso 1) y
     `sequence_steps.variants` guarda alternativas B/C/D con peso, asunto y cuerpo (HTML
     saneado igual que el base). El constructor (`EmailStepFields` → `EmailVariantsEditor`)
@@ -213,10 +221,12 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **5.8** Panel de la secuencia: inscritos, paso
-actual, tasas de apertura/respuesta y bajas (los datos están en `enrollments`,
-`email_events` con `meta.sequence` y `enrollments.context.variantAssignments` para
-desglose por variante A/B; falta la página de detalle de secuencia con esas métricas).
+**Siguiente fase:** **FASE 6 · Motor de automatizaciones.** Empieza por la **6.1**
+(migración: `automations`, `automation_runs`). Después: 6.2 canvas visual de nodos,
+6.3 disparadores, 6.4 sistema de eventos interno (las mutaciones emiten eventos a
+Inngest), 6.5 acciones, 6.6 condiciones/esperas, 6.7 registro de ejecuciones, 6.8
+activar/pausar + dry-run. Reutiliza Inngest (ya hay workflows de campañas y secuencias)
+y el patrón de eventos `*/signal.received`.
 
 **Pendiente externo de Fase 4:** **4.1** (acción del usuario): crear cuenta en Resend y
 verificar el dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
@@ -242,9 +252,9 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 5.7 (variantes A/B por paso de email), 5.6
-> (límite diario + ventana en secuencias) y 5.5 (parada automática al
-> responder/rebote/baja), más el commit de la 5.4 (inscripción manual). Antes: 5.3
+> **Hecho en la última sesión:** **Fase 5 cerrada** — 5.8 (panel de la secuencia), 5.7
+> (variantes A/B), 5.6 (límite diario + ventana) y 5.5 (parada automática), más el
+> commit de la 5.4 (inscripción manual). Antes: 5.3
 > (workflow duradero de secuencias), 5.2 (constructor de secuencias), 5.1 (migración de
 > secuencias, pasos e inscripciones), 4.10 (consentimiento/origen y pie RGPD con datos
 > del remitente), 4.9 (panel de resultados), 4.8 (webhooks de Resend), 4.7 (baja pública
@@ -290,6 +300,23 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-21 (41) — Fase 5.8: panel de la secuencia (cierra la Fase 5)
+- **Query** `getSequencePanel`/`getSequencePanelForOwner`: resumen de inscripciones por
+  estado (incl. `paused`), métricas de email desde `email_events.meta.sequence`
+  (enviados, aperturas/clics **únicos por enrollment+step**, respuestas únicas por
+  enrollment, rebotes, bajas), desglose por variante A/B (sent/open/click por
+  `variantId`, base = `stepId`) y lista de inscritos (persona, estado, paso actual,
+  fechas, motivo de parada) con límite y conteo total.
+- **UI** `/sequences/[id]`: cabecera con estado/canal/ventana, mosaico de métricas,
+  tarjeta de **tasas** (sobre emails enviados), tarjeta de **Variantes A/B** por paso
+  con tabla por variante y % de apertura/clic, y tabla de **Inscritos** enlazada a las
+  fichas. Acceso desde la tarjeta de secuencia ("Ver panel" + título enlazable).
+- **Verificado** con script `tsx` temporal (borrado): con 2 inscritos (1 activo, 1
+  respondió) y eventos sembrados, el panel devuelve summary (total 2/activo 1/replied
+  1), métricas (sent 2, opened 2, clicked 1, replied 1) y desglose A/B correcto
+  (base 1/1/0, variante B 1/1/1). Confirmado que no quedan datos de prueba.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde. **Fase 5 completa.**
 
 ### 2026-06-21 (40) — Fase 5.7: variantes A/B por paso de email
 - **Modelo:** el paso de email es la "Variante A" (peso 1 implícito);

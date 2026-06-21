@@ -3,10 +3,12 @@
 import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowDown,
   ArrowUp,
+  BarChart3,
   CheckSquare,
   Clock3,
   GitBranch,
@@ -523,7 +525,14 @@ function SequenceCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="truncate text-base">{sequence.name}</CardTitle>
+        <CardTitle className="truncate text-base">
+          <Link
+            href={`/sequences/${sequence.id}`}
+            className="hover:underline"
+          >
+            {sequence.name}
+          </Link>
+        </CardTitle>
         <CardDescription className="line-clamp-2">
           {sequence.description || "Sin descripción"}
         </CardDescription>
@@ -537,6 +546,10 @@ function SequenceCard({
               <MoreHorizontal className="size-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem render={<Link href={`/sequences/${sequence.id}`} />}>
+                <BarChart3 />
+                Ver panel
+              </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={
                   sequence.status !== "active" || sequence.steps.length === 0
