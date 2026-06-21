@@ -239,7 +239,7 @@ métricas.
       `List-Unsubscribe` + comprobación de `suppressions` antes de enviar.
 - [x] **4.8** Webhooks de Resend: entregas, aperturas, clics, rebotes, quejas →
       `email_events` y actualización de `marketing_status`.
-- [ ] **4.9** Panel de resultados de campaña (enviados/abiertos/clics/rebotes/bajas).
+- [x] **4.9** Panel de resultados de campaña (enviados/abiertos/clics/rebotes/bajas).
 - [ ] **4.10** Consentimiento/origen y pie RGPD con datos del remitente.
 
 ### Criterios de aceptación

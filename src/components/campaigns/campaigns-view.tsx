@@ -3,10 +3,12 @@
 import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowDown,
   ArrowUp,
+  BarChart3,
   CalendarClock,
   Clock,
   Eye,
@@ -436,6 +438,14 @@ function CampaignCard({
           <CampaignMetric label="Fallidos" value={campaign.stats.failed} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            render={<Link href={`/campaigns/${campaign.id}`} />}
+          >
+            <BarChart3 />
+            Resultados
+          </Button>
           <Button
             type="button"
             size="sm"
