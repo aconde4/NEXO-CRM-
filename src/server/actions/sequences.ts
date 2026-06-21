@@ -15,6 +15,7 @@ import {
 } from "@/lib/validations/sequence";
 import { db } from "@/server/db";
 import {
+  type SequenceStepVariant,
   enrollments,
   persons,
   segments,
@@ -96,6 +97,21 @@ function bodyHtmlFromStep(
   return sanitizeEmailHtml(html || textToHtml(step.bodyText));
 }
 
+/** Variantes A/B del paso de email, con el HTML saneado igual que el cuerpo base. */
+function variantsForStep(
+  step: Extract<SequenceBuilderStepValues, { type: "email" }>,
+): SequenceStepVariant[] {
+  return step.variants.map((variant) => ({
+    bodyHtml: sanitizeEmailHtml(variant.bodyHtml.trim() || textToHtml(variant.bodyText)),
+    bodyText: variant.bodyText,
+    id: variant.id,
+    name: clean(variant.name) ?? undefined,
+    subject: variant.subject,
+    templateId: null,
+    weight: variant.weight,
+  }));
+}
+
 function waitStepName(
   step: Extract<SequenceBuilderStepValues, { type: "wait" }>,
 ) {
@@ -132,7 +148,7 @@ function valuesForStep(
       preheader: clean(step.preheader),
       subject: step.subject,
       templateId: step.templateId,
-      variants: [],
+      variants: variantsForStep(step),
       waitDays: 0,
       waitHours: 0,
     };

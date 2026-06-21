@@ -33,6 +33,7 @@ import {
   type SequenceEnrollmentStatus,
   type SequenceStepCondition,
   type SequenceStepType,
+  type SequenceStepVariant,
 } from "@/server/db/schema";
 import { inngest } from "@/server/inngest/client";
 import { listAllCustomFieldDefsForOwner } from "@/server/queries/custom-fields";
@@ -92,6 +93,7 @@ type SequenceMetadata = {
   enrollmentId: string;
   sequenceId: string;
   stepId: string;
+  variantId?: string;
 };
 
 type RunPerson = {
@@ -127,6 +129,7 @@ type RunStep = {
   subject: string | null;
   templateId: string | null;
   type: SequenceStepType;
+  variants: SequenceStepVariant[];
   waitDays: number;
   waitHours: number;
 };
@@ -153,6 +156,7 @@ export type SequenceRunState =
       };
       state: "ready";
       steps: RunStep[];
+      variantAssignments: Record<string, string>;
     };
 
 function clean(value: string | null | undefined): string | null {
@@ -425,6 +429,7 @@ export async function loadSequenceRun(
     .select({
       currentStepPosition: enrollments.currentStepPosition,
       dealId: deals.id,
+      enrollmentContext: enrollments.context,
       enrollmentId: enrollments.id,
       enrollmentStatus: enrollments.status,
       orgCustomFields: organizations.customFields,
@@ -512,6 +517,7 @@ export async function loadSequenceRun(
       subject: sequenceSteps.subject,
       templateId: sequenceSteps.templateId,
       type: sequenceSteps.type,
+      variants: sequenceSteps.variants,
       waitDays: sequenceSteps.waitDays,
       waitHours: sequenceSteps.waitHours,
     })
@@ -570,6 +576,7 @@ export async function loadSequenceRun(
     },
     state: "ready",
     steps,
+    variantAssignments: row.enrollmentContext?.variantAssignments ?? {},
   };
 }
 
@@ -675,20 +682,106 @@ async function tagGmailMessage(input: {
     );
 }
 
+export type SequenceVariantChoice = {
+  bodyHtml: string;
+  bodyText: string;
+  id: string;
+  subject: string;
+};
+
+/** Selección ponderada entre variantes (peso entero ≥ 1). */
+export function pickWeightedVariant<T extends { weight?: number | null }>(
+  variants: T[],
+  rand: () => number = Math.random,
+): T | null {
+  if (variants.length === 0) return null;
+  const weights = variants.map((v) => Math.max(1, Math.floor(v.weight ?? 1)));
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  let threshold = rand() * total;
+  for (let i = 0; i < variants.length; i += 1) {
+    threshold -= weights[i]!;
+    if (threshold < 0) return variants[i]!;
+  }
+  return variants[variants.length - 1]!;
+}
+
+/**
+ * Resuelve la variante A/B de un paso de email (Fase 5.7). El propio paso es la
+ * "Variante A" (id = step.id, peso 1); `step.variants` son las alternativas. Si la
+ * inscripción ya tenía una asignación válida la reutiliza (estable ante reintentos); si
+ * no, elige una ponderada. Sin variantes, devuelve siempre el contenido base.
+ */
+export function resolveEmailVariant(input: {
+  assignedId?: string | null;
+  rand?: () => number;
+  step: RunStep;
+}): { alreadyAssigned: boolean; choice: SequenceVariantChoice } {
+  const base: SequenceVariantChoice = {
+    bodyHtml: input.step.bodyHtml ?? "",
+    bodyText: input.step.bodyText ?? "",
+    id: input.step.id,
+    subject: input.step.subject ?? "",
+  };
+  const variants = input.step.variants ?? [];
+  if (variants.length === 0) return { alreadyAssigned: true, choice: base };
+
+  const pool = [
+    { choice: base, weight: 1 },
+    ...variants.map((variant) => ({
+      choice: {
+        bodyHtml: clean(variant.bodyHtml ?? null) ?? base.bodyHtml,
+        bodyText: variant.bodyText ?? base.bodyText,
+        id: variant.id,
+        subject: clean(variant.subject ?? null) ?? base.subject,
+      },
+      weight: Math.max(1, Math.floor(variant.weight ?? 1)),
+    })),
+  ];
+
+  if (input.assignedId) {
+    const existing = pool.find((item) => item.choice.id === input.assignedId);
+    if (existing) return { alreadyAssigned: true, choice: existing.choice };
+  }
+
+  const picked = pickWeightedVariant(pool, input.rand) ?? pool[0]!;
+  return { alreadyAssigned: false, choice: picked.choice };
+}
+
+/** Persiste la variante elegida en `enrollments.context.variantAssignments`. */
+async function persistVariantAssignment(input: {
+  assignments: Record<string, string>;
+  enrollmentId: string;
+  stepId: string;
+  variantId: string;
+}) {
+  const variantAssignments = {
+    ...input.assignments,
+    [input.stepId]: input.variantId,
+  };
+  const patch = JSON.stringify({ variantAssignments });
+  await db
+    .update(enrollments)
+    .set({
+      context: sql`${enrollments.context} || ${patch}::jsonb`,
+      updatedAt: new Date(),
+    })
+    .where(eq(enrollments.id, input.enrollmentId));
+}
+
 function mergedBodies(
-  state: Extract<SequenceRunState, { state: "ready" }>,
-  step: RunStep,
+  content: SequenceVariantChoice,
+  fallbackSubject: string,
   ctx: Record<string, string>,
 ) {
   const htmlSource =
-    clean(step.bodyHtml) ??
-    (clean(step.bodyText) ? textToHtml(step.bodyText ?? "") : "");
+    clean(content.bodyHtml) ??
+    (clean(content.bodyText) ? textToHtml(content.bodyText) : "");
   return {
     bodyHtml: htmlSource
       ? renderMergeTags(htmlSource, ctx, { escapeValues: true })
       : "",
-    bodyText: renderMergeTags(step.bodyText ?? "", ctx),
-    subject: renderMergeTags(step.subject ?? state.sequence.name, ctx),
+    bodyText: renderMergeTags(content.bodyText, ctx),
+    subject: renderMergeTags(content.subject || fallbackSubject, ctx),
   };
 }
 
@@ -711,9 +804,27 @@ export async function sendSequenceEmailStep(input: {
     defs.person,
     defs.organization,
   );
-  const body = mergedBodies(state, step, ctx);
+
+  // Variante A/B: elige (o reutiliza) y registra la asignación de la inscripción.
+  const variant = resolveEmailVariant({
+    assignedId: state.variantAssignments[step.id],
+    step,
+  });
+  if (!variant.alreadyAssigned) {
+    await persistVariantAssignment({
+      assignments: state.variantAssignments,
+      enrollmentId: state.enrollmentId,
+      stepId: step.id,
+      variantId: variant.choice.id,
+    });
+  }
+
+  const body = mergedBodies(variant.choice, state.sequence.name, ctx);
   const channel = step.channel ?? state.sequence.channel;
-  const metadata = sequenceStepMetadata(state, step);
+  const metadata: SequenceMetadata = {
+    ...sequenceStepMetadata(state, step),
+    variantId: variant.choice.id,
+  };
 
   if (channel === "gmail_1to1") {
     const message: SendEmailValues = {
@@ -762,6 +873,7 @@ export async function sendSequenceEmailStep(input: {
           { name: "sequenceId", value: state.sequence.id },
           { name: "enrollmentId", value: state.enrollmentId },
           { name: "stepId", value: step.id },
+          { name: "variantId", value: variant.choice.id },
         ],
         text: body.bodyText,
         to: email,

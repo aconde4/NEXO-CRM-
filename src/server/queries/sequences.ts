@@ -12,6 +12,7 @@ import {
   type SequenceStatus,
   type SequenceStepCondition,
   type SequenceStepType,
+  type SequenceStepVariant,
   enrollments,
   persons,
   sequenceSteps,
@@ -33,6 +34,7 @@ export type SequenceStepListItem = {
   bodyHtml: string;
   bodyText: string;
   condition: SequenceStepCondition;
+  variants: SequenceStepVariant[];
   taskSubject: string;
   taskNotes: string;
 };
@@ -173,6 +175,7 @@ export async function listSequences(): Promise<SequenceListItem[]> {
         bodyHtml: sequenceSteps.bodyHtml,
         bodyText: sequenceSteps.bodyText,
         condition: sequenceSteps.condition,
+        variants: sequenceSteps.variants,
         settings: sequenceSteps.settings,
       })
       .from(sequenceSteps)
@@ -213,6 +216,7 @@ export async function listSequences(): Promise<SequenceListItem[]> {
       taskSubject: textSetting(settings, "taskSubject") || (step.name ?? ""),
       templateId: step.templateId,
       type: step.type,
+      variants: step.variants ?? [],
       waitDays: step.waitDays,
       waitHours: step.waitHours,
     };

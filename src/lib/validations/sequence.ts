@@ -46,6 +46,32 @@ export const sequenceConditionKindSchema = z.enum([
   "not_replied",
 ]);
 
+/**
+ * Variante A/B alternativa de un paso de email (Fase 5.7). El propio paso es la
+ * "Variante A" (peso 1 implícito); estas son las alternativas (B, C, D) con su peso.
+ */
+export const sequenceVariantSchema = z
+  .object({
+    id: z.string().trim().min(1).max(80),
+    name: z.string().trim().max(120).default(""),
+    weight: z
+      .number()
+      .int("Debe ser un número entero")
+      .min(1, "Mínimo 1")
+      .max(100, "Máximo 100")
+      .default(1),
+    subject: z.string().trim().min(1, "El asunto es obligatorio").max(500),
+    bodyHtml: z.string().trim().max(500_000).default(""),
+    bodyText: z.string().trim().max(200_000).default(""),
+  })
+  .refine(
+    (data) => Boolean(data.bodyText.trim() || htmlHasContent(data.bodyHtml)),
+    {
+      message: "La variante necesita contenido",
+      path: ["bodyText"],
+    },
+  );
+
 export const sequenceEmailStepSchema = sequenceStepBaseSchema
   .extend({
     type: z.literal("email"),
@@ -55,6 +81,7 @@ export const sequenceEmailStepSchema = sequenceStepBaseSchema
     preheader: z.string().trim().max(180).default(""),
     bodyHtml: z.string().trim().max(500_000).default(""),
     bodyText: z.string().trim().max(200_000).default(""),
+    variants: z.array(sequenceVariantSchema).max(3).default([]),
   })
   .refine(
     (data) => Boolean(data.bodyText.trim() || htmlHasContent(data.bodyHtml)),
@@ -175,6 +202,7 @@ export const sequenceEnrollmentSchema = z
 export type SequenceBuilderValues = z.infer<typeof sequenceBuilderSchema>;
 export type SequenceBuilderStepValues = z.infer<typeof sequenceStepSchema>;
 export type SequenceEmailStepValues = z.infer<typeof sequenceEmailStepSchema>;
+export type SequenceVariantValues = z.infer<typeof sequenceVariantSchema>;
 export type SequenceWaitStepValues = z.infer<typeof sequenceWaitStepSchema>;
 export type SequenceConditionStepValues = z.infer<
   typeof sequenceConditionStepSchema

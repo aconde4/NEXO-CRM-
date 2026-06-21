@@ -25,6 +25,7 @@ import type { MergeTag } from "@/lib/email/merge-tags";
 import {
   type SequenceBuilderStepValues,
   type SequenceBuilderValues,
+  type SequenceVariantValues,
   sequenceBuilderSchema,
 } from "@/lib/validations/sequence";
 import { deleteSequence, saveSequence } from "@/server/actions/sequences";
@@ -195,6 +196,7 @@ function createStep(
       subject: "",
       templateId: null,
       type: "email",
+      variants: [],
     };
   }
   if (type === "wait") {
@@ -238,6 +240,14 @@ function stepFromRow(step: SequenceStepListItem): SequenceBuilderStepValues {
       subject: step.subject,
       templateId: step.templateId,
       type: "email",
+      variants: (step.variants ?? []).map((variant) => ({
+        bodyHtml: variant.bodyHtml ?? "",
+        bodyText: variant.bodyText ?? "",
+        id: variant.id,
+        name: variant.name ?? "",
+        subject: variant.subject ?? "",
+        weight: variant.weight ?? 1,
+      })),
     };
   }
   if (step.type === "wait") {
@@ -348,6 +358,41 @@ function getStepError(
   if (!value || typeof value !== "object") return null;
   const message = (value as { message?: unknown }).message;
   return typeof message === "string" ? message : null;
+}
+
+function getVariantError(
+  errors: unknown,
+  index: number,
+  variantIndex: number,
+  field: string,
+): string | null {
+  if (!Array.isArray(errors)) return null;
+  const step = errors[index];
+  if (!step || typeof step !== "object") return null;
+  const variants = (step as Record<string, unknown>).variants;
+  if (!Array.isArray(variants)) return null;
+  const variant = variants[variantIndex];
+  if (!variant || typeof variant !== "object") return null;
+  const value = (variant as Record<string, unknown>)[field];
+  if (!value || typeof value !== "object") return null;
+  const message = (value as { message?: unknown }).message;
+  return typeof message === "string" ? message : null;
+}
+
+/** Letra de variante: A = base, B/C/D = alternativas (índice 0 → B). */
+function variantLetter(alternativeIndex: number): string {
+  return String.fromCharCode(66 + alternativeIndex);
+}
+
+function createVariant(): SequenceVariantValues {
+  return {
+    bodyHtml: "",
+    bodyText: "",
+    id: createLocalId(),
+    name: "",
+    subject: "",
+    weight: 1,
+  };
 }
 
 export function SequencesView({
@@ -1148,6 +1193,150 @@ function EmailStepFields({
           </p>
         ) : null}
       </div>
+
+      <EmailVariantsEditor
+        step={step}
+        index={index}
+        stepErrors={stepErrors}
+        onChange={onChange}
+      />
+    </div>
+  );
+}
+
+function EmailVariantsEditor({
+  step,
+  index,
+  stepErrors,
+  onChange,
+}: {
+  step: Extract<SequenceBuilderStepValues, { type: "email" }>;
+  index: number;
+  stepErrors: unknown;
+  onChange: (step: SequenceBuilderStepValues) => void;
+}) {
+  const variants = step.variants;
+
+  function update(variantIndex: number, patch: Partial<SequenceVariantValues>) {
+    onChange({
+      ...step,
+      variants: variants.map((variant, i) =>
+        i === variantIndex ? { ...variant, ...patch } : variant,
+      ),
+    });
+  }
+
+  function add() {
+    if (variants.length >= 3) return;
+    onChange({ ...step, variants: [...variants, createVariant()] });
+  }
+
+  function remove(variantIndex: number) {
+    onChange({
+      ...step,
+      variants: variants.filter((_, i) => i !== variantIndex),
+    });
+  }
+
+  return (
+    <div className="grid gap-3 rounded-lg border border-dashed p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-medium">Variantes A/B</p>
+          <p className="text-muted-foreground text-xs">
+            El email de arriba es la <strong>Variante A</strong>. Añade
+            alternativas y se repartirán por peso entre los inscritos.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={add}
+          disabled={variants.length >= 3}
+        >
+          <Plus className="size-4" />
+          Añadir variante
+        </Button>
+      </div>
+
+      {variants.length === 0 ? (
+        <p className="text-muted-foreground text-xs">
+          Sin prueba A/B: se envía siempre la Variante A.
+        </p>
+      ) : (
+        <div className="grid gap-3">
+          {variants.map((variant, i) => (
+            <div key={variant.id} className="grid gap-2 rounded-md border p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium">
+                  Variante {variantLetter(i)}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Label className="text-muted-foreground text-xs">Peso</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={100}
+                    className="h-8 w-20"
+                    value={variant.weight}
+                    onChange={(event) =>
+                      update(i, { weight: Number(event.target.value) })
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Quitar variante"
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => remove(i)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label>
+                  Asunto<span className="text-destructive"> *</span>
+                </Label>
+                <Input
+                  value={variant.subject}
+                  onChange={(event) =>
+                    update(i, { subject: event.target.value })
+                  }
+                  placeholder={'Otro asunto para {{nombre|"ahí"}}'}
+                />
+                {getVariantError(stepErrors, index, i, "subject") ? (
+                  <p className="text-destructive text-xs">
+                    {getVariantError(stepErrors, index, i, "subject")}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label>
+                  Mensaje<span className="text-destructive"> *</span>
+                </Label>
+                <RichEmailEditor
+                  value={variant.bodyHtml}
+                  minHeightClassName="min-h-32"
+                  placeholder={"Cuerpo alternativo de esta variante"}
+                  onChange={(value: RichEmailEditorValue) =>
+                    update(i, { bodyHtml: value.html, bodyText: value.text })
+                  }
+                />
+                {getVariantError(stepErrors, index, i, "bodyText") ? (
+                  <p className="text-destructive text-xs">
+                    {getVariantError(stepErrors, index, i, "bodyText")}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

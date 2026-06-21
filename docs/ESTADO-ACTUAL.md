@@ -9,6 +9,14 @@
 ## 📍 Dónde estamos
 
 - **Fase 5 · Secuencias / Drip:** **en curso**.
+  - **5.7** variantes A/B por paso de email: el paso base es la "Variante A" (peso 1) y
+    `sequence_steps.variants` guarda alternativas B/C/D con peso, asunto y cuerpo (HTML
+    saneado igual que el base). El constructor (`EmailStepFields` → `EmailVariantsEditor`)
+    permite añadir/editar/quitar hasta 3 alternativas con su peso y editor rico. El
+    runner (`resolveEmailVariant`/`pickWeightedVariant`) elige ponderadamente por
+    inscripción, guarda la asignación en `enrollments.context.variantAssignments`
+    (estable ante reintentos) y envía el contenido elegido; `variantId` viaja en la
+    metadata Gmail y en los tags de Resend (base para las métricas por variante de 5.8).
   - **5.6** límite diario y ventana de envío aplicados a las secuencias: módulo
     compartido `src/lib/send-window.ts` (lógica pura de ventana con zona horaria,
     extraída de campañas para reutilizar en ambos). El workflow `run-sequence` consulta
@@ -205,10 +213,10 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **5.7** Variantes A/B por paso de email (el esquema
-ya tiene `sequence_steps.variants` con `id`/`weight`/`subject`/`bodyHtml`/`bodyText`/
-`templateId` y `enrollments.context.variantAssignments`; falta el constructor de
-variantes en la UI y la selección ponderada por inscripción en el runner al enviar).
+**Siguiente tarea de desarrollo:** **5.8** Panel de la secuencia: inscritos, paso
+actual, tasas de apertura/respuesta y bajas (los datos están en `enrollments`,
+`email_events` con `meta.sequence` y `enrollments.context.variantAssignments` para
+desglose por variante A/B; falta la página de detalle de secuencia con esas métricas).
 
 **Pendiente externo de Fase 4:** **4.1** (acción del usuario): crear cuenta en Resend y
 verificar el dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
@@ -234,9 +242,9 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 5.6 (límite diario + ventana en secuencias) y
-> 5.5 (parada automática al responder/rebote/baja), más el commit de la 5.4
-> (inscripción manual desde contacto o segmento). Antes: 5.3
+> **Hecho en la última sesión:** Fase 5.7 (variantes A/B por paso de email), 5.6
+> (límite diario + ventana en secuencias) y 5.5 (parada automática al
+> responder/rebote/baja), más el commit de la 5.4 (inscripción manual). Antes: 5.3
 > (workflow duradero de secuencias), 5.2 (constructor de secuencias), 5.1 (migración de
 > secuencias, pasos e inscripciones), 4.10 (consentimiento/origen y pie RGPD con datos
 > del remitente), 4.9 (panel de resultados), 4.8 (webhooks de Resend), 4.7 (baja pública
@@ -282,6 +290,26 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-21 (40) — Fase 5.7: variantes A/B por paso de email
+- **Modelo:** el paso de email es la "Variante A" (peso 1 implícito);
+  `sequence_steps.variants` guarda las alternativas (B/C/D) con `id`, `weight`,
+  `subject`, `bodyHtml`/`bodyText`. Validación `sequenceVariantSchema` (máx. 3
+  alternativas, cada una con asunto y contenido). HTML de variante saneado igual que el
+  base al guardar.
+- **Constructor:** `EmailVariantsEditor` en el editor de secuencias — añadir/editar/
+  quitar variantes con peso, asunto y editor rico Tiptap; errores por variante.
+- **Runner:** `pickWeightedVariant` (selección ponderada) + `resolveEmailVariant`
+  (reutiliza la asignación previa de la inscripción o elige una nueva). La asignación se
+  guarda en `enrollments.context.variantAssignments` (estable ante reintentos) y el
+  contenido elegido se envía; `variantId` viaja en la metadata Gmail y en los tags de
+  Resend para el desglose por variante (5.8). `loadSequenceRun` ahora carga `variants` y
+  las asignaciones.
+- **Verificado** con script `tsx` temporal (borrado): selección por peso (A:1/B:3 →
+  ~24%/76%), reutilización estable de asignación, asignación obsoleta re-elige, y
+  `loadSequenceRun` devuelve variantes + asignaciones desde la BD. Render de `/sequences`
+  comprobado vía build (la ruta compila y la query carga `variants`).
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-21 (39) — Fase 5.6: límite diario y ventana en secuencias
 - **Módulo compartido** `src/lib/send-window.ts`: lógica pura de ventana de envío con
