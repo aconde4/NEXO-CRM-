@@ -7,7 +7,6 @@ import { buildMergeContext } from "@/lib/email/merge-tags";
 import { campaignEmailBlocksSchema } from "@/lib/validations/campaign";
 import { db } from "@/server/db";
 import {
-  type CampaignRecipientStatus,
   type CampaignStats,
   type CampaignStatus,
   type SegmentDefinition,
@@ -23,7 +22,13 @@ import {
   type SegmentRecipient,
   resolveSegmentRecipientsForOwner,
 } from "@/server/queries/segments";
+import { refreshCampaignStats } from "@/server/services/campaign-stats";
 import { renderCampaignEmail } from "@/server/services/campaign-email";
+import {
+  appendCampaignUnsubscribeFooter,
+  campaignUnsubscribeHeaders,
+  createCampaignUnsubscribeLinks,
+} from "@/server/services/campaign-unsubscribe";
 import {
   RESEND_BATCH_MAX,
   ResendServiceError,
@@ -455,55 +460,6 @@ async function finalizeCampaign(
   return status;
 }
 
-async function refreshCampaignStats(
-  campaignId: string,
-  ownerId: string,
-): Promise<CampaignStats> {
-  const statuses = [
-    "sent",
-    "delivered",
-    "opened",
-    "clicked",
-    "bounced",
-    "complained",
-    "unsubscribed",
-    "suppressed",
-    "failed",
-  ] as const satisfies readonly (keyof CampaignStats &
-    CampaignRecipientStatus)[];
-  const [audience, ...counts] = await Promise.all([
-    db.$count(
-      campaignRecipients,
-      and(
-        eq(campaignRecipients.campaignId, campaignId),
-        eq(campaignRecipients.ownerId, ownerId),
-      ),
-    ),
-    ...statuses.map((status) =>
-      db.$count(
-        campaignRecipients,
-        and(
-          eq(campaignRecipients.campaignId, campaignId),
-          eq(campaignRecipients.ownerId, ownerId),
-          eq(campaignRecipients.status, status),
-        ),
-      ),
-    ),
-  ]);
-
-  const stats: CampaignStats = { audience };
-  statuses.forEach((status, index) => {
-    stats[status] = counts[index] ?? 0;
-  });
-
-  await db
-    .update(campaigns)
-    .set({ stats, updatedAt: new Date() })
-    .where(and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, ownerId)));
-
-  return stats;
-}
-
 function assertLaunchable(campaign: CampaignWithSegment): CampaignEmailBlock[] {
   if (!isResendConfigured()) {
     throw new CampaignDispatchError(
@@ -831,9 +787,20 @@ export async function sendNextCampaignBatch(
         preheader: campaign.preheader,
         subject: campaign.subject,
       });
+      const unsubscribeLinks = createCampaignUnsubscribeLinks({
+        campaignId: campaign.id,
+        email: recipient.email,
+        recipientId: recipient.id,
+      });
+      const body = appendCampaignUnsubscribeFooter({
+        confirmationUrl: unsubscribeLinks.confirmationUrl,
+        html: rendered.html,
+        text: rendered.text,
+      });
       return {
         from,
-        html: rendered.html,
+        headers: campaignUnsubscribeHeaders(unsubscribeLinks),
+        html: body.html,
         replyTo,
         subject: rendered.subject,
         tags: [
@@ -841,7 +808,7 @@ export async function sendNextCampaignBatch(
           { name: "campaignId", value: campaign.id },
           { name: "recipientId", value: recipient.id },
         ],
-        text: rendered.text,
+        text: body.text,
         to: recipient.email,
       };
     }),

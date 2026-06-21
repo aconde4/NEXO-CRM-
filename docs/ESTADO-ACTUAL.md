@@ -8,7 +8,14 @@
 
 ## 📍 Dónde estamos
 
-- **Fase 4 · Campañas masivas (Resend):** **en curso (4.2 + 4.3 + 4.4 + 4.5 + 4.6 hechas).**
+- **Fase 4 · Campañas masivas (Resend):** **en curso (4.2 + 4.3 + 4.4 + 4.5 + 4.6 + 4.7 hechas).**
+  - **4.7** bajas de campañas: cada email real de campaña añade cabeceras
+    `List-Unsubscribe`/`List-Unsubscribe-Post`, un enlace visible de baja y URLs
+    firmadas por destinatario. `/unsubscribe/[token]` muestra una página pública de
+    confirmación sin login y `/api/campaigns/unsubscribe/[token]` acepta POST one-click.
+    Al confirmar, se actualiza `campaign_recipients` (`unsubscribed_at`), se crea/actualiza
+    `suppressions`, se marca el contacto como `marketing_status=unsubscribed`, se registra
+    `email_events.unsubscribe` y se refrescan métricas. `proxy.ts` deja públicas esas rutas.
   - **4.6** programación y envío real por lotes: `scheduleCampaign`,
     `sendCampaignNow` y `cancelScheduledCampaign` encolan `campaign/send.requested`
     con Inngest; `sendCampaign` espera la fecha programada, respeta ventana horaria y
@@ -47,7 +54,7 @@
     remitente por defecto (`CAMPAIGN_FROM_EMAIL`/`NAME`), errores tipados
     (`ResendServiceError`) y degradación elegante sin `RESEND_API_KEY`. **No** consulta
     la BD: el filtrado RGPD (`suppressions`) se aplica en la orquestación 4.6 antes
-    de llamar al servicio; 4.7 añade la baja pública y cabeceras `List-Unsubscribe`.
+    de llamar al servicio; 4.7 añade baja pública firmada y cabeceras `List-Unsubscribe`.
   - **Pendiente del usuario:** 4.1 (cuenta Resend + verificar dominio SPF/DKIM/DMARC) —
     ver "Siguiente paso" y `SETUP.md` §6.
 - **Fase 0 · Fundaciones:** completa (queda solo el despliegue opcional). Login con
@@ -127,12 +134,12 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Fase 4 en curso** (4.2 + 4.3 + 4.4 + 4.5 + 4.6 hechas). Continúa por la siguiente tarea sin
+**Fase 4 en curso** (4.2 + 4.3 + 4.4 + 4.5 + 4.6 + 4.7 hechas). Continúa por la siguiente tarea sin
 marcar en [`04-ROADMAP-DETALLADO.md`](04-ROADMAP-DETALLADO.md):
-1. **4.7** Gestión de bajas: página pública de unsubscribe + cabecera
-   `List-Unsubscribe` + comprobación de `suppressions` antes de enviar. La comprobación
-   previa ya existe en 4.6; falta el enlace público firmado, escritura en
-   `suppressions`/`marketing_status` y cabeceras en cada email de campaña.
+1. **4.8** Webhooks de Resend: entregas, aperturas, clics, rebotes, quejas →
+   `email_events`, `campaign_recipients` y actualización de `marketing_status`. Debe
+   validar firma/webhook de Resend, ser idempotente por `provider_event_id`, actualizar
+   métricas de campaña y añadir rebotes/quejas a `suppressions`.
 2. **4.1** (acción del usuario, en paralelo): crear cuenta en Resend y verificar el
    dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
    - Crear cuenta en https://resend.com y un **API key** → ponerlo en `.env.local` como
@@ -157,11 +164,11 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** Fase 4.6 (programación/envío real por lotes vía
-> Inngest, ventana horaria, supresiones previas y métricas básicas en campañas). Antes:
-> 4.5 (editor de campañas con bloques React Email, preview servidor y envío de prueba),
-> 4.2 (migración de campañas), 4.3 (servicio Resend de transporte) y 4.4 (constructor
-> de segmentos con previsualización de audiencia).
+> **Hecho en la última sesión:** Fase 4.7 (baja pública firmada, cabeceras
+> `List-Unsubscribe`, one-click POST, actualización de `suppressions`/contacto/
+> destinatario/evento). Antes: 4.6 (programación/envío real por lotes vía Inngest,
+> ventana horaria, supresiones previas y métricas básicas en campañas), 4.5 (editor de
+> campañas), 4.2 (migración), 4.3 (Resend) y 4.4 (segmentos).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -202,6 +209,22 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-21 (30) — Fase 4.7: bajas públicas de campañas
+- **Tokens firmados:** `campaign-unsubscribe.ts` genera enlaces duraderos por
+  destinatario con HMAC (`AUTH_SECRET`) y verifica payload campaña/destinatario/email.
+- **Cabeceras y pie:** el envío real de campañas añade `List-Unsubscribe`,
+  `List-Unsubscribe-Post: List-Unsubscribe=One-Click` y un enlace visible de baja al
+  HTML/texto de cada email.
+- **Rutas públicas:** `/unsubscribe/[token]` muestra confirmación sin sesión;
+  `/api/campaigns/unsubscribe/[token]` acepta POST para one-click y formulario humano.
+  `proxy.ts` permite ambas rutas sin redirigir a `/login`.
+- **Persistencia:** al confirmar, se marca el destinatario como `unsubscribed`, se
+  rellena `unsubscribed_at`, se crea/actualiza `suppressions`, se marca el contacto como
+  `marketing_status=unsubscribed`, se inserta `email_events.unsubscribe` y se refrescan
+  métricas con `campaign-stats.ts`.
+- **Verificado:** rutas públicas sin cookie no redirigen a login; token inválido muestra
+  página/POST de error controlado. `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-20 (29) — Fase 4.6: programación y envío por lotes
 - **Orquestación Inngest:** nueva función `sendCampaign` para el evento

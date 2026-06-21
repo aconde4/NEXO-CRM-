@@ -13,6 +13,8 @@ const PUBLIC_PREFIXES = [
   "/api/auth",
   "/api/inngest",
   "/api/dev-login",
+  "/api/campaigns/unsubscribe",
+  "/unsubscribe",
 ];
 
 export function proxy(req: NextRequest) {
