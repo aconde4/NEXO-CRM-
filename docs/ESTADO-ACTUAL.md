@@ -297,16 +297,27 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **6.4d** UX de Negocios con muchos funnels +
-filtros en el tablero. Requisitos del usuario (2026-06-23):
-1. **Filtros idénticos en Kanban y Lista**: el mismo set de filtros (6.4b: campaign,
-   empresa, contacto, campos personalizados, operador "comienza por") debe estar
-   disponible en **ambas** vistas de Negocios (`/deals` Kanban y `/deals?view=list`).
-2. **Muchos embudos no deben romper la página**: al añadir varios pipelines, la página
-   de Negocios "corta las vistas". Hacer el **selector de embudo escalable**
-   (combobox/buscador, compacto, responsive) y revisar el layout/scroll para que el
-   tablero no desborde. (Hecho parcial: selector con `max-w-[12rem] truncate`.)
-3. Columnas de etapa "más finas" si conviene para que quepan más sin cortar.
+**Siguiente tarea de desarrollo:** **6.4d (resto): filtros 6.4b en el tablero de
+Negocios (Kanban y Lista).** El layout y el selector ya están resueltos (ver abajo).
+
+Plan de menor riesgo para los filtros (no romper el tablero core):
+1. En `deals/page.tsx`, decodificar el parámetro de filtros con
+   `decodeContactFilterParams` (de `@/lib/contact-filters`, ya usado en `/contacts`).
+2. Resolver los contactos que cumplen con la query existente de contactos
+   (`listPersons({ conditions })` / o un `listPersonIdsMatching(conditions)` nuevo sin
+   límite bajo) → lista de `personId`.
+3. Pasar esos `personId` a `getBoard` y `listDeals` y filtrar
+   `inArray(deals.personId, personIds)` (los deals del embudo son por contacto). Así se
+   reutiliza TODO el motor de 6.4b sin reescribir SQL de filtros para deals.
+4. Renderizar `<ContactFiltersBar>` (de `components/contacts`) en **ambas** vistas de
+   `/deals`, pasándole los `customFieldDefs` y opciones que ya usa en `/contacts`.
+5. Verificar: filtrar por empresa/campaign/"comienza por" filtra las tarjetas en Kanban
+   y las filas en Lista por igual; gates en verde.
+
+**6.4d HECHO:** (a) layout — `min-w-0` en `SidebarInset` y `main` para que el Kanban
+haga scroll horizontal sin cortar la página al haber muchos embudos/etapas; (b) selector
+de embudo acotado (`max-w-[12rem] truncate`).
+
 Tras 6.4d se retoma **6.5** (acciones de automatización).
 
 **(6.4c HECHA — referencia del plan que se siguió, Opción A · reutilizar `deals`):**
@@ -422,6 +433,16 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-23 (52) — 6.4d (layout): muchos embudos ya no cortan la página
+- **Fix de layout:** `min-w-0` en `SidebarInset` y en el `main` de `(app)/layout.tsx`.
+  Era el gotcha clásico de shadcn: el contenedor `overflow-x-auto` del Kanban empujaba
+  el ancho en vez de hacer scroll, cortando la página con muchos embudos/etapas. Ahora
+  el tablero hace scroll horizontal dentro del área disponible.
+- **Pendiente 6.4d:** filtros 6.4b en Kanban **y** Lista (plan de menor riesgo en
+  "Siguiente paso": filtrar deals por `personId` de los contactos que cumplen el filtro,
+  reutilizando el motor de 6.4b; renderizar `ContactFiltersBar` en ambas vistas).
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-23 (51) — 6.4c: ajustes (dedupe global + selector) y requisitos 6.4d
 - **Fix "Cargar contactos":** el dedupe de `addContactToFunnel` ahora mira **cualquier
