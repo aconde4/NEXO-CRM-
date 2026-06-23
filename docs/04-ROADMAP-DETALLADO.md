@@ -280,7 +280,7 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
 
 ### Tareas
 - [x] **6.1** Migración: `automations`, `automation_runs`.
-- [ ] **6.2** Canvas visual de nodos (disparador, condición if/else, espera, acción).
+- [x] **6.2** Canvas visual de nodos (disparador, condición if/else, espera, acción).
 - [ ] **6.3** Disparadores: registro creado/actualizado/borrado, cambio de etapa,
       cambio de campo, email abierto/respondido, formulario enviado, programado.
 - [ ] **6.4** Sistema de eventos interno: las mutaciones emiten eventos a Inngest.

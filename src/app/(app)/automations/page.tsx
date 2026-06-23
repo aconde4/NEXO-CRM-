@@ -1,24 +1,21 @@
-import { Workflow } from "lucide-react";
 import type { Metadata } from "next";
 
-import { ComingSoon } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
+import { AutomationsView } from "@/components/automations/automations-view";
+import { listAutomations } from "@/server/queries/automations";
 
 export const metadata: Metadata = { title: "Automatizaciones" };
 
-export default function AutomationsPage() {
+export default async function AutomationsPage() {
+  const automations = await listAutomations();
+
   return (
-    <ComingSoon
-      icon={Workflow}
-      title="Automatizaciones"
-      description="Constructor visual de flujos: disparadores, condiciones, esperas y acciones."
-      phase="Fase 6"
-      features={[
-        "Canvas visual con ramas if/else",
-        "Disparadores por cambio de etapa, campo o email",
-        "Acciones: enviar email, crear tarea, etiquetar, webhook…",
-        "Esperas reales y reintentos fiables",
-        "Registro de ejecuciones para auditar cada flujo",
-      ]}
-    />
+    <>
+      <PageHeader
+        title="Automatizaciones"
+        description="Flujos: disparador → condiciones → esperas → acciones. Se ejecutan en segundo plano."
+      />
+      <AutomationsView automations={automations} />
+    </>
   );
 }

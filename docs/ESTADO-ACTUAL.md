@@ -8,7 +8,19 @@
 
 ## 📍 Dónde estamos
 
-- **Fase 6 · Motor de automatizaciones:** **en curso.** **6.1** hecha: migración
+- **Fase 6 · Motor de automatizaciones:** **en curso (6.1 + 6.2).**
+  - **6.2** constructor de flujos: catálogo `src/lib/automations.ts` (disparadores,
+    tipos de nodo, acciones con su campo de config, operadores de condición, helpers),
+    validación Zod (`automation.ts`), queries (`listAutomations`, `getAutomation`(+
+    ForOwner), `listAutomationBuilderOptions`) y acciones (crear/editar/borrar,
+    `setAutomationStatus`). UI: `/automations` (lista con estado/disparador/nº pasos,
+    crear→editar, activar/pausar, eliminar) y editor `/automations/[id]`
+    (`AutomationBuilder`): disparador configurable + nodos acción/espera/condición en
+    secuencia, reordenables, con config por nodo (acciones con selects de
+    plantilla/secuencia/etiqueta/etapa). Se guarda en `trigger`/`graph` (cadena lineal de
+    aristas; las ramas if/else reales llegan en 6.6). Activar exige disparador. "Automatizaciones"
+    ya no es "próximamente" en la navegación.
+  - **6.1** hecha: migración
   `0009_lively_sunspot` con `automations` (estado, `trigger_type` denormalizado +
   `trigger` JSONB, `graph` JSONB de nodos/aristas, `version`, `settings`) y
   `automation_runs` (estado running/waiting/completed/failed/cancelled, entidad
@@ -228,12 +240,13 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **6.2** Canvas visual de nodos (disparador →
-condición if/else → espera → acción) sobre el `graph` JSONB ya definido. Después: 6.3
-disparadores, 6.4 sistema de eventos interno (las mutaciones emiten eventos a Inngest),
-6.5 acciones, 6.6 condiciones/esperas, 6.7 registro de ejecuciones, 6.8 activar/pausar +
-dry-run. Reutiliza Inngest (ya hay workflows de campañas y secuencias) y el patrón de
-eventos `*/signal.received`.
+**Siguiente tarea de desarrollo:** **6.3** Disparadores — definir el catálogo real de
+eventos (registro creado/actualizado/borrado, cambio de etapa, cambio de campo, email
+abierto/respondido, formulario enviado, programado) y su configuración fina; sienta la
+base para **6.4** (las mutaciones de la app emiten eventos a Inngest). Después: 6.5
+acciones (ejecución real), 6.6 condiciones if/else + esperas reales, 6.7 registro de
+ejecuciones (`automation_runs`), 6.8 activar/pausar + dry-run. Reutiliza Inngest y el
+patrón de eventos `*/signal.received` de campañas/secuencias.
 
 **Pendiente externo:** 4.1 — API key de Resend **ya pegada** por el usuario; falta
 verificar dominio (no tiene aún) para enviar a terceros; en local se prueba con
@@ -263,10 +276,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** **Fase 6.1** (migración del motor de automatizaciones)
-> y cierre de la **Fase 5** — 5.8 (panel de la secuencia), 5.7 (variantes A/B), 5.6
-> (límite diario + ventana) y 5.5 (parada automática), más el commit de la 5.4
-> (inscripción manual). Antes: 5.3
+> **Hecho en la última sesión:** **Fase 6.2** (constructor de automatizaciones) y
+> **6.1** (migración del motor). Antes: cierre de la **Fase 5** — 5.8 (panel de la
+> secuencia), 5.7 (variantes A/B), 5.6 (límite diario + ventana), 5.5 (parada
+> automática) y commit de la 5.4 (inscripción manual).
 > (workflow duradero de secuencias), 5.2 (constructor de secuencias), 5.1 (migración de
 > secuencias, pasos e inscripciones), 4.10 (consentimiento/origen y pie RGPD con datos
 > del remitente), 4.9 (panel de resultados), 4.8 (webhooks de Resend), 4.7 (baja pública
@@ -312,6 +325,30 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-23 (43) — Fase 6.2: constructor visual de automatizaciones
+- **Catálogo** `src/lib/automations.ts`: disparadores (con entidad), tipos de nodo,
+  acciones (con su campo de configuración: texto/etiqueta/secuencia/plantilla/etapa),
+  operadores de condición y helpers (`createNode`, `describeNode`, `getTriggerMeta`…).
+- **Validación** `src/lib/validations/automation.ts` (trigger, nodos, aristas, grafo y
+  formulario). **Queries** `queries/automations.ts` (`listAutomations`,
+  `getAutomation`+`ForOwner`, `listAutomationBuilderOptions`). **Acciones**
+  `actions/automations.ts` (crear borrador, actualizar con `triggerType` denormalizado y
+  bump de `version`, `setAutomationStatus` con guarda de disparador, borrar).
+- **UI:** `/automations` (`AutomationsView`: tarjetas con estado/disparador/nº pasos,
+  crear→editar, activar/pausar, eliminar) y editor `/automations/[id]`
+  (`AutomationBuilder`): disparador configurable + nodos acción/espera/condición en
+  secuencia, reordenables, con config por nodo. Se persiste en `trigger`/`graph`
+  (aristas lineales; if/else real en 6.6). "Automatizaciones" deja de ser
+  "próximamente" en la navegación.
+- **Decisión:** editor de flujo **estructurado** (sin canvas drag-and-drop libre) para
+  que sea mantenible y verificable sin headless (las normas del proyecto desaconsejan
+  probar overlays/DnD en navegador headless).
+- **Verificado**: round-trip con `getAutomationForOwner` (trigger + 3 nodos) por `tsx`
+  (borrado) y render vía login de desarrollo de `/automations` (muestra la
+  automatización y su disparador) y del editor (disparador, nodos y config de acción),
+  sin overlays de error.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-23 (42) — Fase 6.1: migración del motor de automatizaciones
 - **Esquema** `src/server/db/schema/automations.ts` con dos tablas:
