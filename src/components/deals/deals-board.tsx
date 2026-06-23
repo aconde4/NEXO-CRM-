@@ -254,7 +254,7 @@ export function DealsBoard({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <select
-            className={selectClass}
+            className={cn(selectClass, "max-w-[12rem] truncate")}
             value={pipelineId}
             onChange={(e) => router.push(`/deals?pipeline=${e.target.value}`)}
             aria-label="Embudo"

@@ -35,8 +35,10 @@
     (`createPerson`) e **importación** (`importContacts`) meten el contacto en "Cargadas"
     automáticamente. Tablero: tarjeta = empresa (título) + contacto debajo, **toda la
     tarjeta es arrastrable** (listeners en la raíz, clic simple sigue abriendo) y botón
-    **"Cargar contactos"** (backfill) en la cabecera. Pendiente fino: filtros 6.4b en el
-    tablero (opcional) y pulir multi-funnel (6.4d).
+    **"Cargar contactos"** (backfill). **Fix 2026-06-23:** el dedupe mira **cualquier
+    embudo** (no solo el por defecto): "Cargar contactos" solo añade contactos que no
+    estén ya en NINGÚN embudo. Pendiente (6.4d): filtros 6.4b en Kanban **y** Lista, y
+    que muchos embudos no rompan el layout.
   - **6.4d** UX de Negocios con muchos funnels: el selector/gestión de pipelines debe
     escalar sin desbordes ni pérdida de contexto (combobox/buscador, menú compacto,
     responsive).
@@ -295,9 +297,17 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **6.4d** UX de Negocios con muchos funnels
-(selector/combobox escalable, responsive). Opcional dentro de 6.4c: añadir los filtros
-de 6.4b al tablero de embudo. Tras 6.4d se retoma **6.5** (acciones de automatización).
+**Siguiente tarea de desarrollo:** **6.4d** UX de Negocios con muchos funnels +
+filtros en el tablero. Requisitos del usuario (2026-06-23):
+1. **Filtros idénticos en Kanban y Lista**: el mismo set de filtros (6.4b: campaign,
+   empresa, contacto, campos personalizados, operador "comienza por") debe estar
+   disponible en **ambas** vistas de Negocios (`/deals` Kanban y `/deals?view=list`).
+2. **Muchos embudos no deben romper la página**: al añadir varios pipelines, la página
+   de Negocios "corta las vistas". Hacer el **selector de embudo escalable**
+   (combobox/buscador, compacto, responsive) y revisar el layout/scroll para que el
+   tablero no desborde. (Hecho parcial: selector con `max-w-[12rem] truncate`.)
+3. Columnas de etapa "más finas" si conviene para que quepan más sin cortar.
+Tras 6.4d se retoma **6.5** (acciones de automatización).
 
 **(6.4c HECHA — referencia del plan que se siguió, Opción A · reutilizar `deals`):**
 
@@ -412,6 +422,17 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-23 (51) — 6.4c: ajustes (dedupe global + selector) y requisitos 6.4d
+- **Fix "Cargar contactos":** el dedupe de `addContactToFunnel` ahora mira **cualquier
+  embudo** (antes solo el por defecto). Solo se añaden contactos que no estén en NINGÚN
+  pipeline. Verificado con `tsx` (contacto en otro embudo → no se recarga; sin deal → sí).
+- **Selector de embudo** acotado (`max-w-[12rem] truncate`) para que nombres largos no
+  estiren la cabecera (mejora parcial de 6.4d).
+- **Registrados requisitos del usuario para 6.4d:** filtros 6.4b idénticos en Kanban
+  **y** Lista; y que añadir muchos embudos no rompa la página de Negocios (selector
+  escalable + layout). Ver "Siguiente paso".
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-23 (50) — 6.4c: el tablero de Negocios es el embudo de contactos
 - **Decisión del usuario** (captura + pregunta): Negocios pasa a ser el embudo de

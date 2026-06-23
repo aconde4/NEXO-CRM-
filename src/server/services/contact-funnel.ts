@@ -83,7 +83,7 @@ export async function addContactToFunnel(
   const entry = await getDefaultFunnelEntry(userId);
   if (!entry) return false;
 
-  // Dedupe: un contacto = una tarjeta por embudo.
+  // Dedupe: solo se carga si el contacto NO está en NINGÚN embudo (cualquier pipeline).
   const [existing] = await db
     .select({ id: deals.id })
     .from(deals)
@@ -91,7 +91,6 @@ export async function addContactToFunnel(
       and(
         eq(deals.ownerId, userId),
         eq(deals.personId, personId),
-        eq(deals.pipelineId, entry.pipelineId),
         isNull(deals.deletedAt),
       ),
     )
