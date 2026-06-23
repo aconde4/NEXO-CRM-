@@ -25,7 +25,6 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   Building2,
   Columns3,
-  GripVertical,
   List,
   MoreHorizontal,
   Plus,
@@ -39,6 +38,7 @@ import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   deleteDeal,
+  loadContactsIntoFunnel,
   moveDeal,
   setDealLost,
   setDealWon,
@@ -204,6 +204,26 @@ export function DealsBoard({
     }
   }
 
+  const [loadingContacts, setLoadingContacts] = React.useState(false);
+  async function loadContacts() {
+    setLoadingContacts(true);
+    try {
+      const { created } = await loadContactsIntoFunnel();
+      toast.success(
+        created > 0
+          ? `${created} contacto(s) añadidos a Cargadas`
+          : "Todos los contactos ya están en el embudo",
+      );
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudieron cargar",
+      );
+    } finally {
+      setLoadingContacts(false);
+    }
+  }
+
   async function remove(id: string) {
     try {
       await deleteDeal(id);
@@ -278,6 +298,15 @@ export function DealsBoard({
           >
             <List />
             Lista
+          </Button>
+          <Button
+            variant="outline"
+            className="shrink-0"
+            onClick={loadContacts}
+            disabled={loadingContacts}
+          >
+            <User />
+            {loadingContacts ? "Cargando…" : "Cargar contactos"}
           </Button>
           <Button
             className="shrink-0"
@@ -478,11 +507,12 @@ function SortableCard({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn(isDragging && "opacity-40")}
+      className={cn("touch-none", isDragging && "opacity-40")}
+      {...attributes}
+      {...listeners}
     >
       <CardBody
         deal={deal}
-        dragHandleProps={{ ...attributes, ...listeners }}
         onEdit={onEdit}
         onWin={onWin}
         onLose={onLose}
@@ -495,7 +525,6 @@ function SortableCard({
 function CardBody({
   deal,
   dragging,
-  dragHandleProps,
   onEdit,
   onWin,
   onLose,
@@ -503,34 +532,35 @@ function CardBody({
 }: {
   deal: DealCard;
   dragging?: boolean;
-  dragHandleProps?: Record<string, unknown>;
   onEdit?: () => void;
   onWin?: () => void;
   onLose?: () => void;
   onDelete?: () => void;
 }) {
+  // Embudo de contactos (6.4c): empresa como título, contacto debajo.
+  const title = deal.organization?.name ?? deal.title;
+  const contact = deal.person?.name ?? null;
+
   return (
     <div
       className={cn(
-        "bg-card group rounded-lg border p-2.5 shadow-xs",
+        "bg-card group cursor-grab rounded-lg border p-2.5 shadow-xs active:cursor-grabbing",
         dragging && "rotate-2 shadow-md",
         deal.rotting && "border-destructive/40",
       )}
     >
       <div className="flex items-start gap-1.5">
-        <button
-          type="button"
-          aria-label="Mover"
-          className="text-muted-foreground/40 hover:text-muted-foreground mt-0.5 cursor-grab touch-none active:cursor-grabbing"
-          {...dragHandleProps}
-        >
-          <GripVertical className="size-4" />
-        </button>
         <Link href={`/deals/${deal.id}`} className="min-w-0 flex-1 text-left">
-          <p className="truncate text-sm font-medium">{deal.title}</p>
-          <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-            {formatMoney(deal.value, deal.currency)}
+          <p className="flex items-center gap-1 truncate text-sm font-medium">
+            <Building2 className="text-muted-foreground size-3.5 shrink-0" />
+            {title}
           </p>
+          {contact ? (
+            <p className="text-muted-foreground mt-1 flex items-center gap-1 truncate text-xs">
+              <User className="size-3 shrink-0" />
+              {contact}
+            </p>
+          ) : null}
         </Link>
         {onEdit ? (
           <DropdownMenu>
@@ -564,23 +594,6 @@ function CardBody({
           </DropdownMenu>
         ) : null}
       </div>
-
-      {deal.person || deal.organization ? (
-        <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-          {deal.person ? (
-            <span className="inline-flex items-center gap-1">
-              <User className="size-3" />
-              {deal.person.name}
-            </span>
-          ) : null}
-          {deal.organization ? (
-            <span className="inline-flex items-center gap-1">
-              <Building2 className="size-3" />
-              {deal.organization.name}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
 
       {deal.rotting ? (
         <p className="text-destructive mt-1.5 text-xs font-medium">Estancado</p>

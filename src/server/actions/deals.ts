@@ -16,8 +16,20 @@ import {
   diffAutomationFields,
   emitAutomationEventsSafely,
 } from "@/server/services/automation-runner";
+import { backfillContactsIntoFunnel } from "@/server/services/contact-funnel";
 
 type AutomationRecord = Record<string, unknown>;
+
+/**
+ * Embudo de contactos (6.4c): mete en "Cargadas" todos los contactos del usuario que
+ * aún no tengan tarjeta (los importados/creados antes de activar el embudo).
+ */
+export async function loadContactsIntoFunnel() {
+  const user = await requireUser();
+  const created = await backfillContactsIntoFunnel(user.id);
+  revalidatePath("/deals");
+  return { created };
+}
 
 const DEAL_AUTOMATION_FIELDS = [
   "title",

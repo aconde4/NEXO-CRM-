@@ -21,6 +21,7 @@ import {
   diffAutomationFields,
   emitAutomationEventsSafely,
 } from "@/server/services/automation-runner";
+import { addContactToFunnelSafely } from "@/server/services/contact-funnel";
 
 type CustomFieldsInput = Record<string, unknown> | undefined;
 type AutomationRecord = Record<string, unknown>;
@@ -156,7 +157,10 @@ export async function createPerson(
       type: "record_created",
     },
   ]);
+  // Embudo de contactos (6.4c): el nuevo contacto entra en "Cargadas".
+  await addContactToFunnelSafely(user.id, row.id);
   revalidatePath("/contacts");
+  revalidatePath("/deals");
   return { id: row.id };
 }
 

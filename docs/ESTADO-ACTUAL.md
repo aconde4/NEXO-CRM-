@@ -9,7 +9,7 @@
 ## 📍 Dónde estamos
 
 - **Bloque prioritario antes de continuar 6.5 (decisión de producto 2026-06-23):**
-  **en curso; 6.4a y 6.4b hechas, siguiente 6.4c.** No continuar con acciones de automatización hasta
+  **en curso; 6.4a, 6.4b y 6.4c hechas, siguiente 6.4d.** No continuar con acciones de automatización hasta
   corregir el modelo comercial y la UX detectada por el usuario:
   - **6.4a HECHA** `campaign` nativo en contactos: migración, validación, formulario,
     ficha, listado, exportación, segmentos, merge tags y auto-mapeo desde Excel/CSV. Es
@@ -27,8 +27,16 @@
     del tablero deben tener como título la empresa y debajo el nombre del contacto; si
     hay varios contactos de una empresa, aparecen varias tarjetas con la misma empresa.
     **DECISIÓN 2026-06-23:** se **convierte el tablero de Negocios** en este embudo
-    (reutiliza `deals`+etapas+Kanban), NO se crea sección aparte. Plan ejecutable en
-    "Siguiente paso"; detalle en memoria `embudo-de-contactos.md`.
+    (reutiliza `deals`+etapas+Kanban), NO se crea sección aparte. Detalle en memoria
+    `embudo-de-contactos.md`. **HECHA (2026-06-23):** servicio
+    `src/server/services/contact-funnel.ts` (`addContactToFunnel(Safely)`,
+    `getDefaultFunnelEntry` = primera etapa "Cargadas", `backfillContactsIntoFunnel`,
+    dedupe 1 tarjeta/contacto/embudo, título = empresa). Altas **manuales**
+    (`createPerson`) e **importación** (`importContacts`) meten el contacto en "Cargadas"
+    automáticamente. Tablero: tarjeta = empresa (título) + contacto debajo, **toda la
+    tarjeta es arrastrable** (listeners en la raíz, clic simple sigue abriendo) y botón
+    **"Cargar contactos"** (backfill) en la cabecera. Pendiente fino: filtros 6.4b en el
+    tablero (opcional) y pulir multi-funnel (6.4d).
   - **6.4d** UX de Negocios con muchos funnels: el selector/gestión de pipelines debe
     escalar sin desbordes ni pérdida de contexto (combobox/buscador, menú compacto,
     responsive).
@@ -287,7 +295,11 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **6.4c** Embudo de contactos/prospección real.
+**Siguiente tarea de desarrollo:** **6.4d** UX de Negocios con muchos funnels
+(selector/combobox escalable, responsive). Opcional dentro de 6.4c: añadir los filtros
+de 6.4b al tablero de embudo. Tras 6.4d se retoma **6.5** (acciones de automatización).
+
+**(6.4c HECHA — referencia del plan que se siguió, Opción A · reutilizar `deals`):**
 
 > **DECISIÓN DEL USUARIO (2026-06-23, confirmada con captura + pregunta):**
 > **Convertir el tablero de Negocios (`/deals`) en el embudo de CONTACTOS.** NO crear
@@ -355,11 +367,11 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **6.4a–6.4d** (`campaign` nativo, filtros por prefijo, embudo de contactos no basado
 > en actividades y UX de muchos funnels en Negocios).
 >
-> **Hecho en la última sesión técnica:** **Fase 6.4** (sistema interno de eventos +
-> Inngest + `automation_runs` en `waiting`), **6.3** (disparadores: motor de coincidencia
-> de eventos), **6.2** (constructor de automatizaciones) y **6.1** (migración del motor).
-> Antes: cierre de la **Fase 5** (5.1–5.8) y Fase 4 completada salvo la acción externa
-> 4.1 de Resend.
+> **Hecho en la última sesión técnica:** **6.4c** (Negocios = embudo de contactos:
+> alta automática en "Cargadas" desde alta manual e importación, tarjeta empresa+contacto,
+> tarjeta arrastrable, botón "Cargar contactos"). Antes: 6.4a/6.4b (`campaign` + filtros),
+> **6.4** (eventos internos + Inngest), **6.3/6.2/6.1** (motor de automatizaciones) y
+> cierre de la **Fase 5**.
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -400,6 +412,23 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-23 (50) — 6.4c: el tablero de Negocios es el embudo de contactos
+- **Decisión del usuario** (captura + pregunta): Negocios pasa a ser el embudo de
+  prospección de **contactos** (reutiliza `deals`+etapas+Kanban), no una sección aparte.
+- **Servicio** `src/server/services/contact-funnel.ts`: `getDefaultFunnelEntry` (embudo
+  por defecto + primera etapa "Cargadas"), `addContactToFunnel(Safely)` (1 deal por
+  contacto en "Cargadas", dedupe por persona+embudo, título = empresa) y
+  `backfillContactsIntoFunnel`.
+- **Altas automáticas:** `createPerson` (manual) e `importContacts` (Excel/CSV) meten el
+  contacto en "Cargadas" automáticamente (best-effort, sin emitir eventos para no
+  cascadear). Acción `loadContactsIntoFunnel` + botón **"Cargar contactos"** (backfill).
+- **Tablero** (`deals-board.tsx`): tarjeta = **empresa (título) + contacto debajo**;
+  **toda la tarjeta arrastrable** (listeners en la raíz; con la restricción de 6px el
+  clic simple sigue abriendo la ficha). Quitado el grip y el importe (ruido 0 €).
+- **Verificado** con `tsx` (borrado): alta en "Cargadas", título = empresa, valor 0,
+  dedupe correcto. `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde. (El arrastre
+  dnd no se prueba en headless; verificados el render y la lógica de servidor.)
 
 ### 2026-06-23 (49) — Fase 6.4b: filtros profesionales de contactos
 - **Contrato compartido:** nuevo `src/lib/contact-filters.ts` para condiciones de

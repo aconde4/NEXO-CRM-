@@ -16,6 +16,7 @@ import {
 import { db } from "@/server/db";
 import { listCustomFieldDefs } from "@/server/queries/custom-fields";
 import { activityLog, organizations, persons } from "@/server/db/schema";
+import { addContactToFunnelSafely } from "@/server/services/contact-funnel";
 
 export type RawImportRow = {
   firstName?: string;
@@ -215,9 +216,19 @@ export async function importContacts(
     });
   }
 
+  const insertedIds: string[] = [];
   for (const batch of chunk(toInsert, 500)) {
-    await db.insert(persons).values(batch);
-    created += batch.length;
+    const rows = await db
+      .insert(persons)
+      .values(batch)
+      .returning({ id: persons.id });
+    created += rows.length;
+    for (const r of rows) insertedIds.push(r.id);
+  }
+
+  // Embudo de contactos (6.4c): los contactos importados entran en "Cargadas".
+  for (const personId of insertedIds) {
+    await addContactToFunnelSafely(user.id, personId);
   }
 
   await db.insert(activityLog).values({
@@ -237,6 +248,7 @@ export async function importContacts(
   revalidatePath("/contacts");
   revalidatePath("/organizations");
   revalidatePath("/dashboard");
+  revalidatePath("/deals");
 
   return { total: rawRows.length, created, updated, skipped, errors };
 }
