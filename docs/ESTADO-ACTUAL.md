@@ -26,6 +26,9 @@
     actividades siguen siendo tareas/seguimientos, no el estado del embudo. Las tarjetas
     del tablero deben tener como título la empresa y debajo el nombre del contacto; si
     hay varios contactos de una empresa, aparecen varias tarjetas con la misma empresa.
+    **DECISIÓN 2026-06-23:** se **convierte el tablero de Negocios** en este embudo
+    (reutiliza `deals`+etapas+Kanban), NO se crea sección aparte. Plan ejecutable en
+    "Siguiente paso"; detalle en memoria `embudo-de-contactos.md`.
   - **6.4d** UX de Negocios con muchos funnels: el selector/gestión de pipelines debe
     escalar sin desbordes ni pérdida de contexto (combobox/buscador, menú compacto,
     responsive).
@@ -284,31 +287,41 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **6.4c** Embudo de contactos/prospección real,
-basado en contactos y no en actividades.
-Plan concreto para el relevo:
-1. Diseñar el modelo de pipeline/etapas de contacto: tabla(s) owner-aware para embudos
-   de prospección, etapas configurables, posición y etapa inicial **"Cargadas"**.
-2. Migrar/sembrar el embudo por defecto y preparar bootstrap idempotente para que todo
-   usuario tenga etapas base (`Cargadas`, `Contactadas`, `Follow-up 1`, etc.).
-3. Actualizar importación CSV/Excel para que los nuevos contactos entren en la etapa
-   inicial "Cargadas" sin convertir actividades en estado de embudo.
-4. Crear queries/actions para tablero de contactos: mover manualmente entre etapas,
-   autorización por `ownerId`, orden estable por columna y revalidación de `/contacts`
-   o la nueva ruta del embudo.
-5. Construir la UI tipo pipeline horizontal con scroll profesional, contador por etapa
-   y filtros reutilizando 6.4b (`campaign`, empresa, contacto y campos personalizados).
-6. Tarjetas: cada tarjeta representa **un contacto**; título principal = empresa
-   vinculada (`trade_name`/`name`), segunda línea = nombre del contacto. Sin empresa:
-   título = contacto y subtítulo = "Sin empresa" o email. Si una empresa tiene varios
-   contactos, aparecen varias tarjetas con el mismo título de empresa y distinto
-   contacto debajo.
-7. Verificar con datos temporales/importación: nuevos contactos en "Cargadas", varios
-   contactos de la misma empresa, movimiento entre etapas, filtros 6.4b en el tablero,
-   y gates `pnpm typecheck`, `pnpm lint`, `pnpm build`.
+**Siguiente tarea de desarrollo:** **6.4c** Embudo de contactos/prospección real.
 
-Después: **6.4d** UX de Negocios con muchos funnels. Solo al cerrar 6.4c–6.4d se retoma
-**6.5** acciones de automatización.
+> **DECISIÓN DEL USUARIO (2026-06-23, confirmada con captura + pregunta):**
+> **Convertir el tablero de Negocios (`/deals`) en el embudo de CONTACTOS.** NO crear
+> una sección aparte. Cada tarjeta = **un contacto** (título = empresa, debajo el
+> contacto). Reutilizar el modelo `deals`+`stages`+Kanban+arrastre+automatización
+> `deal_stage_changed`. Ver memoria de Claude `embudo-de-contactos.md`.
+
+Plan concreto para el relevo (Opción A · reutilizar `deals`):
+1. **Modelo:** la posición de un contacto en el embudo = un `deal` con `personId`
+   (+ `orgId`). No hace falta tabla nueva. (Opcional: columna `deals.kind`/`source`
+   = `prospect` para distinguir de negocios manuales si se quieren conservar; el usuario
+   acepta que los negocios manuales dejen de usarse así.)
+2. **Etapas:** bootstrap idempotente del pipeline por defecto con las etapas del embudo
+   (Cargadas → Contactadas → Follow-up 1/2/3 → Respuesta positiva → Respuesta negativa
+   → Reunión agendada → Go!). Revisar `getBoard`/bootstrap actual en `queries/deals.ts`.
+3. **Import → "Cargadas":** en `importContacts` (`actions/import-contacts.ts`), tras
+   crear cada contacto nuevo, crear 1 `deal` en la 1.ª etapa del pipeline por defecto
+   con `personId`+`orgId` y `title` = empresa (`trade_name`/`name`) o nombre del contacto.
+   Evitar duplicados (un deal por persona en ese pipeline).
+4. **Backfill:** acción + botón "Cargar contactos en el embudo" para crear deals de los
+   contactos ya subidos que no tengan uno (los importados antes de este cambio).
+5. **Tarjeta** (`components/deals/deals-board.tsx`): título = empresa
+   (`trade_name`/`name`); 2.ª línea = nombre del contacto; sin empresa → título =
+   contacto. Quitar/ocultar el valor monetario en este modo (es 0 €). Varios contactos
+   de una empresa = varias tarjetas (sale solo, 1 deal por persona).
+6. **Filtros:** reutilizar los filtros de 6.4b (campaign/empresa/contacto/campos pers.,
+   operador "comienza por") en el tablero.
+7. **Verificar:** importar contactos → aparecen en "Cargadas"; varios contactos de la
+   misma empresa = varias tarjetas; arrastre entre etapas; gates en verde. Como el
+   arrastre dnd-kit y los overlays no se prueban en headless, verificar el render (DOM)
+   y la lógica de servidor con script `tsx` temporal (crear deals desde import) + BD.
+
+Después: **6.4d** UX de Negocios con muchos funnels (selector/combobox escalable). Solo
+al cerrar 6.4c–6.4d se retoma **6.5** acciones de automatización.
 
 **Pendiente externo:** 4.1 — API key de Resend **ya pegada** por el usuario; falta
 verificar dominio (no tiene aún) para enviar a terceros; en local se prueba con
