@@ -6,3 +6,4 @@ export * from "./crm";
 export * from "./email";
 export * from "./marketing";
 export * from "./sequences";
+export * from "./automations";

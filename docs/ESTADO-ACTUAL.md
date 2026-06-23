@@ -8,6 +8,13 @@
 
 ## 📍 Dónde estamos
 
+- **Fase 6 · Motor de automatizaciones:** **en curso.** **6.1** hecha: migración
+  `0009_lively_sunspot` con `automations` (estado, `trigger_type` denormalizado +
+  `trigger` JSONB, `graph` JSONB de nodos/aristas, `version`, `settings`) y
+  `automation_runs` (estado running/waiting/completed/failed/cancelled, entidad
+  disparadora, `trigger_event`/`context`/`log` JSONB, tiempos). Esquema en
+  `src/server/db/schema/automations.ts` (con tipos de disparadores/nodos para 6.2–6.5).
+
 - **Fase 5 · Secuencias / Drip:** **completa (5.1–5.8).**
   - **5.8** panel de la secuencia: página `/sequences/[id]` con métricas (inscritos,
     activos, completados, respondieron, pausados, emails enviados, aperturas, clics,
@@ -221,12 +228,16 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente fase:** **FASE 6 · Motor de automatizaciones.** Empieza por la **6.1**
-(migración: `automations`, `automation_runs`). Después: 6.2 canvas visual de nodos,
-6.3 disparadores, 6.4 sistema de eventos interno (las mutaciones emiten eventos a
-Inngest), 6.5 acciones, 6.6 condiciones/esperas, 6.7 registro de ejecuciones, 6.8
-activar/pausar + dry-run. Reutiliza Inngest (ya hay workflows de campañas y secuencias)
-y el patrón de eventos `*/signal.received`.
+**Siguiente tarea de desarrollo:** **6.2** Canvas visual de nodos (disparador →
+condición if/else → espera → acción) sobre el `graph` JSONB ya definido. Después: 6.3
+disparadores, 6.4 sistema de eventos interno (las mutaciones emiten eventos a Inngest),
+6.5 acciones, 6.6 condiciones/esperas, 6.7 registro de ejecuciones, 6.8 activar/pausar +
+dry-run. Reutiliza Inngest (ya hay workflows de campañas y secuencias) y el patrón de
+eventos `*/signal.received`.
+
+**Pendiente externo:** 4.1 — API key de Resend **ya pegada** por el usuario; falta
+verificar dominio (no tiene aún) para enviar a terceros; en local se prueba con
+`onboarding@resend.dev` al propio correo. Métricas/bajas requieren despliegue (aplazado).
 
 **Pendiente externo de Fase 4:** **4.1** (acción del usuario): crear cuenta en Resend y
 verificar el dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
@@ -252,9 +263,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** **Fase 5 cerrada** — 5.8 (panel de la secuencia), 5.7
-> (variantes A/B), 5.6 (límite diario + ventana) y 5.5 (parada automática), más el
-> commit de la 5.4 (inscripción manual). Antes: 5.3
+> **Hecho en la última sesión:** **Fase 6.1** (migración del motor de automatizaciones)
+> y cierre de la **Fase 5** — 5.8 (panel de la secuencia), 5.7 (variantes A/B), 5.6
+> (límite diario + ventana) y 5.5 (parada automática), más el commit de la 5.4
+> (inscripción manual). Antes: 5.3
 > (workflow duradero de secuencias), 5.2 (constructor de secuencias), 5.1 (migración de
 > secuencias, pasos e inscripciones), 4.10 (consentimiento/origen y pie RGPD con datos
 > del remitente), 4.9 (panel de resultados), 4.8 (webhooks de Resend), 4.7 (baja pública
@@ -300,6 +312,25 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-23 (42) — Fase 6.1: migración del motor de automatizaciones
+- **Esquema** `src/server/db/schema/automations.ts` con dos tablas:
+  - `automations`: `status` (draft/active/paused/archived), `trigger_type`
+    (denormalizado e indexado para localizar automatizaciones por evento en la 6.4),
+    `trigger` JSONB (tipo + config), `graph` JSONB (`nodes`/`edges` del canvas de la
+    6.2), `version` y `settings`. Tipos exportados de disparadores
+    (record_created/updated/deleted, deal_stage_changed, field_changed, email_opened/
+    replied, form_submitted, sequence_enrolled, scheduled) y de nodos
+    (trigger/condition/wait/action) para construir 6.2–6.5.
+  - `automation_runs`: `status` (running/waiting/completed/failed/cancelled),
+    `automation_version`, `trigger_type`, entidad disparadora (`entity_type`/`entity_id`),
+    `trigger_event`/`context`/`log` JSONB y tiempos (`started_at`/`finished_at`).
+- **Migración** `drizzle/0009_lively_sunspot.sql` generada y **aplicada**; verificadas
+  las dos tablas por BD con script `tsx` temporal (borrado). De paso, limpiado un
+  `export * from "./sequences"` duplicado en el índice de esquema.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
+- **Nota de entorno:** se eliminó un `next dev` zombie (PID 32960) que dejaba el puerto
+  ocupado; no era un fallo de código.
 
 ### 2026-06-21 (41) — Fase 5.8: panel de la secuencia (cierra la Fase 5)
 - **Query** `getSequencePanel`/`getSequencePanelForOwner`: resumen de inscripciones por
