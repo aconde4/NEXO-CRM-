@@ -30,6 +30,11 @@ import {
   sequenceSignalFromMessageMetadata,
   type SequenceSignalPayload,
 } from "@/server/services/sequence-runner";
+import {
+  createAutomationEvent,
+  emitAutomationEventsSafely,
+  type AutomationEventPayload,
+} from "@/server/services/automation-runner";
 
 const GMAIL_API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
 const DEFAULT_FULL_SYNC_LIMIT = 50;
@@ -140,6 +145,7 @@ type ContactLink = {
 };
 
 type PersistResult = {
+  automationEvents: AutomationEventPayload[];
   inserted: boolean;
   linkedContact: boolean;
   replies: number;
@@ -544,11 +550,16 @@ async function markRepliesForInbound(
     inboundProviderMessageId: string;
     mailboxId: string;
     ownerId: string;
+    personId: string | null;
     receivedAt: Date;
     referencesHeader: string | null;
     threadId: string;
   },
-): Promise<{ count: number; sequenceSignals: SequenceSignalPayload[] }> {
+): Promise<{
+  automationEvents: AutomationEventPayload[];
+  count: number;
+  sequenceSignals: SequenceSignalPayload[];
+}> {
   const outbound = await tx
     .select({
       id: emailMessages.id,
@@ -565,7 +576,9 @@ async function markRepliesForInbound(
         eq(emailMessages.direction, "outbound"),
       ),
     );
-  if (outbound.length === 0) return { count: 0, sequenceSignals: [] };
+  if (outbound.length === 0) {
+    return { automationEvents: [], count: 0, sequenceSignals: [] };
+  }
 
   const refs = collectReferenceIds(params.inReplyTo, params.referencesHeader);
   let matched = outbound.filter(
@@ -590,6 +603,7 @@ async function markRepliesForInbound(
   }
 
   let count = 0;
+  const automationEvents: AutomationEventPayload[] = [];
   const sequenceSignals: SequenceSignalPayload[] = [];
   for (const message of matched) {
     if (message.repliedAt) continue;
@@ -638,6 +652,32 @@ async function markRepliesForInbound(
       .onConflictDoNothing();
 
     if (signal) sequenceSignals.push(signal);
+    automationEvents.push(
+      createAutomationEvent({
+        ...(params.personId
+          ? { entityId: params.personId, entityType: "person" as const }
+          : {}),
+        occurredAt: params.receivedAt,
+        ownerId: params.ownerId,
+        payload: {
+          fromEmail: params.fromEmail,
+          inboundMessageId: params.inboundMessageId,
+          messageId: message.id,
+          providerEventId,
+          ...(signal
+            ? {
+                sequence: {
+                  enrollmentId: signal.enrollmentId,
+                  sequenceId: signal.sequenceId,
+                  stepId: signal.stepId,
+                },
+              }
+            : {}),
+          threadId: params.threadId,
+        },
+        type: "email_replied",
+      }),
+    );
     count += 1;
   }
 
@@ -651,7 +691,7 @@ async function markRepliesForInbound(
     });
   }
 
-  return { count, sequenceSignals };
+  return { automationEvents, count, sequenceSignals };
 }
 
 async function persistSyncedMessage({
@@ -800,6 +840,7 @@ async function persistSyncedMessage({
     const messageId = inserted?.id ?? existingMessage[0]?.id ?? null;
     const linkedContact = Boolean(contactLink && !thread.personId);
     let repliesCount = 0;
+    let automationEvents: AutomationEventPayload[] = [];
     let sequenceSignals: SequenceSignalPayload[] = [];
     const receivedAtIso = parsed.receivedAt.toISOString();
     const baseThreadUpdate = {
@@ -866,11 +907,13 @@ async function persistSyncedMessage({
         inboundProviderMessageId: parsed.providerMessageId,
         mailboxId: mailbox.id,
         ownerId,
+        personId: thread.personId ?? contactLink?.personId ?? null,
         receivedAt: parsed.receivedAt,
         referencesHeader: parsed.referencesHeader,
         threadId: thread.id,
       });
       repliesCount = replyResult.count;
+      automationEvents = replyResult.automationEvents;
       sequenceSignals = replyResult.sequenceSignals;
     } else {
       await tx
@@ -896,6 +939,7 @@ async function persistSyncedMessage({
     }
 
     return {
+      automationEvents,
       inserted: Boolean(inserted),
       linkedContact,
       replies: repliesCount,
@@ -949,11 +993,12 @@ async function runFullSync(
       else result.updated += 1;
       if (persisted.linkedContact) result.linkedContacts += 1;
       result.replies += persisted.replies;
-      await Promise.all(
-        persisted.sequenceSignals.map((signal) =>
+      await Promise.all([
+        ...persisted.sequenceSignals.map((signal) =>
           emitSequenceSignalSafely(signal),
         ),
-      );
+        emitAutomationEventsSafely(persisted.automationEvents),
+      ]);
     } catch (error) {
       if (error instanceof GmailApiHttpError && error.status === 404) {
         result.skipped += 1;
@@ -1005,11 +1050,12 @@ async function runPartialSync(
       else result.updated += 1;
       if (persisted.linkedContact) result.linkedContacts += 1;
       result.replies += persisted.replies;
-      await Promise.all(
-        persisted.sequenceSignals.map((signal) =>
+      await Promise.all([
+        ...persisted.sequenceSignals.map((signal) =>
           emitSequenceSignalSafely(signal),
         ),
-      );
+        emitAutomationEventsSafely(persisted.automationEvents),
+      ]);
     } catch (error) {
       if (error instanceof GmailApiHttpError && error.status === 404) {
         result.skipped += 1;

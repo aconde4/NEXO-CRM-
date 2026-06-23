@@ -34,6 +34,11 @@ import {
   stopEnrollmentOnSignal,
   type SequenceRunErrorCode,
 } from "@/server/services/sequence-runner";
+import {
+  AUTOMATION_EVENT,
+  dispatchAutomationEvent,
+  parseAutomationEvent,
+} from "@/server/services/automation-runner";
 
 /**
  * Función de prueba para validar que Inngest está conectado (tarea 0.13).
@@ -251,7 +256,10 @@ export const runSequence = inngest.createFunction(
         if (!canSend) {
           return {
             ok: true,
-            result: { reason: "send_window_unavailable", state: "noop" as const },
+            result: {
+              reason: "send_window_unavailable",
+              state: "noop" as const,
+            },
           };
         }
 
@@ -346,7 +354,10 @@ export const runSequence = inngest.createFunction(
 );
 
 export const stopSequenceOnSignal = inngest.createFunction(
-  { id: "stop-sequence-on-signal", triggers: [{ event: SEQUENCE_SIGNAL_EVENT }] },
+  {
+    id: "stop-sequence-on-signal",
+    triggers: [{ event: SEQUENCE_SIGNAL_EVENT }],
+  },
   async ({ event, step }) => {
     const signal = parseSequenceSignal(event.data);
     if (!signal) return { ok: false, reason: "invalid_signal" };
@@ -358,6 +369,20 @@ export const stopSequenceOnSignal = inngest.createFunction(
         ownerId: signal.ownerId,
         type: signal.type,
       }),
+    );
+    return { ok: true, result };
+  },
+);
+
+export const runAutomationsForEvent = inngest.createFunction(
+  { id: "run-automations-for-event", triggers: [{ event: AUTOMATION_EVENT }] },
+  async ({ event, step }) => {
+    const automationEvent = parseAutomationEvent(event.data);
+    if (!automationEvent)
+      return { ok: false, reason: "invalid_automation_event" };
+
+    const result = await step.run("preparar-ejecuciones", () =>
+      dispatchAutomationEvent(automationEvent),
     );
     return { ok: true, result };
   },
@@ -496,4 +521,5 @@ export const functions = [
   sendCampaign,
   runSequence,
   stopSequenceOnSignal,
+  runAutomationsForEvent,
 ];

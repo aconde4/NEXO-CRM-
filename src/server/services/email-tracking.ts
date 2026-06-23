@@ -1,12 +1,14 @@
 import "server-only";
 
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { escapeHtml, textToHtml } from "@/lib/email/merge-tags";
 import { db } from "@/server/db";
-import { emailEvents, emailMessages } from "@/server/db/schema";
+import { emailEvents, emailMessages, persons } from "@/server/db/schema";
 import { sanitizeEmailHtml } from "@/server/services/email-html";
+import { normalizeEmail } from "@/server/services/gmail-auth";
+import { emitAutomationEventSafely } from "@/server/services/automation-runner";
 import {
   emitSequenceSignalSafely,
   sequenceSignalFromMessageMetadata,
@@ -183,6 +185,24 @@ function primaryRecipient(
   return recipients[0]?.email ?? null;
 }
 
+async function findPersonForEmail(ownerId: string, email: string) {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return null;
+  const [person] = await db
+    .select({ id: persons.id })
+    .from(persons)
+    .where(
+      and(
+        eq(persons.ownerId, ownerId),
+        isNull(persons.deletedAt),
+        sql`lower(${persons.email}) = ${normalized}`,
+      ),
+    )
+    .orderBy(desc(persons.updatedAt))
+    .limit(1);
+  return person ?? null;
+}
+
 function sequenceEventMeta(signal: SequenceSignalPayload | null) {
   return signal
     ? {
@@ -203,6 +223,8 @@ export async function recordEmailOpen(
   if (!message) return false;
 
   const now = new Date();
+  const firstOpen = !message.openedAt;
+  const recipientEmail = primaryRecipient(message.toRecipients);
   await db
     .update(emailMessages)
     .set({
@@ -216,7 +238,7 @@ export async function recordEmailOpen(
     metadata: message.metadata,
     occurredAt: now,
     ownerId: message.ownerId,
-    recipientEmail: primaryRecipient(message.toRecipients),
+    recipientEmail,
     trackingId,
     type: "open",
   });
@@ -229,13 +251,31 @@ export async function recordEmailOpen(
     occurredAt: now,
     ownerId: message.ownerId,
     provider: "gmail",
-    recipientEmail: primaryRecipient(message.toRecipients),
+    recipientEmail,
     trackingId,
     type: "open",
     userAgent: userAgent(request),
   });
 
   await emitSequenceSignalSafely(signal);
+  if (firstOpen) {
+    const person = recipientEmail
+      ? await findPersonForEmail(message.ownerId, recipientEmail)
+      : null;
+    await emitAutomationEventSafely({
+      ...(person ? { entityId: person.id, entityType: "person" } : {}),
+      occurredAt: now,
+      ownerId: message.ownerId,
+      payload: {
+        messageId: message.id,
+        openedAt: now.toISOString(),
+        recipientEmail,
+        trackingId,
+        ...sequenceEventMeta(signal),
+      },
+      type: "email_opened",
+    });
+  }
 
   return true;
 }

@@ -30,6 +30,7 @@ import {
 } from "@/server/queries/segments";
 import { sanitizeEmailHtml } from "@/server/services/email-html";
 import { normalizeEmail } from "@/server/services/gmail-auth";
+import { emitAutomationEventsSafely } from "@/server/services/automation-runner";
 import { SEQUENCE_RUN_EVENT } from "@/server/services/sequence-runner";
 
 function clean(value: string | null | undefined): string | null {
@@ -102,7 +103,9 @@ function variantsForStep(
   step: Extract<SequenceBuilderStepValues, { type: "email" }>,
 ): SequenceStepVariant[] {
   return step.variants.map((variant) => ({
-    bodyHtml: sanitizeEmailHtml(variant.bodyHtml.trim() || textToHtml(variant.bodyText)),
+    bodyHtml: sanitizeEmailHtml(
+      variant.bodyHtml.trim() || textToHtml(variant.bodyText),
+    ),
     bodyText: variant.bodyText,
     id: variant.id,
     name: clean(variant.name) ?? undefined,
@@ -589,6 +592,22 @@ export async function enrollInSequence(raw: SequenceEnrollmentValues) {
     revalidateSequences();
     throw new Error(message);
   }
+
+  await emitAutomationEventsSafely(
+    inserted.map((enrollment) => ({
+      entityId: enrollment.personId,
+      entityType: "person",
+      ownerId: user.id,
+      payload: {
+        enrollmentId: enrollment.id,
+        personId: enrollment.personId,
+        segmentId: data.source === "segment" ? data.segmentId : null,
+        sequenceId: data.sequenceId,
+        source: data.source,
+      },
+      type: "sequence_enrolled",
+    })),
+  );
 
   revalidateSequences();
   if (data.personId) revalidatePath(`/contacts/${data.personId}`);

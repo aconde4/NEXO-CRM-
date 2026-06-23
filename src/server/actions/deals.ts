@@ -11,6 +11,30 @@ import {
 } from "@/lib/validations/deal";
 import { db } from "@/server/db";
 import { activityLog, deals, stages } from "@/server/db/schema";
+import {
+  createFieldChangedEvents,
+  diffAutomationFields,
+  emitAutomationEventsSafely,
+} from "@/server/services/automation-runner";
+
+type AutomationRecord = Record<string, unknown>;
+
+const DEAL_AUTOMATION_FIELDS = [
+  "title",
+  "value",
+  "currency",
+  "pipelineId",
+  "stageId",
+  "personId",
+  "orgId",
+  "status",
+  "position",
+  "expectedCloseDate",
+  "wonAt",
+  "lostAt",
+  "lostReason",
+  "customFields",
+];
 
 async function logEvent(
   actorId: string,
@@ -38,6 +62,88 @@ function revalidate(id?: string) {
   revalidatePath("/deals");
   revalidatePath("/dashboard");
   if (id) revalidatePath(`/deals/${id}`);
+}
+
+function dateSnapshot(value: Date | null | undefined): string | null {
+  return value ? value.toISOString() : null;
+}
+
+function dealSnapshot(row: {
+  currency: string;
+  customFields: Record<string, unknown>;
+  expectedCloseDate: Date | null;
+  orgId: string | null;
+  personId: string | null;
+  pipelineId: string;
+  position: number;
+  stageId: string;
+  status: string;
+  title: string;
+  value: number;
+  wonAt?: Date | null;
+  lostAt?: Date | null;
+  lostReason?: string | null;
+}): AutomationRecord {
+  return {
+    currency: row.currency,
+    customFields: row.customFields,
+    expectedCloseDate: dateSnapshot(row.expectedCloseDate),
+    lostAt: dateSnapshot(row.lostAt),
+    lostReason: row.lostReason ?? null,
+    orgId: row.orgId,
+    personId: row.personId,
+    pipelineId: row.pipelineId,
+    position: row.position,
+    stageId: row.stageId,
+    status: row.status,
+    title: row.title,
+    value: row.value,
+    wonAt: dateSnapshot(row.wonAt),
+  };
+}
+
+async function emitDealUpdatedEvents(input: {
+  after: AutomationRecord;
+  before: AutomationRecord;
+  dealId: string;
+  ownerId: string;
+  stageChanged?: boolean;
+}) {
+  const changes = diffAutomationFields(
+    input.before,
+    input.after,
+    DEAL_AUTOMATION_FIELDS,
+  );
+  await emitAutomationEventsSafely([
+    {
+      entityId: input.dealId,
+      entityType: "deal",
+      ownerId: input.ownerId,
+      payload: { after: input.after, before: input.before },
+      type: "record_updated",
+    },
+    ...createFieldChangedEvents({
+      changes,
+      entityId: input.dealId,
+      entityType: "deal",
+      ownerId: input.ownerId,
+    }),
+    ...(input.stageChanged
+      ? [
+          {
+            entityId: input.dealId,
+            entityType: "deal" as const,
+            ownerId: input.ownerId,
+            payload: {
+              deal: input.after,
+              fromStageId: input.before.stageId,
+              toStageId: input.after.stageId,
+            },
+            type: "deal_stage_changed" as const,
+          },
+        ]
+      : []),
+  ]);
 }
 
 /** Comprueba que la etapa pertenece al embudo y al usuario. */
@@ -69,27 +175,50 @@ export async function createDeal(raw: DealFormValues) {
     .select({ max: sql<number>`coalesce(max(${deals.position}), 0)` })
     .from(deals)
     .where(and(eq(deals.ownerId, user.id), eq(deals.stageId, data.stageId)));
+  const position = Number(max) + 1;
+  const expectedCloseDate = data.expectedCloseDate
+    ? new Date(data.expectedCloseDate)
+    : null;
+  const values = {
+    currency: nullify(data.currency) ?? "EUR",
+    expectedCloseDate,
+    orgId: nullify(data.orgId),
+    personId: nullify(data.personId),
+    pipelineId: data.pipelineId,
+    position,
+    stageId: data.stageId,
+    title: data.title.trim(),
+    value: parseValue(data.value),
+  };
 
   const [row] = await db
     .insert(deals)
     .values({
-      title: data.title.trim(),
-      value: parseValue(data.value),
-      currency: nullify(data.currency) ?? "EUR",
-      pipelineId: data.pipelineId,
-      stageId: data.stageId,
-      personId: nullify(data.personId),
-      orgId: nullify(data.orgId),
-      expectedCloseDate: data.expectedCloseDate
-        ? new Date(data.expectedCloseDate)
-        : null,
-      position: Number(max) + 1,
+      ...values,
       ownerId: user.id,
     })
     .returning({ id: deals.id });
 
   if (!row) throw new Error("No se pudo crear el negocio");
   await logEvent(user.id, "created", row.id, { title: data.title });
+  await emitAutomationEventsSafely([
+    {
+      entityId: row.id,
+      entityType: "deal",
+      ownerId: user.id,
+      payload: {
+        record: dealSnapshot({
+          ...values,
+          customFields: {},
+          lostAt: null,
+          lostReason: null,
+          status: "open",
+          wonAt: null,
+        }),
+      },
+      type: "record_created",
+    },
+  ]);
   revalidate();
   return { id: row.id };
 }
@@ -101,41 +230,106 @@ export async function updateDeal(id: string, raw: DealFormValues) {
 
   // Si cambia de etapa desde el formulario, actualiza la marca de tiempo.
   const [current] = await db
-    .select({ stageId: deals.stageId })
+    .select({
+      currency: deals.currency,
+      customFields: deals.customFields,
+      expectedCloseDate: deals.expectedCloseDate,
+      lostAt: deals.lostAt,
+      lostReason: deals.lostReason,
+      orgId: deals.orgId,
+      personId: deals.personId,
+      pipelineId: deals.pipelineId,
+      position: deals.position,
+      stageId: deals.stageId,
+      status: deals.status,
+      title: deals.title,
+      value: deals.value,
+      wonAt: deals.wonAt,
+    })
     .from(deals)
     .where(and(eq(deals.id, id), eq(deals.ownerId, user.id)))
     .limit(1);
   const stageChanged = current && current.stageId !== data.stageId;
+  const values = {
+    currency: nullify(data.currency) ?? "EUR",
+    expectedCloseDate: data.expectedCloseDate
+      ? new Date(data.expectedCloseDate)
+      : null,
+    orgId: nullify(data.orgId),
+    personId: nullify(data.personId),
+    pipelineId: data.pipelineId,
+    stageId: data.stageId,
+    title: data.title.trim(),
+    value: parseValue(data.value),
+  };
 
   await db
     .update(deals)
     .set({
-      title: data.title.trim(),
-      value: parseValue(data.value),
-      currency: nullify(data.currency) ?? "EUR",
-      pipelineId: data.pipelineId,
-      stageId: data.stageId,
-      personId: nullify(data.personId),
-      orgId: nullify(data.orgId),
-      expectedCloseDate: data.expectedCloseDate
-        ? new Date(data.expectedCloseDate)
-        : null,
+      ...values,
       ...(stageChanged ? { stageChangedAt: new Date() } : {}),
     })
     .where(and(eq(deals.id, id), eq(deals.ownerId, user.id)));
 
   await logEvent(user.id, "updated", id);
+  if (current) {
+    await emitDealUpdatedEvents({
+      after: dealSnapshot({
+        ...current,
+        ...values,
+      }),
+      before: dealSnapshot(current),
+      dealId: id,
+      ownerId: user.id,
+      stageChanged: Boolean(stageChanged),
+    });
+  }
   revalidate(id);
   return { id };
 }
 
 export async function deleteDeal(id: string) {
   const user = await requireUser();
+  const [current] = await db
+    .select({
+      currency: deals.currency,
+      customFields: deals.customFields,
+      expectedCloseDate: deals.expectedCloseDate,
+      lostAt: deals.lostAt,
+      lostReason: deals.lostReason,
+      orgId: deals.orgId,
+      personId: deals.personId,
+      pipelineId: deals.pipelineId,
+      position: deals.position,
+      stageId: deals.stageId,
+      status: deals.status,
+      title: deals.title,
+      value: deals.value,
+      wonAt: deals.wonAt,
+    })
+    .from(deals)
+    .where(and(eq(deals.id, id), eq(deals.ownerId, user.id)))
+    .limit(1);
+  const deletedAt = new Date();
   await db
     .update(deals)
-    .set({ deletedAt: new Date() })
+    .set({ deletedAt })
     .where(and(eq(deals.id, id), eq(deals.ownerId, user.id)));
   await logEvent(user.id, "deleted", id);
+  if (current) {
+    await emitAutomationEventsSafely([
+      {
+        entityId: id,
+        entityType: "deal",
+        ownerId: user.id,
+        payload: {
+          deletedAt: deletedAt.toISOString(),
+          previous: dealSnapshot(current),
+        },
+        type: "record_deleted",
+      },
+    ]);
+  }
   revalidate();
   return { id };
 }
@@ -149,7 +343,22 @@ export async function moveDeal(
   const user = await requireUser();
 
   const [deal] = await db
-    .select({ stageId: deals.stageId, pipelineId: deals.pipelineId })
+    .select({
+      currency: deals.currency,
+      customFields: deals.customFields,
+      expectedCloseDate: deals.expectedCloseDate,
+      lostAt: deals.lostAt,
+      lostReason: deals.lostReason,
+      orgId: deals.orgId,
+      personId: deals.personId,
+      pipelineId: deals.pipelineId,
+      position: deals.position,
+      stageId: deals.stageId,
+      status: deals.status,
+      title: deals.title,
+      value: deals.value,
+      wonAt: deals.wonAt,
+    })
     .from(deals)
     .where(and(eq(deals.id, dealId), eq(deals.ownerId, user.id)))
     .limit(1);
@@ -197,16 +406,62 @@ export async function moveDeal(
   if (stageChanged) {
     await logEvent(user.id, "stage_changed", dealId, { stageId: toStageId });
   }
+  await emitDealUpdatedEvents({
+    after: dealSnapshot({
+      ...deal,
+      position: clamped,
+      stageId: toStageId,
+    }),
+    before: dealSnapshot(deal),
+    dealId,
+    ownerId: user.id,
+    stageChanged,
+  });
   revalidate();
 }
 
 export async function setDealWon(id: string) {
   const user = await requireUser();
+  const [current] = await db
+    .select({
+      currency: deals.currency,
+      customFields: deals.customFields,
+      expectedCloseDate: deals.expectedCloseDate,
+      lostAt: deals.lostAt,
+      lostReason: deals.lostReason,
+      orgId: deals.orgId,
+      personId: deals.personId,
+      pipelineId: deals.pipelineId,
+      position: deals.position,
+      stageId: deals.stageId,
+      status: deals.status,
+      title: deals.title,
+      value: deals.value,
+      wonAt: deals.wonAt,
+    })
+    .from(deals)
+    .where(and(eq(deals.id, id), eq(deals.ownerId, user.id)))
+    .limit(1);
+  const wonAt = new Date();
   await db
     .update(deals)
-    .set({ status: "won", wonAt: new Date(), lostAt: null, lostReason: null })
+    .set({ lostAt: null, lostReason: null, status: "won", wonAt })
     .where(and(eq(deals.id, id), eq(deals.ownerId, user.id)));
   await logEvent(user.id, "won", id);
+  if (current) {
+    await emitDealUpdatedEvents({
+      after: dealSnapshot({
+        ...current,
+        lostAt: null,
+        lostReason: null,
+        status: "won",
+        wonAt,
+      }),
+      before: dealSnapshot(current),
+      dealId: id,
+      ownerId: user.id,
+    });
+  }
   revalidate(id);
   return { id };
 }
@@ -214,22 +469,78 @@ export async function setDealWon(id: string) {
 export async function setDealLost(id: string, reason?: string) {
   const user = await requireUser();
   const { reason: cleanReason } = lostReasonSchema.parse({ reason });
+  const [current] = await db
+    .select({
+      currency: deals.currency,
+      customFields: deals.customFields,
+      expectedCloseDate: deals.expectedCloseDate,
+      lostAt: deals.lostAt,
+      lostReason: deals.lostReason,
+      orgId: deals.orgId,
+      personId: deals.personId,
+      pipelineId: deals.pipelineId,
+      position: deals.position,
+      stageId: deals.stageId,
+      status: deals.status,
+      title: deals.title,
+      value: deals.value,
+      wonAt: deals.wonAt,
+    })
+    .from(deals)
+    .where(and(eq(deals.id, id), eq(deals.ownerId, user.id)))
+    .limit(1);
+  const lostAt = new Date();
+  const lostReason = nullify(cleanReason);
   await db
     .update(deals)
     .set({
+      lostAt,
+      lostReason,
       status: "lost",
-      lostAt: new Date(),
-      lostReason: nullify(cleanReason),
       wonAt: null,
     })
     .where(and(eq(deals.id, id), eq(deals.ownerId, user.id)));
   await logEvent(user.id, "lost", id, { reason: cleanReason });
+  if (current) {
+    await emitDealUpdatedEvents({
+      after: dealSnapshot({
+        ...current,
+        lostAt,
+        lostReason,
+        status: "lost",
+        wonAt: null,
+      }),
+      before: dealSnapshot(current),
+      dealId: id,
+      ownerId: user.id,
+    });
+  }
   revalidate(id);
   return { id };
 }
 
 export async function reopenDeal(id: string) {
   const user = await requireUser();
+  const [current] = await db
+    .select({
+      currency: deals.currency,
+      customFields: deals.customFields,
+      expectedCloseDate: deals.expectedCloseDate,
+      lostAt: deals.lostAt,
+      lostReason: deals.lostReason,
+      orgId: deals.orgId,
+      personId: deals.personId,
+      pipelineId: deals.pipelineId,
+      position: deals.position,
+      stageId: deals.stageId,
+      status: deals.status,
+      title: deals.title,
+      value: deals.value,
+      wonAt: deals.wonAt,
+    })
+    .from(deals)
+    .where(and(eq(deals.id, id), eq(deals.ownerId, user.id)))
+    .limit(1);
   await db
     .update(deals)
     .set({
@@ -241,6 +552,20 @@ export async function reopenDeal(id: string) {
     })
     .where(and(eq(deals.id, id), eq(deals.ownerId, user.id)));
   await logEvent(user.id, "reopened", id);
+  if (current) {
+    await emitDealUpdatedEvents({
+      after: dealSnapshot({
+        ...current,
+        lostAt: null,
+        lostReason: null,
+        status: "open",
+        wonAt: null,
+      }),
+      before: dealSnapshot(current),
+      dealId: id,
+      ownerId: user.id,
+    });
+  }
   revalidate(id);
   return { id };
 }

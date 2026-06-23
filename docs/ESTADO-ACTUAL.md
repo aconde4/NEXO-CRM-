@@ -8,18 +8,27 @@
 
 ## 📍 Dónde estamos
 
-- **Fase 6 · Motor de automatizaciones:** **en curso (6.1 + 6.2 + 6.3).**
+- **Fase 6 · Motor de automatizaciones:** **en curso (6.1 + 6.2 + 6.3 + 6.4).**
+  - **6.4** sistema de eventos interno: `src/server/services/automation-runner.ts`
+    define `AUTOMATION_EVENT` (`automation/event`), emisores best-effort hacia Inngest,
+    normalización/parseo de eventos, `eventId` para deduplicar reintentos y
+    `dispatchAutomationEvent`. La función Inngest `run-automations-for-event` ya está
+    registrada en `/api/inngest`: busca automatizaciones activas con
+    `findActiveAutomationsForEvent` y crea `automation_runs` en estado `waiting`, con
+    snapshot del grafo, versión, contexto, `trigger_event` y log inicial. Las mutaciones
+    de contactos, empresas y negocios emiten creado/actualizado/borrado y
+    `field_changed`; negocios emite también `deal_stage_changed` al mover/cambiar etapa;
+    las inscripciones de secuencia emiten `sequence_enrolled`; el tracking Gmail emite
+    `email_opened` solo en la primera apertura; el sync Gmail emite `email_replied` al
+    detectar respuestas. **Siguiente: 6.5**, ejecutar las acciones reales de los nodos
+    pendientes.
   - **6.3** disparadores: `src/server/services/automation-events.ts` define el evento
     interno (`AutomationEvent` = type/ownerId/entityType/entityId/payload),
     `triggerMatchesEvent` (matcher puro: tipo + filtros de entidad/etapa destino/campo) y
     `findActiveAutomationsForEvent` (owner-aware: automatizaciones **activas** cuyo
     disparador coincide). El catálogo/validación ya cubre registro creado/actualizado/
     borrado, cambio de etapa, cambio de campo, email abierto/respondido, formulario,
-    secuencia y disparador programado. Es la base de la 6.4 (emisión de eventos desde las
-    mutaciones).
-    **Pendiente 6.4:** llamar a esto desde las server actions (crear/editar/borrar,
-    moveDeal, etc.) y encolar un evento Inngest `automation/event` que lance las
-    ejecuciones.
+    secuencia y disparador programado. Es la base usada por el despachador de 6.4.
   - **6.2** constructor de flujos: catálogo `src/lib/automations.ts` (disparadores,
     tipos de nodo, acciones con su campo de config, operadores de condición, helpers),
     validación Zod (`automation.ts`), queries (`listAutomations`, `getAutomation`(+
@@ -251,23 +260,23 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **6.4** Sistema de eventos interno — emitir eventos
-a Inngest desde las mutaciones y ejecutar las automatizaciones que coincidan. Plan
+**Siguiente tarea de desarrollo:** **6.5** Acciones de automatización — ejecutar nodos
+`action` a partir de las `automation_runs` que 6.4 deja en estado `waiting`. Plan
 concreto para el relevo:
-1. Definir el evento Inngest `automation/event` (constante p. ej.
-   `AUTOMATION_EVENT` en un runner nuevo `src/server/services/automation-runner.ts`).
-2. Crear `emitAutomationEvent(event: AutomationEvent)` (con `inngest.send`) y llamarlo
-   desde las server actions de mutación: `contacts`/`organizations`/`deals` (creado/
-   actualizado/borrado), `moveDeal` (deal_stage_changed con `payload.toStageId`), etc.
-   Hacerlo "best-effort" (try/catch que no rompa la mutación), como `emitSequenceSignalSafely`.
-3. Función Inngest `run-automations-for-event` (triggers: `automation/event`): llama a
-   `findActiveAutomationsForEvent` y, por cada match, crea un `automation_runs` e inicia
-   la ejecución del grafo (las **acciones** reales son la 6.5, condiciones/esperas la 6.6).
-   Registrarla en `src/server/inngest/functions.ts` (array `functions`).
-Después: 6.5 acciones (ejecutar cada `kind`: create_task, add_label, enroll_sequence,
-send_email…), 6.6 condiciones if/else + esperas reales (`step.sleep`), 6.7 registro de
-ejecuciones (`automation_runs`, panel), 6.8 activar/pausar + dry-run. Reutiliza el
-patrón de Inngest de campañas/secuencias.
+1. Crear el executor de grafo (probablemente en `automation-runner.ts` o un servicio
+   dedicado) que cargue la run, lea `context.graph`, encuentre el nodo trigger y avance
+   por los nodos `action` lineales. Mantener owner-aware, logs por nodo y errores
+   no reintentables claros.
+2. Implementar acciones reales de 6.5: `create_task`, `add_label`, `move_stage`,
+   `update_field`, `enroll_sequence`, `send_email`, `webhook` y `notify`/`ai_summary`
+   con degradación si aún no procede. Reutilizar las server actions/servicios existentes
+   sin romper sus validaciones; evitar bucles peligrosos al emitir eventos derivados.
+3. Hacer que `run-automations-for-event` continúe la ejecución tras crear/recuperar la
+   run, actualizando `automation_runs.status` (`running` → `completed`/`failed`/`waiting`)
+   y `log`. Las condiciones/esperas reales quedan para 6.6, pero las acciones lineales
+   deben ser observables y verificables.
+Después: 6.6 condiciones if/else + esperas reales (`step.sleep`), 6.7 panel/registro de
+ejecuciones, 6.8 pruebas en seco y controles de activación/pausa más finos.
 
 **Pendiente externo:** 4.1 — API key de Resend **ya pegada** por el usuario; falta
 verificar dominio (no tiene aún) para enviar a terceros; en local se prueba con
@@ -297,7 +306,8 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** **Fase 6.3** (disparadores: motor de coincidencia de
+> **Hecho en la última sesión:** **Fase 6.4** (sistema interno de eventos + Inngest +
+> `automation_runs` en `waiting`), **6.3** (disparadores: motor de coincidencia de
 > eventos), **6.2** (constructor de automatizaciones) y **6.1** (migración del motor).
 > Antes: cierre de la **Fase 5** (5.1–5.8) y Fase 4 completada salvo la acción externa
 > 4.1 de Resend.
@@ -341,6 +351,24 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-23 (45) — Fase 6.4: sistema interno de eventos de automatización
+- **Runner de automatizaciones:** nuevo `src/server/services/automation-runner.ts` con
+  `AUTOMATION_EVENT` (`automation/event`), emisión best-effort a Inngest, parseo
+  defensivo del payload, helpers de diff por campo, `eventId` por evento y deduplicación
+  de reintentos al crear `automation_runs`.
+- **Inngest:** registrada la función `run-automations-for-event`, que recibe el evento,
+  resuelve automatizaciones activas con el matcher de 6.3 y crea runs en estado
+  `waiting` con snapshot del grafo, versión, `trigger_event`, contexto y log inicial.
+  Las acciones reales quedan preparadas para 6.5.
+- **Fuentes de eventos:** contactos, empresas y negocios emiten creado/actualizado/
+  borrado y `field_changed`; negocios emite `deal_stage_changed`; inscripción manual en
+  secuencias emite `sequence_enrolled`; tracking Gmail emite `email_opened` en la primera
+  apertura; Gmail Sync emite `email_replied` al detectar respuestas.
+- **Verificado** con script temporal `tsx` (borrado) contra la BD: una automatización
+  activa por `field_changed(email)` crea una sola `automation_run` en `waiting`, conserva
+  versión/eventId/payload y la segunda ejecución del mismo evento se deduplica.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-23 (44) — Fase 6.3: disparadores (motor de coincidencia de eventos)
 - **`src/server/services/automation-events.ts`**: tipo `AutomationEvent`

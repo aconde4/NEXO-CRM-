@@ -283,7 +283,7 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
 - [x] **6.2** Canvas visual de nodos (disparador, condición if/else, espera, acción).
 - [x] **6.3** Disparadores: registro creado/actualizado/borrado, cambio de etapa,
       cambio de campo, email abierto/respondido, formulario enviado, programado.
-- [ ] **6.4** Sistema de eventos interno: las mutaciones emiten eventos a Inngest.
+- [x] **6.4** Sistema de eventos interno: las mutaciones emiten eventos a Inngest.
 - [ ] **6.5** Acciones: crear/actualizar registro, enviar email, inscribir en
       secuencia, crear actividad, añadir etiqueta, mover de etapa, webhook, Slack.
 - [ ] **6.6** Condiciones (if/else) y esperas reales sobre Inngest.
