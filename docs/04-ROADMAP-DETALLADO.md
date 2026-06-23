@@ -293,12 +293,30 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       campos personalizados) + operador **"comienza por"** para buscar por prefijo.
       Debe integrarse en Contactos, vistas guardadas y superficies que reutilicen la
       audiencia (segmentos/embudo de contactos cuando aplique).
+      UX objetivo inspirada en Pipedrive: barra superior con chips de condiciones activas
+      (ej. `Campaña empieza por 005`) con botón de borrar, botón **Añadir condición**,
+      **Limpiar** y **Guardar vista**. El selector de condición debe tener búsqueda,
+      sugerencias y campos agrupados por entidad (**Contacto**, **Empresa** y, donde
+      aplique, Actividad/Negocio), con operadores legibles (`comienza por`, `contiene`,
+      `es`, `tiene valor`, `está vacío`). Debe soportar varias condiciones combinadas en
+      AND y mantener el estado en URL para compartir/guardar vistas.
 - [ ] **6.4c** Embudo de **contactos/prospección** basado en contactos, no en
       actividades: modelo propio de pipeline/etapas de contacto, etapa inicial
       **"Cargadas"**, importación Excel/CSV que mete los nuevos contactos en esa etapa,
       tablero que muestra **todos los contactos cargados** y movimiento manual entre
       etapas. Las actividades quedan como tareas/seguimientos, no como el estado del
       embudo.
+      UX objetivo: tablero horizontal tipo pipeline con columnas configurables
+      (`Cargadas`, `Contactadas`, `Follow-up 1`, etc.), contador de contactos por etapa
+      y scroll horizontal profesional. Cada tarjeta representa **un contacto**: título
+      principal = empresa vinculada (`trade_name`/`name`); segunda línea = nombre del
+      contacto; si no hay empresa, el título será el contacto y la segunda línea mostrará
+      "Sin empresa" o el email. Si hay varios contactos de la misma empresa, aparecen
+      como varias tarjetas con el mismo título de empresa y distinto contacto debajo.
+      La tarjeta debe mostrar también campaña/origen cuando ayude a filtrar, y permitir
+      arrastrar entre etapas sin crear actividades. Los contactos existentes deben poder
+      incorporarse al embudo (backfill a `Cargadas` en el embudo por defecto) para que el
+      tablero no empiece vacío.
 - [ ] **6.4d** Negocios con muchos embudos: rediseñar el selector/gestión de funnels de
       `/deals` y Ajustes para que escale con muchos pipelines (buscador/combobox,
       menú compacto, layout responsive y sin desbordes).

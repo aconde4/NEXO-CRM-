@@ -17,11 +17,15 @@
     emails masivos.
   - **6.4b** filtros por campo de contacto con operador **"comienza por"**: elegir el
     campo (serie, `campaign` o personalizado) y buscar por prefijo; debe integrarse con
-    Contactos, vistas guardadas y superficies de audiencia que lo reutilicen.
+    Contactos, vistas guardadas y superficies de audiencia que lo reutilicen. UX tipo
+    Pipedrive: chips de condiciones activas, **Añadir condición**, búsqueda de campos,
+    sugerencias y categorías por entidad.
   - **6.4c** embudo de **contactos/prospección** real: no basado en actividades. Los
     contactos importados deben entrar en la etapa inicial **"Cargadas"** y el tablero
     debe mostrar todos los contactos cargados, con movimiento manual entre etapas. Las
-    actividades siguen siendo tareas/seguimientos, no el estado del embudo.
+    actividades siguen siendo tareas/seguimientos, no el estado del embudo. Las tarjetas
+    del tablero deben tener como título la empresa y debajo el nombre del contacto; si
+    hay varios contactos de una empresa, aparecen varias tarjetas con la misma empresa.
   - **6.4d** UX de Negocios con muchos funnels: el selector/gestión de pipelines debe
     escalar sin desbordes ni pérdida de contexto (combobox/buscador, menú compacto,
     responsive).
@@ -288,17 +292,25 @@ Plan concreto para el relevo:
    `lastName`, `email`, `phone`, `title`, `organization`, `source`, `campaign`,
    `marketingStatus`) y campos personalizados, con operadores al menos `contains`,
    `starts_with`, `is_set` e `is_empty` donde aplique.
-2. Implementar query SQL con autorización por `ownerId`, soporte case-insensitive y
+2. Implementar la UX tipo Pipedrive: barra de chips activos (ej. `Campaña empieza por
+   005`) con botón de borrar, **Añadir condición**, **Limpiar**, **Guardar vista** y
+   popover con buscador, sugerencias y campos agrupados por entidad (**Contacto**,
+   **Empresa** y, cuando aplique, Actividad/Negocio).
+3. Implementar query SQL con autorización por `ownerId`, soporte case-insensitive y
    prefijo eficiente para `campaign` usando el índice creado en 6.4a.
-3. Actualizar `/contacts`: controles de campo/operador/valor, integración con vistas
+4. Actualizar `/contacts`: controles de campo/operador/valor, integración con vistas
    guardadas y export CSV manteniendo los mismos filtros.
-4. Revisar superficies de audiencia que reutilizan contactos/segmentos para que el campo
-   `campaign` se comporte como dato nativo.
-5. Verificar con datos reales/temporales: búsqueda por prefijo, campo `campaign`, campo
+5. Revisar superficies de audiencia que reutilizan contactos/segmentos y el futuro
+   embudo de contactos para que `campaign` se comporte como dato nativo.
+6. Verificar con datos reales/temporales: búsqueda por prefijo, campo `campaign`, campo
    personalizado, vista guardada, export y ausencia de regresiones en búsqueda simple.
 
-Después: **6.4c** embudo de contactos con etapa "Cargadas"; **6.4d** UX de muchos
-funnels en Negocios. Solo al cerrar ese bloque se retoma **6.5** acciones de
+Después: **6.4c** embudo de contactos con etapa "Cargadas". Debe ser un tablero tipo
+pipeline: columnas horizontales, contador por etapa, filtros reutilizando 6.4b y tarjetas
+de contacto donde el título principal sea la empresa (`trade_name`/`name`) y debajo vaya
+el nombre del contacto; sin empresa, título = contacto y subtítulo = "Sin empresa" o
+email. Si una empresa tiene varios contactos, se muestran varias tarjetas. **6.4d** UX de
+muchos funnels en Negocios. Solo al cerrar ese bloque se retoma **6.5** acciones de
 automatización.
 
 **Pendiente externo:** 4.1 — API key de Resend **ya pegada** por el usuario; falta
@@ -378,6 +390,18 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-23 (48) — Precisión de UX para filtros y embudo de contactos
+- **Filtros 6.4b:** definidos como experiencia tipo Pipedrive: chips de condiciones
+  activas (`Campaña empieza por 005`), botón **Añadir condición**, buscador, sugerencias,
+  campos agrupados por entidad y acciones **Limpiar**/**Guardar vista**. La condición de
+  prefijo debe mantenerse en URL y vistas guardadas.
+- **Embudo 6.4c:** aclarado que el pipeline pendiente es de **contactos/prospección**,
+  no de actividades ni negocios. El tablero debe mostrar columnas horizontales con
+  contactos, y cada tarjeta debe titularse con la empresa vinculada y debajo el nombre
+  del contacto; varios contactos de una misma empresa son varias tarjetas.
+- **Criterio visual:** los filtros de 6.4b deben reutilizarse en el futuro embudo de
+  contactos para filtrar por `campaign`/empresa/contacto antes de mover etapas.
 
 ### 2026-06-23 (47) — Fase 6.4a: `campaign` nativo en contactos
 - **Modelo:** migración `drizzle/0010_glossy_catseye.sql` añade `persons.campaign`
