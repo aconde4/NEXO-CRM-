@@ -61,6 +61,8 @@ function textRule(
       return ilike(column, value);
     case "contains":
       return ilike(column, `%${value}%`);
+    case "starts_with":
+      return ilike(column, `${value}%`);
     default:
       return undefined;
   }
@@ -73,7 +75,7 @@ function ruleToSql(rule: SegmentRule): SQL | undefined {
 
   switch (rule.field) {
     case "name": {
-      const like = `%${value}%`;
+      const like = rule.op === "starts_with" ? `${value}%` : `%${value}%`;
       const matches = or(
         ilike(persons.firstName, like),
         ilike(persons.lastName, like),

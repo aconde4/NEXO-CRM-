@@ -17,6 +17,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import {
+  appendContactFilterParams,
+  type ContactFilterCondition,
+} from "@/lib/contact-filters";
 import type { CustomFieldDef } from "@/lib/custom-fields";
 import { fullName } from "@/lib/format";
 import { deletePerson } from "@/server/actions/contacts";
@@ -29,6 +33,7 @@ import {
   type ContactInitial,
   type OrgOption,
 } from "@/components/contacts/contact-form-dialog";
+import { ContactFiltersBar } from "@/components/contacts/contact-filters-bar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -69,6 +74,7 @@ export function ContactsView({
   query,
   activeLabel,
   sort,
+  conditions,
   savedViews,
   customFieldDefs = [],
 }: {
@@ -78,6 +84,7 @@ export function ContactsView({
   query: string;
   activeLabel: string;
   sort: string;
+  conditions: ContactFilterCondition[];
   savedViews: SavedView[];
   customFieldDefs?: CustomFieldDef[];
 }) {
@@ -97,6 +104,7 @@ export function ContactsView({
   if (query) exportParams.set("q", query);
   if (activeLabel) exportParams.set("label", activeLabel);
   if (sort && sort !== "recent") exportParams.set("sort", sort);
+  appendContactFilterParams(exportParams, conditions);
   const exportHref = `/api/contacts/export${
     exportParams.size ? `?${exportParams}` : ""
   }`;
@@ -147,7 +155,7 @@ export function ContactsView({
         entityType="person"
         basePath="/contacts"
         views={savedViews}
-        current={{ q: query, label: activeLabel, sort }}
+        current={{ conditions, q: query, label: activeLabel, sort }}
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -246,9 +254,14 @@ export function ContactsView({
         </div>
       </div>
 
+      <ContactFiltersBar
+        conditions={conditions}
+        customFieldDefs={customFieldDefs}
+      />
+
       {contacts.length === 0 ? (
         <EmptyState
-          hasFilter={Boolean(query || activeLabel)}
+          hasFilter={Boolean(query || activeLabel || conditions.length)}
           onCreate={openCreate}
         />
       ) : (

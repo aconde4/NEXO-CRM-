@@ -10,6 +10,7 @@ export type SegmentMatch = "all" | "any";
 
 export type SegmentRuleOp =
   | "contains"
+  | "starts_with"
   | "not_contains"
   | "eq"
   | "neq"
@@ -64,31 +65,31 @@ export const SEGMENT_FIELDS: SegmentField[] = [
     key: "name",
     label: "Nombre",
     type: "text",
-    ops: ["contains", "not_contains"],
+    ops: ["contains", "starts_with", "not_contains"],
   },
   {
     key: "email",
     label: "Email",
     type: "text",
-    ops: ["contains", "is_set", "is_empty"],
+    ops: ["contains", "starts_with", "is_set", "is_empty"],
   },
   {
     key: "title",
     label: "Cargo",
     type: "text",
-    ops: ["contains", "is_set", "is_empty"],
+    ops: ["contains", "starts_with", "is_set", "is_empty"],
   },
   {
     key: "source",
     label: "Origen",
     type: "text",
-    ops: ["eq", "contains", "is_set", "is_empty"],
+    ops: ["eq", "contains", "starts_with", "is_set", "is_empty"],
   },
   {
     key: "campaign",
     label: "Campaña",
     type: "text",
-    ops: ["eq", "contains", "is_set", "is_empty"],
+    ops: ["eq", "contains", "starts_with", "is_set", "is_empty"],
   },
   {
     key: "marketing_status",
@@ -119,6 +120,7 @@ export const SEGMENT_FIELDS: SegmentField[] = [
 
 export const OP_LABELS: Record<SegmentRuleOp, string> = {
   contains: "contiene",
+  starts_with: "comienza por",
   not_contains: "no contiene",
   eq: "es",
   neq: "no es",

@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { Bookmark, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
+import {
+  appendContactFilterParams,
+  contactFiltersKey,
+  type ContactFilterCondition,
+} from "@/lib/contact-filters";
 import { cn } from "@/lib/utils";
 import {
   createSavedView,
@@ -23,13 +28,19 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
-export type ViewFilters = { q?: string; label?: string; sort?: string };
+export type ViewFilters = {
+  conditions?: ContactFilterCondition[];
+  label?: string;
+  q?: string;
+  sort?: string;
+};
 
 function buildHref(basePath: string, filters: ViewFilters): string {
   const params = new URLSearchParams();
   if (filters.q) params.set("q", filters.q);
   if (filters.label) params.set("label", filters.label);
   if (filters.sort) params.set("sort", filters.sort);
+  appendContactFilterParams(params, filters.conditions ?? []);
   return params.size ? `${basePath}?${params}` : basePath;
 }
 
@@ -37,7 +48,8 @@ function sameFilters(a: ViewFilters, b: ViewFilters): boolean {
   return (
     (a.q ?? "") === (b.q ?? "") &&
     (a.label ?? "") === (b.label ?? "") &&
-    (a.sort ?? "") === (b.sort ?? "")
+    (a.sort ?? "") === (b.sort ?? "") &&
+    contactFiltersKey(a.conditions) === contactFiltersKey(b.conditions)
   );
 }
 
@@ -57,7 +69,12 @@ export function SavedViewsBar({
   const [name, setName] = React.useState("");
   const [saving, setSaving] = React.useState(false);
 
-  const hasFilters = Boolean(current.q || current.label || current.sort);
+  const hasFilters = Boolean(
+    current.q ||
+      current.label ||
+      current.sort ||
+      (current.conditions?.length ?? 0) > 0,
+  );
   const onDefault = !hasFilters;
   const activeView = views.find((v) => sameFilters(v.filters, current));
   const isNewCombination = hasFilters && !activeView;

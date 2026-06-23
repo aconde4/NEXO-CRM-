@@ -1,4 +1,8 @@
 import { auth } from "@/auth";
+import {
+  CONTACT_FILTER_PARAM,
+  decodeContactFilterParams,
+} from "@/lib/contact-filters";
 import { csvFilename, toCsv } from "@/lib/csv";
 import { formatCustomValue, isEmptyCustomValue } from "@/lib/custom-fields";
 import { listPersonsForExport } from "@/server/queries/contacts";
@@ -22,11 +26,15 @@ export async function GET(request: Request) {
   const q = searchParams.get("q") ?? undefined;
   const label = searchParams.get("label") ?? undefined;
   const sort = searchParams.get("sort") ?? undefined;
+  const filter = searchParams.getAll(CONTACT_FILTER_PARAM);
 
-  const [people, defs] = await Promise.all([
-    listPersonsForExport(q, label || undefined, sort),
-    listCustomFieldDefs("person"),
-  ]);
+  const defs = await listCustomFieldDefs("person");
+  const people = await listPersonsForExport({
+    conditions: decodeContactFilterParams(filter, defs),
+    labelId: label || undefined,
+    search: q,
+    sort,
+  });
   const labelMap = await getLabelsForPersons(people.map((p) => p.id));
 
   const headers = [

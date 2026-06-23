@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/page-header";
 import { ContactsView } from "@/components/contacts/contacts-view";
+import { decodeContactFilterParams } from "@/lib/contact-filters";
 import { listOrganizationOptions, listPersons } from "@/server/queries/contacts";
 import { listCustomFieldDefs } from "@/server/queries/custom-fields";
 import { getLabelsForPersons, listLabels } from "@/server/queries/labels";
@@ -12,21 +13,33 @@ export const metadata: Metadata = { title: "Contactos" };
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; label?: string; sort?: string }>;
+  searchParams: Promise<{
+    filter?: string | string[];
+    label?: string;
+    q?: string;
+    sort?: string;
+  }>;
 }) {
-  const { q, label, sort } = await searchParams;
+  const { filter, label, q, sort } = await searchParams;
   const query = q ?? "";
   const labelId = label ?? "";
   const sortKey = sort ?? "";
 
-  const [people, organizations, allLabels, customFieldDefs, savedViews] =
+  const [organizations, allLabels, customFieldDefs, savedViews] =
     await Promise.all([
-      listPersons(query, labelId || undefined, sortKey || undefined),
       listOrganizationOptions(),
       listLabels(),
       listCustomFieldDefs("person"),
       listSavedViews("person"),
     ]);
+
+  const conditions = decodeContactFilterParams(filter, customFieldDefs);
+  const people = await listPersons({
+    conditions,
+    labelId: labelId || undefined,
+    search: query,
+    sort: sortKey || undefined,
+  });
 
   const labelMap = await getLabelsForPersons(people.map((p) => p.id));
   const contacts = people.map((p) => ({ ...p, labels: labelMap[p.id] ?? [] }));
@@ -46,6 +59,7 @@ export default async function ContactsPage({
         query={query}
         activeLabel={labelId}
         sort={sortKey}
+        conditions={conditions}
         savedViews={savedViews}
         customFieldDefs={customFieldDefs}
       />

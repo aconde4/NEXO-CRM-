@@ -288,7 +288,7 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       campo **nativo** de contacto (campaña/origen comercial de carga), con migración,
       formulario, ficha, listado, exportación y auto-mapeo desde Excel/CSV. No confundir
       con `campaigns` de email masivo.
-- [ ] **6.4b** Filtros profesionales de contactos por campo: selector de campo
+- [x] **6.4b** Filtros profesionales de contactos por campo: selector de campo
       (nombre, email, teléfono, cargo, empresa, origen, **campaña**, estado marketing y
       campos personalizados) + operador **"comienza por"** para buscar por prefijo.
       Debe integrarse en Contactos, vistas guardadas y superficies que reutilicen la

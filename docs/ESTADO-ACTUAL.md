@@ -9,17 +9,17 @@
 ## 📍 Dónde estamos
 
 - **Bloque prioritario antes de continuar 6.5 (decisión de producto 2026-06-23):**
-  **en curso; 6.4a hecha, siguiente 6.4b.** No continuar con acciones de automatización hasta
+  **en curso; 6.4a y 6.4b hechas, siguiente 6.4c.** No continuar con acciones de automatización hasta
   corregir el modelo comercial y la UX detectada por el usuario:
   - **6.4a HECHA** `campaign` nativo en contactos: migración, validación, formulario,
     ficha, listado, exportación, segmentos, merge tags y auto-mapeo desde Excel/CSV. Es
     la campaña/origen comercial de carga del contacto; no es la tabla `campaigns` de
     emails masivos.
-  - **6.4b** filtros por campo de contacto con operador **"comienza por"**: elegir el
-    campo (serie, `campaign` o personalizado) y buscar por prefijo; debe integrarse con
-    Contactos, vistas guardadas y superficies de audiencia que lo reutilicen. UX tipo
-    Pipedrive: chips de condiciones activas, **Añadir condición**, búsqueda de campos,
-    sugerencias y categorías por entidad.
+  - **6.4b HECHA** filtros por campo de contacto con operador **"comienza por"**:
+    contrato URL validado, campos de serie (`campaign` incluido), empresa y campos
+    personalizados; varias condiciones AND; UI tipo Pipedrive con chips, **Añadir
+    condición**, buscador, sugerencias, categorías por entidad, **Limpiar** y vistas
+    guardadas; export CSV y segmentos respetan el operador de prefijo.
   - **6.4c** embudo de **contactos/prospección** real: no basado en actividades. Los
     contactos importados deben entrar en la etapa inicial **"Cargadas"** y el tablero
     debe mostrar todos los contactos cargados, con movimiento manual entre etapas. Las
@@ -31,7 +31,7 @@
     responsive).
 
 - **Fase 6 · Motor de automatizaciones:** **en curso (6.1 + 6.2 + 6.3 + 6.4 + 6.4a
-  hechas; 6.5 pausada hasta cerrar 6.4b–6.4d).**
+  + 6.4b hechas; 6.5 pausada hasta cerrar 6.4c–6.4d).**
   - **6.4** sistema de eventos interno: `src/server/services/automation-runner.ts`
     define `AUTOMATION_EVENT` (`automation/event`), emisores best-effort hacia Inngest,
     normalización/parseo de eventos, `eventId` para deduplicar reintentos y
@@ -43,8 +43,7 @@
     `field_changed`; negocios emite también `deal_stage_changed` al mover/cambiar etapa;
     las inscripciones de secuencia emiten `sequence_enrolled`; el tracking Gmail emite
     `email_opened` solo en la primera apertura; el sync Gmail emite `email_replied` al
-    detectar respuestas. **Siguiente: 6.4b**, filtros profesionales de contactos por
-    campo con operador "comienza por".
+    detectar respuestas. **Siguiente: 6.4c**, embudo de contactos/prospección real.
   - **6.3** disparadores: `src/server/services/automation-events.ts` define el evento
     interno (`AutomationEvent` = type/ownerId/entityType/entityId/payload),
     `triggerMatchesEvent` (matcher puro: tipo + filtros de entidad/etapa destino/campo) y
@@ -264,10 +263,10 @@
     empresas. Gestión en **Ajustes**, render dinámico en **fichas y formularios**,
     valores en `custom_fields` (JSONB), **mapeo en la importación** y **columnas en la
     exportación**. Añadido **`trade_name` (nombre comercial)** de serie en empresas.
-    **Pendiente 6.4b:** filtros por campo/prefijo; ya no queda como mejora opcional.
+    **6.4b:** contactos ya filtra por campo/prefijo, incluidos campos personalizados.
   - **Vistas guardadas (1.5):** barra de vistas en Contactos para guardar/aplicar/
-    borrar combinaciones de filtros (búsqueda + etiqueta + **orden**). Tabla
-    `saved_views`.
+    borrar combinaciones de filtros (búsqueda + etiqueta + **orden** + condiciones
+    avanzadas de 6.4b). Tabla `saved_views`.
   - **Adjuntos (1.12):** tabla `files` + Supabase Storage. Panel "Archivos" en las
     fichas (subir hasta 10 MB, descargar con enlace firmado, borrar) con bucket
     privado y degradación elegante si Storage no está configurado.
@@ -285,33 +284,31 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **6.4b** Filtros profesionales de contactos por
-campo con operador **"comienza por"**.
+**Siguiente tarea de desarrollo:** **6.4c** Embudo de contactos/prospección real,
+basado en contactos y no en actividades.
 Plan concreto para el relevo:
-1. Diseñar el contrato de filtros en URL y validación: campo de serie (`firstName`,
-   `lastName`, `email`, `phone`, `title`, `organization`, `source`, `campaign`,
-   `marketingStatus`) y campos personalizados, con operadores al menos `contains`,
-   `starts_with`, `is_set` e `is_empty` donde aplique.
-2. Implementar la UX tipo Pipedrive: barra de chips activos (ej. `Campaña empieza por
-   005`) con botón de borrar, **Añadir condición**, **Limpiar**, **Guardar vista** y
-   popover con buscador, sugerencias y campos agrupados por entidad (**Contacto**,
-   **Empresa** y, cuando aplique, Actividad/Negocio).
-3. Implementar query SQL con autorización por `ownerId`, soporte case-insensitive y
-   prefijo eficiente para `campaign` usando el índice creado en 6.4a.
-4. Actualizar `/contacts`: controles de campo/operador/valor, integración con vistas
-   guardadas y export CSV manteniendo los mismos filtros.
-5. Revisar superficies de audiencia que reutilizan contactos/segmentos y el futuro
-   embudo de contactos para que `campaign` se comporte como dato nativo.
-6. Verificar con datos reales/temporales: búsqueda por prefijo, campo `campaign`, campo
-   personalizado, vista guardada, export y ausencia de regresiones en búsqueda simple.
+1. Diseñar el modelo de pipeline/etapas de contacto: tabla(s) owner-aware para embudos
+   de prospección, etapas configurables, posición y etapa inicial **"Cargadas"**.
+2. Migrar/sembrar el embudo por defecto y preparar bootstrap idempotente para que todo
+   usuario tenga etapas base (`Cargadas`, `Contactadas`, `Follow-up 1`, etc.).
+3. Actualizar importación CSV/Excel para que los nuevos contactos entren en la etapa
+   inicial "Cargadas" sin convertir actividades en estado de embudo.
+4. Crear queries/actions para tablero de contactos: mover manualmente entre etapas,
+   autorización por `ownerId`, orden estable por columna y revalidación de `/contacts`
+   o la nueva ruta del embudo.
+5. Construir la UI tipo pipeline horizontal con scroll profesional, contador por etapa
+   y filtros reutilizando 6.4b (`campaign`, empresa, contacto y campos personalizados).
+6. Tarjetas: cada tarjeta representa **un contacto**; título principal = empresa
+   vinculada (`trade_name`/`name`), segunda línea = nombre del contacto. Sin empresa:
+   título = contacto y subtítulo = "Sin empresa" o email. Si una empresa tiene varios
+   contactos, aparecen varias tarjetas con el mismo título de empresa y distinto
+   contacto debajo.
+7. Verificar con datos temporales/importación: nuevos contactos en "Cargadas", varios
+   contactos de la misma empresa, movimiento entre etapas, filtros 6.4b en el tablero,
+   y gates `pnpm typecheck`, `pnpm lint`, `pnpm build`.
 
-Después: **6.4c** embudo de contactos con etapa "Cargadas". Debe ser un tablero tipo
-pipeline: columnas horizontales, contador por etapa, filtros reutilizando 6.4b y tarjetas
-de contacto donde el título principal sea la empresa (`trade_name`/`name`) y debajo vaya
-el nombre del contacto; sin empresa, título = contacto y subtítulo = "Sin empresa" o
-email. Si una empresa tiene varios contactos, se muestran varias tarjetas. **6.4d** UX de
-muchos funnels en Negocios. Solo al cerrar ese bloque se retoma **6.5** acciones de
-automatización.
+Después: **6.4d** UX de Negocios con muchos funnels. Solo al cerrar 6.4c–6.4d se retoma
+**6.5** acciones de automatización.
 
 **Pendiente externo:** 4.1 — API key de Resend **ya pegada** por el usuario; falta
 verificar dominio (no tiene aún) para enviar a terceros; en local se prueba con
@@ -390,6 +387,26 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-23 (49) — Fase 6.4b: filtros profesionales de contactos
+- **Contrato compartido:** nuevo `src/lib/contact-filters.ts` para condiciones de
+  contacto en URL (`filter` repetible), operadores (`contiene`, `comienza por`, `es`,
+  `no es`, `tiene valor`, `está vacío`), campos de serie, empresa, estado marketing y
+  campos personalizados.
+- **Servidor:** `listPersons`/`listPersonsForExport` aceptan condiciones AND owner-aware
+  y resuelven prefijo case-insensitive para `campaign`, empresa y `custom_fields`.
+  `/api/contacts/export` reutiliza los mismos filtros. Las vistas guardadas guardan
+  condiciones avanzadas y las normalizan en servidor.
+- **UI Contactos:** barra tipo Pipedrive con chips activos, eliminar condición, **Añadir
+  condición**, buscador de campos, sugeridos, grupos Contacto/Empresa/Campos
+  personalizados y **Limpiar**; las vistas guardadas comparan y aplican también esas
+  condiciones.
+- **Audiencias:** segmentos incorporan operador `starts_with` para campos de texto
+  principales, incluida `campaign`, para campañas/secuencias que reutilizan audiencia.
+- **Verificado:** login dev + datos temporales QA: filtro por `campaign` empieza por
+  `QA64B-005`, export CSV, campo personalizado `custom:qa64b_serie` y empresa; cada caso
+  devolvió el contacto esperado y excluyó el no coincidente. Datos QA limpiados.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-23 (48) — Precisión de UX para filtros y embudo de contactos
 - **Filtros 6.4b:** definidos como experiencia tipo Pipedrive: chips de condiciones

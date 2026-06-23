@@ -3,6 +3,8 @@
 import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+import { normalizeContactFilters } from "@/lib/contact-filters";
+import type { CustomFieldDef } from "@/lib/custom-fields";
 import { requireUser } from "@/lib/session";
 import {
   savedViewSchema,
@@ -10,14 +12,23 @@ import {
 } from "@/lib/validations/saved-view";
 import { db } from "@/server/db";
 import { savedViews } from "@/server/db/schema";
+import { listCustomFieldDefs } from "@/server/queries/custom-fields";
 
 function pathFor(entityType: "person" | "organization") {
   return entityType === "person" ? "/contacts" : "/organizations";
 }
 
 /** Quita claves vacías de los filtros para no guardar ruido. */
-function cleanFilters(filters: SavedViewValues["filters"]) {
+function cleanFilters(
+  filters: SavedViewValues["filters"],
+  customFieldDefs: CustomFieldDef[] = [],
+) {
   const out: SavedViewValues["filters"] = {};
+  const conditions = normalizeContactFilters(
+    filters.conditions ?? [],
+    customFieldDefs,
+  );
+  if (conditions.length > 0) out.conditions = conditions;
   if (filters.q?.trim()) out.q = filters.q.trim();
   if (filters.label?.trim()) out.label = filters.label.trim();
   if (filters.sort?.trim()) out.sort = filters.sort.trim();
@@ -27,6 +38,8 @@ function cleanFilters(filters: SavedViewValues["filters"]) {
 export async function createSavedView(raw: SavedViewValues) {
   const user = await requireUser();
   const data = savedViewSchema.parse(raw);
+  const customFieldDefs =
+    data.entityType === "person" ? await listCustomFieldDefs("person") : [];
 
   const [{ max } = { max: 0 }] = await db
     .select({ max: sql<number>`coalesce(max(${savedViews.position}), 0)` })
@@ -43,7 +56,7 @@ export async function createSavedView(raw: SavedViewValues) {
     .values({
       name: data.name.trim(),
       entityType: data.entityType,
-      filters: cleanFilters(data.filters),
+      filters: cleanFilters(data.filters, customFieldDefs),
       position: Number(max) + 1,
       ownerId: user.id,
     })

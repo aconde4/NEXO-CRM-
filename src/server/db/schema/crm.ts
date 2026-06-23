@@ -18,6 +18,9 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type {
+  ContactFilterCondition,
+} from "@/lib/contact-filters";
+import type {
   CustomEntityType,
   CustomFieldType,
 } from "@/lib/custom-fields";
@@ -370,6 +373,7 @@ export const customFieldDefs = pgTable(
 
 // --- Vistas guardadas (saved views) -----------------------------------------
 export type SavedViewFilters = {
+  conditions?: ContactFilterCondition[];
   q?: string;
   label?: string;
   sort?: string;
