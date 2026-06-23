@@ -8,7 +8,25 @@
 
 ## 📍 Dónde estamos
 
-- **Fase 6 · Motor de automatizaciones:** **en curso (6.1 + 6.2 + 6.3 + 6.4).**
+- **Bloque prioritario antes de continuar 6.5 (decisión de producto 2026-06-23):**
+  **pendiente, empezar por 6.4a.** No continuar con acciones de automatización hasta
+  corregir el modelo comercial y la UX detectada por el usuario:
+  - **6.4a** `campaign` nativo en contactos: migración, validación, formulario, ficha,
+    listado, exportación y auto-mapeo desde Excel/CSV. Es la campaña/origen comercial
+    de carga del contacto; no es la tabla `campaigns` de emails masivos.
+  - **6.4b** filtros por campo de contacto con operador **"comienza por"**: elegir el
+    campo (serie, `campaign` o personalizado) y buscar por prefijo; debe integrarse con
+    Contactos, vistas guardadas y superficies de audiencia que lo reutilicen.
+  - **6.4c** embudo de **contactos/prospección** real: no basado en actividades. Los
+    contactos importados deben entrar en la etapa inicial **"Cargadas"** y el tablero
+    debe mostrar todos los contactos cargados, con movimiento manual entre etapas. Las
+    actividades siguen siendo tareas/seguimientos, no el estado del embudo.
+  - **6.4d** UX de Negocios con muchos funnels: el selector/gestión de pipelines debe
+    escalar sin desbordes ni pérdida de contexto (combobox/buscador, menú compacto,
+    responsive).
+
+- **Fase 6 · Motor de automatizaciones:** **en curso (6.1 + 6.2 + 6.3 + 6.4 hechas;
+  6.5 pausada hasta cerrar 6.4a–6.4d).**
   - **6.4** sistema de eventos interno: `src/server/services/automation-runner.ts`
     define `AUTOMATION_EVENT` (`automation/event`), emisores best-effort hacia Inngest,
     normalización/parseo de eventos, `eventId` para deduplicar reintentos y
@@ -231,7 +249,8 @@
     mapear → vista previa → resultado), auto-mapeo de cabeceras (sin acentos),
     creación de empresas al vuelo, **dedupe por email** (omitir/actualizar, dentro
     del archivo y contra la BD) y validación por fila. Excel con `read-excel-file`,
-    CSV con `papaparse`. Botón "Importar" y ⌘K.
+    CSV con `papaparse`. Botón "Importar" y ⌘K. **Pendiente 6.4a:** añadir `campaign`
+    como campo nativo de contacto y auto-mapearlo desde Excel/CSV.
   - **Exportación CSV (1.14):** contactos y empresas a CSV (botón "Exportar"),
     respetando los filtros activos, con BOM UTF-8 para acentos en Excel
     (`/api/contacts/export`, `/api/organizations/export`).
@@ -240,6 +259,7 @@
     empresas. Gestión en **Ajustes**, render dinámico en **fichas y formularios**,
     valores en `custom_fields` (JSONB), **mapeo en la importación** y **columnas en la
     exportación**. Añadido **`trade_name` (nombre comercial)** de serie en empresas.
+    **Pendiente 6.4b:** filtros por campo/prefijo; ya no queda como mejora opcional.
   - **Vistas guardadas (1.5):** barra de vistas en Contactos para guardar/aplicar/
     borrar combinaciones de filtros (búsqueda + etiqueta + **orden**). Tabla
     `saved_views`.
@@ -260,23 +280,23 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **6.5** Acciones de automatización — ejecutar nodos
-`action` a partir de las `automation_runs` que 6.4 deja en estado `waiting`. Plan
-concreto para el relevo:
-1. Crear el executor de grafo (probablemente en `automation-runner.ts` o un servicio
-   dedicado) que cargue la run, lea `context.graph`, encuentre el nodo trigger y avance
-   por los nodos `action` lineales. Mantener owner-aware, logs por nodo y errores
-   no reintentables claros.
-2. Implementar acciones reales de 6.5: `create_task`, `add_label`, `move_stage`,
-   `update_field`, `enroll_sequence`, `send_email`, `webhook` y `notify`/`ai_summary`
-   con degradación si aún no procede. Reutilizar las server actions/servicios existentes
-   sin romper sus validaciones; evitar bucles peligrosos al emitir eventos derivados.
-3. Hacer que `run-automations-for-event` continúe la ejecución tras crear/recuperar la
-   run, actualizando `automation_runs.status` (`running` → `completed`/`failed`/`waiting`)
-   y `log`. Las condiciones/esperas reales quedan para 6.6, pero las acciones lineales
-   deben ser observables y verificables.
-Después: 6.6 condiciones if/else + esperas reales (`step.sleep`), 6.7 panel/registro de
-ejecuciones, 6.8 pruebas en seco y controles de activación/pausa más finos.
+**Siguiente tarea de desarrollo:** **6.4a** Campo nativo `campaign` en contactos.
+Plan concreto para el relevo:
+1. Migración Drizzle: añadir `persons.campaign` (texto nullable) con índice por
+   `owner_id + lower(campaign)` o estrategia equivalente para búsquedas por prefijo.
+   Actualizar esquema, seed y modelo de datos.
+2. Validaciones/actions/queries/UI: formulario de contacto, ficha, listado, exportación
+   CSV y merge tags deben exponer `campaign` como campo de serie. No meterlo en
+   `custom_fields`.
+3. Importación Excel/CSV: auto-mapear cabeceras `campaña`, `campana`, `campaign`,
+   `utm_campaign` hacia `persons.campaign`; mostrarlo en preview y respetarlo en
+   dedupe/update.
+4. Verificar con import temporal: contactos creados/actualizados conservan `campaign`,
+   aparece en listado/ficha/export y no rompe filtros existentes.
+
+Después: **6.4b** filtros por campo con "comienza por"; **6.4c** embudo de contactos
+con etapa "Cargadas"; **6.4d** UX de muchos funnels en Negocios. Solo al cerrar ese
+bloque se retoma **6.5** acciones de automatización.
 
 **Pendiente externo:** 4.1 — API key de Resend **ya pegada** por el usuario; falta
 verificar dominio (no tiene aún) para enviar a terceros; en local se prueba con
@@ -300,15 +320,19 @@ verificar el dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §
 > antes de cualquier envío (RGPD).
 
 Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
-- Columnas y **filtros por campo personalizado** en los listados (sobre las vistas
-  guardadas). Etiquetas también en empresas; editor de notas enriquecido (Tiptap).
+- Etiquetas también en empresas; editor de notas enriquecido (Tiptap). Los filtros por
+  campo/prefijo ya no son opcionales: están priorizados en 6.4b.
 
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** **Fase 6.4** (sistema interno de eventos + Inngest +
-> `automation_runs` en `waiting`), **6.3** (disparadores: motor de coincidencia de
-> eventos), **6.2** (constructor de automatizaciones) y **6.1** (migración del motor).
+> **Última decisión de producto:** antes de seguir con 6.5 hay que cerrar el bloque
+> **6.4a–6.4d** (`campaign` nativo, filtros por prefijo, embudo de contactos no basado
+> en actividades y UX de muchos funnels en Negocios).
+>
+> **Hecho en la última sesión técnica:** **Fase 6.4** (sistema interno de eventos +
+> Inngest + `automation_runs` en `waiting`), **6.3** (disparadores: motor de coincidencia
+> de eventos), **6.2** (constructor de automatizaciones) y **6.1** (migración del motor).
 > Antes: cierre de la **Fase 5** (5.1–5.8) y Fase 4 completada salvo la acción externa
 > 4.1 de Resend.
 
@@ -351,6 +375,19 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-23 (46) — Replanificación prioritaria: contactos, embudos y filtros
+- **Decisión de producto:** pausar 6.5 hasta corregir cuatro puntos detectados por el
+  usuario: `campaign` nativo en contactos, filtros por campo con operador "comienza por",
+  embudo de contactos/prospección no basado en actividades y UX de Negocios con muchos
+  funnels.
+- **Roadmap:** añadidas las tareas **6.4a–6.4d** antes de 6.5 para que el siguiente
+  trabajo empiece por `campaign` nativo y no por acciones de automatización.
+- **Modelo de datos:** documentado `persons.campaign` y un modelo separado de
+  `contact_pipelines`/`contact_stages`/`contact_pipeline_memberships`, con etapa inicial
+  **"Cargadas"** y entrada automática de contactos importados.
+- **Criterio clave:** el estado del embudo de contactos no se deriva de actividades; las
+  actividades quedan como tareas/seguimientos.
 
 ### 2026-06-23 (45) — Fase 6.4: sistema interno de eventos de automatización
 - **Runner de automatizaciones:** nuevo `src/server/services/automation-runner.ts` con

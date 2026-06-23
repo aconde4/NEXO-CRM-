@@ -47,6 +47,7 @@ window), datos del remitente para RGPD (dirección física en el pie), etc.
 `first_name`, `last_name`, `org_id` (→ organizations), `title` (cargo),
 `emails` (JSONB: lista con etiqueta work/home + flag de baja),
 `phones` (JSONB), `owner_id`, `source` (origen del lead),
+`campaign` (campaña/origen comercial de la carga, campo nativo filtrable),
 `marketing_status` (`subscribed`/`unsubscribed`/`bounced`/`complained`),
 `custom_fields` (JSONB), `deleted_at`.
 
@@ -77,6 +78,23 @@ Embudos. `name`, `order`, `is_default`.
 
 ### `deal_contacts`
 Participantes de un negocio (N:N entre deals y persons) con `role`.
+
+### `contact_pipelines` / `contact_stages` / `contact_pipeline_memberships`
+Embudo de **contactos/prospección**, separado del pipeline de negocios. Sirve para ver
+y mover contactos por estados comerciales antes de que exista un negocio. No se basa en
+actividades.
+
+- `contact_pipelines`: `owner_id`, `name`, `order`, `is_default`.
+- `contact_stages`: `contact_pipeline_id`, `name`, `order`, `color`, `is_initial`.
+  Debe existir una etapa inicial por defecto llamada **"Cargadas"**.
+- `contact_pipeline_memberships`: `owner_id`, `person_id`, `contact_pipeline_id`,
+  `contact_stage_id`, `position`, `entered_stage_at`, `source` (`import`/`manual`/
+  `automation`), `created_at`, `updated_at`. Índice único por
+  `contact_pipeline_id + person_id`.
+
+La importación Excel/CSV debe crear o actualizar contactos y asegurar que los nuevos
+queden visibles en el embudo por defecto, etapa **"Cargadas"**. Las actividades siguen
+representando tareas/seguimientos, no el estado del embudo.
 
 ### `products` *(opcional, Fase 10)*
 Catálogo: `name`, `code`, `unit_price`, `currency`, `tax`. Tabla `deal_products`
@@ -242,6 +260,7 @@ de gasto y depuración.
 organizations 1───* persons 1───* deals *───1 stages *───1 pipelines
       │               │            │
       │               │            └──* activities / notes / files / email_threads
+      │               ├──* contact_pipeline_memberships *── contact_stages
       │               └──* enrollments ─* sequences ─* sequence_steps
       └──* deals
 persons *──* labels (entity_labels)        campaigns 1──* campaign_recipients

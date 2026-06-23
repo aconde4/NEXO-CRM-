@@ -98,6 +98,11 @@ Haz **siempre** esto antes de tocar nada:
 | **9** | Analítica y reporting | Paneles de conversión, previsión, actividad y rendimiento de email. |
 | **10** | Extras y pulido | Documentos/firma, productos y presupuestos, PWA móvil, canales extra (WhatsApp/SMS). |
 
+> **Nota de replanificación (2026-06-23):** antes de continuar la Fase 6 con 6.5 se
+> prioriza el bloque 6.4a–6.4d del roadmap: `campaign` nativo en contactos, filtros por
+> campo con "comienza por", embudo de contactos/prospección no basado en actividades y
+> UX escalable de muchos funnels en Negocios.
+
 ## 6. Qué NO vamos a hacer (al inicio, para no dispersarnos)
 
 - Multiusuario / equipos / permisos por rol (lo dejamos preparado en datos, pero la

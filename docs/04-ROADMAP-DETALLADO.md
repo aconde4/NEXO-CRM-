@@ -72,8 +72,8 @@ notas e importación CSV. El núcleo de datos del CRM.
       importación** + **columnas en la exportación**. Añadido **`trade_name` (nombre
       comercial)** de serie en empresas. → detalle en
       [`06-CAMPOS-Y-PERSONALIZACION.md`](06-CAMPOS-Y-PERSONALIZACION.md).
-      *(Pendiente como mejora: columnas opcionales y filtros por campo personalizado
-      en los listados; se apoyarán en las vistas guardadas 1.5.)*
+      *(Retomado como prioridad en 6.4b: filtros por campo, incluido "comienza por",
+      sobre campos de serie, `campaign` y campos personalizados.)*
 - [x] **1.9** Sistema de etiquetas con colores: crear, asignar/quitar (selector en
       la ficha), chips en el listado y **filtro por etiqueta**.
 - [x] **1.10** Actividades/tareas: crear, completar, vencimiento, "pendientes de hoy".
@@ -103,8 +103,8 @@ notas e importación CSV. El núcleo de datos del CRM.
 > personalizados** (Ajustes, fichas, formularios, import/export) con `trade_name` de
 > serie + **vistas guardadas** y orden en Contactos + **adjuntos** (Supabase Storage).
 > Front pulido: **paleta de comandos (⌘K)**, skeletons, página 404, chips. Verificado
-> vía login de desarrollo. Mejora futura opcional: filtros/columnas por campo
-> personalizado en los listados. Para subir archivos hay que activar Storage
+> vía login de desarrollo. La mejora de filtros por campo/prefijo ya no es opcional:
+> queda priorizada en 6.4b. Para subir archivos hay que activar Storage
 > (`SETUP.md` §2 ter).
 
 ### Criterios de aceptación
@@ -284,6 +284,24 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
 - [x] **6.3** Disparadores: registro creado/actualizado/borrado, cambio de etapa,
       cambio de campo, email abierto/respondido, formulario enviado, programado.
 - [x] **6.4** Sistema de eventos interno: las mutaciones emiten eventos a Inngest.
+- [ ] **6.4a** Corrección de modelo comercial antes de seguir: `campaign` debe ser un
+      campo **nativo** de contacto (campaña/origen comercial de carga), con migración,
+      formulario, ficha, listado, exportación y auto-mapeo desde Excel/CSV. No confundir
+      con `campaigns` de email masivo.
+- [ ] **6.4b** Filtros profesionales de contactos por campo: selector de campo
+      (nombre, email, teléfono, cargo, empresa, origen, **campaña**, estado marketing y
+      campos personalizados) + operador **"comienza por"** para buscar por prefijo.
+      Debe integrarse en Contactos, vistas guardadas y superficies que reutilicen la
+      audiencia (segmentos/embudo de contactos cuando aplique).
+- [ ] **6.4c** Embudo de **contactos/prospección** basado en contactos, no en
+      actividades: modelo propio de pipeline/etapas de contacto, etapa inicial
+      **"Cargadas"**, importación Excel/CSV que mete los nuevos contactos en esa etapa,
+      tablero que muestra **todos los contactos cargados** y movimiento manual entre
+      etapas. Las actividades quedan como tareas/seguimientos, no como el estado del
+      embudo.
+- [ ] **6.4d** Negocios con muchos embudos: rediseñar el selector/gestión de funnels de
+      `/deals` y Ajustes para que escale con muchos pipelines (buscador/combobox,
+      menú compacto, layout responsive y sin desbordes).
 - [ ] **6.5** Acciones: crear/actualizar registro, enviar email, inscribir en
       secuencia, crear actividad, añadir etiqueta, mover de etapa, webhook, Slack.
 - [ ] **6.6** Condiciones (if/else) y esperas reales sobre Inngest.
