@@ -538,6 +538,7 @@ async function loadRecipientMergeData(
       email: persons.email,
       phone: persons.phone,
       source: persons.source,
+      campaign: persons.campaign,
       title: persons.title,
       customFields: persons.customFields,
       marketingStatus: persons.marketingStatus,
@@ -574,6 +575,7 @@ async function loadRecipientMergeData(
         email: row.email,
         phone: row.phone,
         source: row.source,
+        campaign: row.campaign,
         title: row.title,
         customFields: row.customFields,
         marketingStatus: row.marketingStatus,
@@ -597,6 +599,7 @@ function fallbackPerson(recipient: PendingRecipient) {
     .split(/\s+/)
     .filter(Boolean);
   return {
+    campaign: null,
     customFields: {},
     email: recipient.email,
     firstName,

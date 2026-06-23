@@ -41,6 +41,7 @@ export type ContactInitial = {
   title: string | null;
   orgId: string | null;
   source: string | null;
+  campaign: string | null;
   customFields?: Record<string, unknown> | null;
 };
 
@@ -53,6 +54,7 @@ function toDefaults(c?: ContactInitial | null): PersonFormValues {
     title: c?.title ?? "",
     orgId: c?.orgId ?? "",
     source: c?.source ?? "",
+    campaign: c?.campaign ?? "",
   };
 }
 
@@ -211,6 +213,13 @@ function ContactFormBody({
             <Input {...register("source")} placeholder="Web, referido…" />
           </Field>
         </div>
+
+        <Field label="Campaña" error={errors.campaign?.message}>
+          <Input
+            {...register("campaign")}
+            placeholder="Webinar CRM, LinkedIn Ads, feria..."
+          />
+        </Field>
 
         <CustomFieldsSection
           defs={customFieldDefs}

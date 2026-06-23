@@ -13,6 +13,7 @@ export const importRowSchema = z.object({
   title: z.string().trim().max(120).optional(),
   orgName: z.string().trim().max(160).optional(),
   source: z.string().trim().max(120).optional(),
+  campaign: z.string().trim().max(160).optional(),
 });
 export type ImportRow = z.infer<typeof importRowSchema>;
 

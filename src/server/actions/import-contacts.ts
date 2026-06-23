@@ -25,6 +25,7 @@ export type RawImportRow = {
   title?: string;
   orgName?: string;
   source?: string;
+  campaign?: string;
   customFields?: Record<string, unknown>;
 };
 
@@ -86,6 +87,7 @@ export async function importContacts(
       title: clean(raw.title),
       orgName: clean(raw.orgName),
       source: clean(raw.source),
+      campaign: clean(raw.campaign),
     };
     const parsed = importRowSchema.safeParse(candidate);
     if (!parsed.success) {
@@ -184,6 +186,7 @@ export async function importContacts(
               ...(row.phone !== undefined ? { phone: row.phone } : {}),
               ...(row.title !== undefined ? { title: row.title } : {}),
               ...(row.source !== undefined ? { source: row.source } : {}),
+              ...(row.campaign !== undefined ? { campaign: row.campaign } : {}),
               ...(orgId !== null ? { orgId } : {}),
               ...(hasCustom
                 ? { customFields: { ...existing.customFields, ...custom } }
@@ -206,6 +209,7 @@ export async function importContacts(
       title: row.title ?? null,
       orgId,
       source: row.source ?? null,
+      campaign: row.campaign ?? null,
       customFields: custom,
       ownerId: user.id,
     });

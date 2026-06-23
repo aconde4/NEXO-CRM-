@@ -45,9 +45,9 @@ const STEPS: { id: Step; label: string }[] = [
 ];
 
 const SAMPLE_CSV =
-  "Nombre,Apellidos,Email,Teléfono,Cargo,Empresa,Origen\n" +
-  "Ana,García,ana.garcia@ejemplo.com,+34 600 111 222,Directora,Acme S.L.,Web\n" +
-  "Carlos,Ruiz,carlos.ruiz@ejemplo.com,,CTO,Acme S.L.,Referido\n";
+  "Nombre,Apellidos,Email,Teléfono,Cargo,Empresa,Origen,Campaña\n" +
+  "Ana,García,ana.garcia@ejemplo.com,+34 600 111 222,Directora,Acme S.L.,Web,Webinar CRM 2026\n" +
+  "Carlos,Ruiz,carlos.ruiz@ejemplo.com,,CTO,Acme S.L.,Referido,LinkedIn Ads B2B\n";
 
 function clean(value: string | undefined): string | undefined {
   const v = value?.trim();
@@ -86,6 +86,7 @@ function buildRow(
     title: get("title"),
     orgName: get("orgName"),
     source: get("source"),
+    campaign: get("campaign"),
     customFields,
   };
 }
@@ -104,6 +105,7 @@ function analyze(rows: RawImportRow[]) {
       title: clean(raw.title),
       orgName: clean(raw.orgName),
       source: clean(raw.source),
+      campaign: clean(raw.campaign),
     };
     const parsed = importRowSchema.safeParse(candidate);
     if (!parsed.success) {
@@ -449,6 +451,7 @@ export function ImportWizard({
                     <th className="px-3 py-2 font-medium">Nombre</th>
                     <th className="px-3 py-2 font-medium">Email</th>
                     <th className="px-3 py-2 font-medium">Empresa</th>
+                    <th className="px-3 py-2 font-medium">Campaña</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -470,6 +473,9 @@ export function ImportWizard({
                         </td>
                         <td className="text-muted-foreground px-3 py-2">
                           {d.raw?.orgName || "—"}
+                        </td>
+                        <td className="text-muted-foreground px-3 py-2">
+                          {d.raw?.campaign || "—"}
                         </td>
                       </tr>
                     ))}

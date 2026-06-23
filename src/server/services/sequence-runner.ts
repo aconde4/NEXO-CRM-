@@ -97,6 +97,7 @@ type SequenceMetadata = {
 };
 
 type RunPerson = {
+  campaign: string | null;
   customFields: Record<string, unknown>;
   email: string | null;
   firstName: string;
@@ -440,6 +441,7 @@ export async function loadSequenceRun(
       orgWebsite: organizations.website,
       ownerId: enrollments.ownerId,
       personCustomFields: persons.customFields,
+      personCampaign: persons.campaign,
       personEmail: persons.email,
       personFirstName: persons.firstName,
       personId: persons.id,
@@ -554,6 +556,7 @@ export async function loadSequenceRun(
     orgId: row.orgId,
     ownerId: row.ownerId,
     person: {
+      campaign: row.personCampaign,
       customFields: row.personCustomFields ?? {},
       email: row.personEmail,
       firstName: row.personFirstName,

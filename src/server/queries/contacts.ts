@@ -44,6 +44,7 @@ export async function listPersons(
       ilike(persons.firstName, q),
       ilike(persons.lastName, q),
       ilike(persons.email, q),
+      ilike(persons.campaign, q),
     );
     if (match) filters.push(match);
   }
@@ -103,6 +104,7 @@ export async function listPersonsForExport(
       ilike(persons.firstName, q),
       ilike(persons.lastName, q),
       ilike(persons.email, q),
+      ilike(persons.campaign, q),
     );
     if (match) filters.push(match);
   }

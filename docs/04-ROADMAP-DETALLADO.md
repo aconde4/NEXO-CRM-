@@ -284,7 +284,7 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
 - [x] **6.3** Disparadores: registro creado/actualizado/borrado, cambio de etapa,
       cambio de campo, email abierto/respondido, formulario enviado, programado.
 - [x] **6.4** Sistema de eventos interno: las mutaciones emiten eventos a Inngest.
-- [ ] **6.4a** Corrección de modelo comercial antes de seguir: `campaign` debe ser un
+- [x] **6.4a** Corrección de modelo comercial antes de seguir: `campaign` debe ser un
       campo **nativo** de contacto (campaña/origen comercial de carga), con migración,
       formulario, ficha, listado, exportación y auto-mapeo desde Excel/CSV. No confundir
       con `campaigns` de email masivo.

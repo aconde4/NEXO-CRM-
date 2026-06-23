@@ -10,7 +10,8 @@ export type ImportFieldKey =
   | "phone"
   | "title"
   | "orgName"
-  | "source";
+  | "source"
+  | "campaign";
 
 export type ImportField = {
   key: ImportFieldKey;
@@ -62,6 +63,19 @@ export const IMPORT_FIELDS: ImportField[] = [
     key: "source",
     label: "Origen",
     aliases: ["origen", "source", "fuente", "procedencia"],
+  },
+  {
+    key: "campaign",
+    label: "Campaña",
+    aliases: [
+      "campaña",
+      "campana",
+      "campaign",
+      "utm_campaign",
+      "utm campaign",
+      "campaña origen",
+      "campana origen",
+    ],
   },
 ];
 

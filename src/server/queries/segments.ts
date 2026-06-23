@@ -87,6 +87,8 @@ function ruleToSql(rule: SegmentRule): SQL | undefined {
       return textRule(persons.title, rule.op, value);
     case "source":
       return textRule(persons.source, rule.op, value);
+    case "campaign":
+      return textRule(persons.campaign, rule.op, value);
     case "marketing_status":
       return rule.op === "neq"
         ? ne(persons.marketingStatus, value as MarketingStatus)
@@ -197,6 +199,7 @@ export type SegmentMember = {
   lastName: string | null;
   email: string | null;
   source: string | null;
+  campaign: string | null;
   marketingStatus: MarketingStatus;
 };
 
@@ -239,6 +242,7 @@ export async function resolveSegmentPersonsForOwner(
       lastName: persons.lastName,
       email: persons.email,
       source: persons.source,
+      campaign: persons.campaign,
       marketingStatus: persons.marketingStatus,
     })
     .from(persons)
@@ -261,6 +265,7 @@ export async function resolveSegmentRecipientsForOwner(
       email: persons.email,
       phone: persons.phone,
       source: persons.source,
+      campaign: persons.campaign,
       title: persons.title,
       customFields: persons.customFields,
       marketingStatus: persons.marketingStatus,
@@ -290,6 +295,7 @@ export async function resolveSegmentRecipientsForOwner(
     email: row.email,
     phone: row.phone,
     source: row.source,
+    campaign: row.campaign,
     title: row.title,
     customFields: row.customFields,
     marketingStatus: row.marketingStatus,

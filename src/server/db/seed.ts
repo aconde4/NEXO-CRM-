@@ -98,6 +98,7 @@ async function main() {
     phone?: string;
     title: string;
     org: string | null;
+    campaign?: string;
   }> = [
     { firstName: "Ana", lastName: "García", email: "ana.garcia@innovatech.es", phone: "+34 600 111 222", title: "Directora de Marketing", org: "Innovatech Soluciones" },
     { firstName: "Carlos", lastName: "Ruiz", email: "carlos.ruiz@innovatech.es", phone: "+34 600 333 444", title: "CTO", org: "Innovatech Soluciones" },
@@ -111,10 +112,23 @@ async function main() {
     { firstName: "Sergio", lastName: "Castro", email: "sergio.castro@innovatech.es", phone: "+34 622 333 444", title: "Comercial", org: "Innovatech Soluciones" },
   ];
 
+  const campaignSamples = [
+    "Webinar CRM 2026",
+    "Webinar CRM 2026",
+    "Feria turismo",
+    "Feria turismo",
+    "LinkedIn Ads B2B",
+    "LinkedIn Ads B2B",
+    "Referidos partners",
+    "Newsletter junio",
+    "Newsletter junio",
+    "Demo producto",
+  ];
+
   const insertedPeople = await db
     .insert(persons)
     .values(
-      peopleData.map((p) => ({
+      peopleData.map((p, i) => ({
         firstName: p.firstName,
         lastName: p.lastName,
         email: p.email,
@@ -122,6 +136,7 @@ async function main() {
         title: p.title,
         orgId: p.org ? (orgByName.get(p.org) ?? null) : null,
         source: "Datos de ejemplo",
+        campaign: p.campaign ?? campaignSamples[i] ?? null,
         ownerId: user.id,
       })),
     )

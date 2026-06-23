@@ -19,6 +19,7 @@ export const BUILTIN_PERSON_TAGS: MergeTag[] = [
   { tag: "email", label: "Email" },
   { tag: "telefono", label: "Teléfono" },
   { tag: "cargo", label: "Cargo" },
+  { tag: "campaign", label: "Campaña" },
 ];
 
 export const BUILTIN_ORG_TAGS: MergeTag[] = [
@@ -34,6 +35,7 @@ export type MergePersonInput = {
   email: string | null;
   phone: string | null;
   title: string | null;
+  campaign?: string | null;
   customFields?: Record<string, unknown> | null;
 };
 
@@ -73,6 +75,8 @@ export function buildMergeContext(
     email: person.email ?? "",
     telefono: person.phone ?? "",
     cargo: person.title ?? "",
+    campaign: person.campaign ?? "",
+    campana: person.campaign ?? "",
   };
 
   for (const def of personDefs) {

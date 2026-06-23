@@ -9,11 +9,12 @@
 ## 📍 Dónde estamos
 
 - **Bloque prioritario antes de continuar 6.5 (decisión de producto 2026-06-23):**
-  **pendiente, empezar por 6.4a.** No continuar con acciones de automatización hasta
+  **en curso; 6.4a hecha, siguiente 6.4b.** No continuar con acciones de automatización hasta
   corregir el modelo comercial y la UX detectada por el usuario:
-  - **6.4a** `campaign` nativo en contactos: migración, validación, formulario, ficha,
-    listado, exportación y auto-mapeo desde Excel/CSV. Es la campaña/origen comercial
-    de carga del contacto; no es la tabla `campaigns` de emails masivos.
+  - **6.4a HECHA** `campaign` nativo en contactos: migración, validación, formulario,
+    ficha, listado, exportación, segmentos, merge tags y auto-mapeo desde Excel/CSV. Es
+    la campaña/origen comercial de carga del contacto; no es la tabla `campaigns` de
+    emails masivos.
   - **6.4b** filtros por campo de contacto con operador **"comienza por"**: elegir el
     campo (serie, `campaign` o personalizado) y buscar por prefijo; debe integrarse con
     Contactos, vistas guardadas y superficies de audiencia que lo reutilicen.
@@ -25,8 +26,8 @@
     escalar sin desbordes ni pérdida de contexto (combobox/buscador, menú compacto,
     responsive).
 
-- **Fase 6 · Motor de automatizaciones:** **en curso (6.1 + 6.2 + 6.3 + 6.4 hechas;
-  6.5 pausada hasta cerrar 6.4a–6.4d).**
+- **Fase 6 · Motor de automatizaciones:** **en curso (6.1 + 6.2 + 6.3 + 6.4 + 6.4a
+  hechas; 6.5 pausada hasta cerrar 6.4b–6.4d).**
   - **6.4** sistema de eventos interno: `src/server/services/automation-runner.ts`
     define `AUTOMATION_EVENT` (`automation/event`), emisores best-effort hacia Inngest,
     normalización/parseo de eventos, `eventId` para deduplicar reintentos y
@@ -38,8 +39,8 @@
     `field_changed`; negocios emite también `deal_stage_changed` al mover/cambiar etapa;
     las inscripciones de secuencia emiten `sequence_enrolled`; el tracking Gmail emite
     `email_opened` solo en la primera apertura; el sync Gmail emite `email_replied` al
-    detectar respuestas. **Siguiente: 6.5**, ejecutar las acciones reales de los nodos
-    pendientes.
+    detectar respuestas. **Siguiente: 6.4b**, filtros profesionales de contactos por
+    campo con operador "comienza por".
   - **6.3** disparadores: `src/server/services/automation-events.ts` define el evento
     interno (`AutomationEvent` = type/ownerId/entityType/entityId/payload),
     `triggerMatchesEvent` (matcher puro: tipo + filtros de entidad/etapa destino/campo) y
@@ -249,8 +250,8 @@
     mapear → vista previa → resultado), auto-mapeo de cabeceras (sin acentos),
     creación de empresas al vuelo, **dedupe por email** (omitir/actualizar, dentro
     del archivo y contra la BD) y validación por fila. Excel con `read-excel-file`,
-    CSV con `papaparse`. Botón "Importar" y ⌘K. **Pendiente 6.4a:** añadir `campaign`
-    como campo nativo de contacto y auto-mapearlo desde Excel/CSV.
+    CSV con `papaparse`. Botón "Importar" y ⌘K. **6.4a:** `campaign` ya es campo
+    nativo de contacto y se auto-mapea desde Excel/CSV.
   - **Exportación CSV (1.14):** contactos y empresas a CSV (botón "Exportar"),
     respetando los filtros activos, con BOM UTF-8 para acentos en Excel
     (`/api/contacts/export`, `/api/organizations/export`).
@@ -280,23 +281,25 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **6.4a** Campo nativo `campaign` en contactos.
+**Siguiente tarea de desarrollo:** **6.4b** Filtros profesionales de contactos por
+campo con operador **"comienza por"**.
 Plan concreto para el relevo:
-1. Migración Drizzle: añadir `persons.campaign` (texto nullable) con índice por
-   `owner_id + lower(campaign)` o estrategia equivalente para búsquedas por prefijo.
-   Actualizar esquema, seed y modelo de datos.
-2. Validaciones/actions/queries/UI: formulario de contacto, ficha, listado, exportación
-   CSV y merge tags deben exponer `campaign` como campo de serie. No meterlo en
-   `custom_fields`.
-3. Importación Excel/CSV: auto-mapear cabeceras `campaña`, `campana`, `campaign`,
-   `utm_campaign` hacia `persons.campaign`; mostrarlo en preview y respetarlo en
-   dedupe/update.
-4. Verificar con import temporal: contactos creados/actualizados conservan `campaign`,
-   aparece en listado/ficha/export y no rompe filtros existentes.
+1. Diseñar el contrato de filtros en URL y validación: campo de serie (`firstName`,
+   `lastName`, `email`, `phone`, `title`, `organization`, `source`, `campaign`,
+   `marketingStatus`) y campos personalizados, con operadores al menos `contains`,
+   `starts_with`, `is_set` e `is_empty` donde aplique.
+2. Implementar query SQL con autorización por `ownerId`, soporte case-insensitive y
+   prefijo eficiente para `campaign` usando el índice creado en 6.4a.
+3. Actualizar `/contacts`: controles de campo/operador/valor, integración con vistas
+   guardadas y export CSV manteniendo los mismos filtros.
+4. Revisar superficies de audiencia que reutilizan contactos/segmentos para que el campo
+   `campaign` se comporte como dato nativo.
+5. Verificar con datos reales/temporales: búsqueda por prefijo, campo `campaign`, campo
+   personalizado, vista guardada, export y ausencia de regresiones en búsqueda simple.
 
-Después: **6.4b** filtros por campo con "comienza por"; **6.4c** embudo de contactos
-con etapa "Cargadas"; **6.4d** UX de muchos funnels en Negocios. Solo al cerrar ese
-bloque se retoma **6.5** acciones de automatización.
+Después: **6.4c** embudo de contactos con etapa "Cargadas"; **6.4d** UX de muchos
+funnels en Negocios. Solo al cerrar ese bloque se retoma **6.5** acciones de
+automatización.
 
 **Pendiente externo:** 4.1 — API key de Resend **ya pegada** por el usuario; falta
 verificar dominio (no tiene aún) para enviar a terceros; en local se prueba con
@@ -375,6 +378,22 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-23 (47) — Fase 6.4a: `campaign` nativo en contactos
+- **Modelo:** migración `drizzle/0010_glossy_catseye.sql` añade `persons.campaign`
+  nullable, índice compuesto `owner_id/campaign` y un índice funcional
+  `owner_id/lower(campaign)` para búsquedas case-insensitive por prefijo. El esquema
+  Drizzle y el seed ya incluyen campañas de ejemplo.
+- **Contactos:** validaciones y acciones aceptan `campaign`; listado, ficha, formulario,
+  búsqueda simple, export CSV y eventos de automatización lo tratan como campo nativo.
+- **Importación:** Excel/CSV auto-mapea `campaña`, `campana`, `campaign` y
+  `utm_campaign`; la preview muestra campaña y el dedupe/update la conserva.
+- **Audiencias y emails:** segmentos reconocen `campaign`; campañas/secuencias pasan el
+  campo al motor de merge tags como `{{campaign}}` y alias `{{campana}}`.
+- **Verificado:** `pnpm db:migrate`, script temporal `tsx` (borrado) comprobando mapeo,
+  Zod, segmentos, merge tags y columna/índices reales en PostgreSQL; login dev con
+  `curl` a `/contacts`, `/contacts/import` y `/api/contacts/export`; `pnpm typecheck`,
+  `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-23 (46) — Replanificación prioritaria: contactos, embudos y filtros
 - **Decisión de producto:** pausar 6.5 hasta corregir cuatro puntos detectados por el

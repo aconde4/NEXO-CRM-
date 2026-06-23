@@ -16,6 +16,7 @@ export const personFormSchema = z.object({
   title: z.string().max(120).optional(),
   orgId: z.string().optional(),
   source: z.string().max(120).optional(),
+  campaign: z.string().max(160).optional(),
 });
 export type PersonFormValues = z.infer<typeof personFormSchema>;
 

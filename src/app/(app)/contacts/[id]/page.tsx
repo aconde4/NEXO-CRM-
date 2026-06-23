@@ -3,6 +3,7 @@ import {
   Building2,
   CalendarDays,
   Mail,
+  Megaphone,
   MessageSquare,
   Phone,
   StickyNote,
@@ -158,6 +159,7 @@ export default async function ContactDetailPage({
               title: person.title,
               orgId: person.orgId,
               source: person.source,
+              campaign: person.campaign,
               customFields: person.customFields,
             }}
           />
@@ -205,6 +207,9 @@ export default async function ContactDetailPage({
             </InfoRow>
             <InfoRow icon={Tag} label="Origen">
               {person.source ?? "—"}
+            </InfoRow>
+            <InfoRow icon={Megaphone} label="Campaña">
+              {person.campaign ?? "—"}
             </InfoRow>
             <InfoRow icon={MessageSquare} label="Marketing">
               <Badge variant="secondary">

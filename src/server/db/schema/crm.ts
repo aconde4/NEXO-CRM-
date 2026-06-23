@@ -96,6 +96,7 @@ export const persons = pgTable(
       onDelete: "set null",
     }),
     source: text("source"),
+    campaign: text("campaign"),
     marketingStatus: text("marketing_status")
       .$type<MarketingStatus>()
       .default("subscribed")
@@ -112,6 +113,7 @@ export const persons = pgTable(
     index("persons_org_idx").on(t.orgId),
     index("persons_email_idx").on(t.email),
     index("persons_last_name_idx").on(t.lastName),
+    index("persons_campaign_idx").on(t.ownerId, t.campaign),
     index("persons_created_idx").on(t.createdAt),
   ],
 );

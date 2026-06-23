@@ -85,6 +85,12 @@ export const SEGMENT_FIELDS: SegmentField[] = [
     ops: ["eq", "contains", "is_set", "is_empty"],
   },
   {
+    key: "campaign",
+    label: "Campaña",
+    type: "text",
+    ops: ["eq", "contains", "is_set", "is_empty"],
+  },
+  {
     key: "marketing_status",
     label: "Estado de marketing",
     type: "enum",

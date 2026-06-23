@@ -157,7 +157,7 @@ export function ContactsView({
             <Input
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Buscar por nombre o email…"
+              placeholder="Buscar por nombre, email o campaña..."
               className="pl-9"
             />
           </div>
@@ -260,6 +260,9 @@ export function ContactsView({
                 <th className="hidden px-4 py-2.5 font-medium md:table-cell">
                   Empresa
                 </th>
+                <th className="hidden px-4 py-2.5 font-medium xl:table-cell">
+                  Campaña
+                </th>
                 <th className="hidden px-4 py-2.5 font-medium lg:table-cell">
                   Teléfono
                 </th>
@@ -291,11 +294,19 @@ export function ContactsView({
                         <span className="text-muted-foreground block truncate text-xs">
                           {row.email ?? "Sin email"}
                         </span>
+                        {row.campaign ? (
+                          <span className="text-muted-foreground/80 block truncate text-xs xl:hidden">
+                            Campaña: {row.campaign}
+                          </span>
+                        ) : null}
                       </span>
                     </Link>
                   </td>
                   <td className="text-muted-foreground hidden px-4 py-2.5 md:table-cell">
                     {row.organization?.name ?? "—"}
+                  </td>
+                  <td className="text-muted-foreground hidden px-4 py-2.5 xl:table-cell">
+                    {row.campaign ?? "—"}
                   </td>
                   <td className="text-muted-foreground hidden px-4 py-2.5 lg:table-cell">
                     {row.phone ?? "—"}

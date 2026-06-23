@@ -33,6 +33,7 @@ const PERSON_AUTOMATION_FIELDS = [
   "title",
   "orgId",
   "source",
+  "campaign",
   "marketingStatus",
   "customFields",
 ];
@@ -70,9 +71,11 @@ function personSnapshot(row: {
   orgId: string | null;
   phone: string | null;
   source: string | null;
+  campaign: string | null;
   title: string | null;
 }): AutomationRecord {
   return {
+    campaign: row.campaign,
     customFields: row.customFields,
     email: row.email,
     firstName: row.firstName,
@@ -126,6 +129,7 @@ export async function createPerson(
     orgId: nullify(data.orgId),
     phone: nullify(data.phone),
     source: nullify(data.source),
+    campaign: nullify(data.campaign),
     title: nullify(data.title),
   };
 
@@ -176,6 +180,7 @@ export async function updatePerson(
       orgId: persons.orgId,
       phone: persons.phone,
       source: persons.source,
+      campaign: persons.campaign,
       title: persons.title,
     })
     .from(persons)
@@ -190,6 +195,7 @@ export async function updatePerson(
     orgId: nullify(data.orgId),
     phone: nullify(data.phone),
     source: nullify(data.source),
+    campaign: nullify(data.campaign),
     title: nullify(data.title),
   };
 
@@ -243,6 +249,7 @@ export async function deletePerson(id: string) {
       orgId: persons.orgId,
       phone: persons.phone,
       source: persons.source,
+      campaign: persons.campaign,
       title: persons.title,
     })
     .from(persons)
