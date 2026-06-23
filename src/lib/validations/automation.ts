@@ -1,11 +1,15 @@
 import { z } from "zod";
 
-import type { AutomationActionKind, ConditionOperator } from "@/lib/automations";
+import type {
+  AutomationActionKind,
+  ConditionOperator,
+} from "@/lib/automations";
 import type { AutomationTriggerType } from "@/server/db/schema/automations";
 
 const triggerTypes: [AutomationTriggerType, ...AutomationTriggerType[]] = [
   "record_created",
   "record_updated",
+  "record_deleted",
   "deal_stage_changed",
   "field_changed",
   "email_opened",

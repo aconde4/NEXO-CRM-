@@ -32,6 +32,12 @@ export const AUTOMATION_TRIGGERS: AutomationTriggerMeta[] = [
     entity: "any",
   },
   {
+    type: "record_deleted",
+    label: "Registro eliminado",
+    description: "Cuando se borra un contacto, empresa o negocio.",
+    entity: "any",
+  },
+  {
     type: "deal_stage_changed",
     label: "Negocio cambia de etapa",
     description: "Cuando un negocio se mueve de etapa en el embudo.",
@@ -239,9 +245,7 @@ export function describeNode(node: AutomationNode): string {
     return `Esperar ${parts.join(" ") || "0"}`;
   }
   if (node.type === "condition") {
-    const op = CONDITION_OPERATORS.find(
-      (o) => o.op === node.config?.op,
-    )?.label;
+    const op = CONDITION_OPERATORS.find((o) => o.op === node.config?.op)?.label;
     const field = String(node.config?.field ?? "campo");
     const value = node.config?.value ? ` ${String(node.config.value)}` : "";
     return `Si ${field} ${op ?? "es"}${value}`;

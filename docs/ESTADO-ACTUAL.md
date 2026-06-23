@@ -8,7 +8,18 @@
 
 ## 📍 Dónde estamos
 
-- **Fase 6 · Motor de automatizaciones:** **en curso (6.1 + 6.2).**
+- **Fase 6 · Motor de automatizaciones:** **en curso (6.1 + 6.2 + 6.3).**
+  - **6.3** disparadores: `src/server/services/automation-events.ts` define el evento
+    interno (`AutomationEvent` = type/ownerId/entityType/entityId/payload),
+    `triggerMatchesEvent` (matcher puro: tipo + filtros de entidad/etapa destino/campo) y
+    `findActiveAutomationsForEvent` (owner-aware: automatizaciones **activas** cuyo
+    disparador coincide). El catálogo/validación ya cubre registro creado/actualizado/
+    borrado, cambio de etapa, cambio de campo, email abierto/respondido, formulario,
+    secuencia y disparador programado. Es la base de la 6.4 (emisión de eventos desde las
+    mutaciones).
+    **Pendiente 6.4:** llamar a esto desde las server actions (crear/editar/borrar,
+    moveDeal, etc.) y encolar un evento Inngest `automation/event` que lance las
+    ejecuciones.
   - **6.2** constructor de flujos: catálogo `src/lib/automations.ts` (disparadores,
     tipos de nodo, acciones con su campo de config, operadores de condición, helpers),
     validación Zod (`automation.ts`), queries (`listAutomations`, `getAutomation`(+
@@ -240,13 +251,23 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **6.3** Disparadores — definir el catálogo real de
-eventos (registro creado/actualizado/borrado, cambio de etapa, cambio de campo, email
-abierto/respondido, formulario enviado, programado) y su configuración fina; sienta la
-base para **6.4** (las mutaciones de la app emiten eventos a Inngest). Después: 6.5
-acciones (ejecución real), 6.6 condiciones if/else + esperas reales, 6.7 registro de
-ejecuciones (`automation_runs`), 6.8 activar/pausar + dry-run. Reutiliza Inngest y el
-patrón de eventos `*/signal.received` de campañas/secuencias.
+**Siguiente tarea de desarrollo:** **6.4** Sistema de eventos interno — emitir eventos
+a Inngest desde las mutaciones y ejecutar las automatizaciones que coincidan. Plan
+concreto para el relevo:
+1. Definir el evento Inngest `automation/event` (constante p. ej.
+   `AUTOMATION_EVENT` en un runner nuevo `src/server/services/automation-runner.ts`).
+2. Crear `emitAutomationEvent(event: AutomationEvent)` (con `inngest.send`) y llamarlo
+   desde las server actions de mutación: `contacts`/`organizations`/`deals` (creado/
+   actualizado/borrado), `moveDeal` (deal_stage_changed con `payload.toStageId`), etc.
+   Hacerlo "best-effort" (try/catch que no rompa la mutación), como `emitSequenceSignalSafely`.
+3. Función Inngest `run-automations-for-event` (triggers: `automation/event`): llama a
+   `findActiveAutomationsForEvent` y, por cada match, crea un `automation_runs` e inicia
+   la ejecución del grafo (las **acciones** reales son la 6.5, condiciones/esperas la 6.6).
+   Registrarla en `src/server/inngest/functions.ts` (array `functions`).
+Después: 6.5 acciones (ejecutar cada `kind`: create_task, add_label, enroll_sequence,
+send_email…), 6.6 condiciones if/else + esperas reales (`step.sleep`), 6.7 registro de
+ejecuciones (`automation_runs`, panel), 6.8 activar/pausar + dry-run. Reutiliza el
+patrón de Inngest de campañas/secuencias.
 
 **Pendiente externo:** 4.1 — API key de Resend **ya pegada** por el usuario; falta
 verificar dominio (no tiene aún) para enviar a terceros; en local se prueba con
@@ -276,15 +297,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Hecho en la última sesión:** **Fase 6.2** (constructor de automatizaciones) y
-> **6.1** (migración del motor). Antes: cierre de la **Fase 5** — 5.8 (panel de la
-> secuencia), 5.7 (variantes A/B), 5.6 (límite diario + ventana), 5.5 (parada
-> automática) y commit de la 5.4 (inscripción manual).
-> (workflow duradero de secuencias), 5.2 (constructor de secuencias), 5.1 (migración de
-> secuencias, pasos e inscripciones), 4.10 (consentimiento/origen y pie RGPD con datos
-> del remitente), 4.9 (panel de resultados), 4.8 (webhooks de Resend), 4.7 (baja pública
-> firmada), 4.6 (programación/envío real por lotes vía Inngest), 4.5 (editor),
-> 4.2 (migración), 4.3 (Resend) y 4.4 (segmentos).
+> **Hecho en la última sesión:** **Fase 6.3** (disparadores: motor de coincidencia de
+> eventos), **6.2** (constructor de automatizaciones) y **6.1** (migración del motor).
+> Antes: cierre de la **Fase 5** (5.1–5.8) y Fase 4 completada salvo la acción externa
+> 4.1 de Resend.
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -325,6 +341,20 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-23 (44) — Fase 6.3: disparadores (motor de coincidencia de eventos)
+- **`src/server/services/automation-events.ts`**: tipo `AutomationEvent`
+  (type/ownerId/entityType/entityId/payload), `triggerMatchesEvent` (matcher puro: tipo +
+  filtros de entidad, etapa destino `payload.toStageId` y campo `payload.field`) y
+  `findActiveAutomationsForEvent` (owner-aware; solo automatizaciones `active` con
+  `triggerType` coincidente). Es la base de la 6.4.
+- **Catálogo/validación:** `record_deleted` queda expuesto en el constructor y aceptado
+  por Zod, alineando UI, validación y esquema con el roadmap.
+- **Verificado** con script `tsx` temporal: matcher positivo/negativo por entidad,
+  campo vigilado y etapa destino; `record_deleted` soportado; consulta owner-aware
+  contra una automatización temporal activa (creada y eliminada en la prueba) devuelve
+  solo matches reales.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-23 (43) — Fase 6.2: constructor visual de automatizaciones
 - **Catálogo** `src/lib/automations.ts`: disparadores (con entidad), tipos de nodo,
