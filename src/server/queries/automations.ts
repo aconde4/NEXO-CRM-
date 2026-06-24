@@ -6,9 +6,12 @@ import { requireUser } from "@/lib/session";
 import { db } from "@/server/db";
 import {
   type AutomationGraph,
+  type AutomationRunLogEntry,
+  type AutomationRunStatus,
   type AutomationStatus,
   type AutomationTrigger,
   type AutomationTriggerType,
+  automationRuns,
   automations,
   emailTemplates,
   labels,
@@ -152,4 +155,58 @@ export async function listAutomationBuilderOptions(): Promise<AutomationBuilderO
     stages: stageRows,
     templates: templateRows,
   };
+}
+
+// --- Ejecuciones (6.7) ------------------------------------------------------
+export type AutomationRunItem = {
+  id: string;
+  status: AutomationRunStatus;
+  triggerType: AutomationTriggerType | null;
+  entityType: string | null;
+  entityId: string | null;
+  error: string | null;
+  log: AutomationRunLogEntry[];
+  startedAt: string;
+  finishedAt: string | null;
+};
+
+/** Ejecuciones recientes de una automatización (owner-aware), con su log por nodo. */
+export async function listAutomationRuns(
+  automationId: string,
+  limit = 30,
+): Promise<AutomationRunItem[]> {
+  const user = await requireUser();
+  const rows = await db
+    .select({
+      id: automationRuns.id,
+      status: automationRuns.status,
+      triggerType: automationRuns.triggerType,
+      entityType: automationRuns.entityType,
+      entityId: automationRuns.entityId,
+      error: automationRuns.error,
+      log: automationRuns.log,
+      startedAt: automationRuns.startedAt,
+      finishedAt: automationRuns.finishedAt,
+    })
+    .from(automationRuns)
+    .where(
+      and(
+        eq(automationRuns.automationId, automationId),
+        eq(automationRuns.ownerId, user.id),
+      ),
+    )
+    .orderBy(desc(automationRuns.startedAt))
+    .limit(limit);
+
+  return rows.map((row) => ({
+    entityId: row.entityId,
+    entityType: row.entityType,
+    error: row.error,
+    finishedAt: row.finishedAt ? row.finishedAt.toISOString() : null,
+    id: row.id,
+    log: row.log ?? [],
+    startedAt: row.startedAt.toISOString(),
+    status: row.status,
+    triggerType: row.triggerType,
+  }));
 }

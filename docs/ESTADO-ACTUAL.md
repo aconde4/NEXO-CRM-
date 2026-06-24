@@ -45,7 +45,11 @@
     Pendiente menor opcional: selector tipo combobox con buscador si crecen mucho los
     embudos.
 
-- **Fase 6 · Motor de automatizaciones:** **6.5 hecha (acciones reales).**
+- **Fase 6 · Motor de automatizaciones:** **6.5 + 6.7 hechas.**
+  - **6.7** registro de ejecuciones: query `listAutomationRuns` (owner-aware) y panel
+    `AutomationRuns` ("Ejecuciones recientes") bajo el editor en `/automations/[id]`:
+    estado del run, disparador, fechas, error y **log por nodo** (ok/skipped/failed con
+    su mensaje). Render puro (sin cliente).
   - **6.5** ejecución de acciones: `src/server/services/automation-executor.ts`
     (`executeAutomationRun`) procesa cada `automation_runs` en `waiting`, recorre el
     grafo y ejecuta los nodos de acción sobre la entidad disparadora, con log por nodo y
@@ -318,7 +322,7 @@ Inngest duradero por run (o por evento) que respete `wait` con `step.sleep` y ev
 true/false en el editor 6.2 y seguirlas). Luego 6.7 (panel de `automation_runs` con el
 log por nodo) y 6.8 (activar/pausar ya está; añadir **dry-run** que simula sin efectos).
 Pendiente menor de 6.5: `send_email` (remitente/plantilla/transporte) y `ai_summary`
-(Fase 8).
+(Fase 8). **6.7 ya hecha** (panel de ejecuciones).
 
 **6.4d HECHO (completo):**
 - **Filtros 6.4b en Kanban y Lista:** `deals/page.tsx` decodifica el filtro
@@ -397,10 +401,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **6.4a–6.4d** (`campaign` nativo, filtros por prefijo, embudo de contactos no basado
 > en actividades y UX de muchos funnels en Negocios).
 >
-> **Hecho en la última sesión técnica:** **6.5** (ejecución real de acciones de
-> automatización) y el bloque **6.4** completo (embudo de contactos + filtros en
-> Kanban/Lista + layout). Antes: 6.4a/6.4b, 6.4 (eventos + Inngest), 6.3/6.2/6.1 y cierre
-> de la **Fase 5**. **Siguiente: 6.6** (condiciones if/else + esperas reales).
+> **Hecho en la última sesión técnica:** **6.5** (acciones reales) y **6.7** (panel de
+> ejecuciones) del motor de automatizaciones, más el bloque **6.4** completo (embudo de
+> contactos + filtros + layout). Antes: 6.3/6.2/6.1 y cierre de la **Fase 5**.
+> **Siguiente: 6.6** (condiciones if/else + esperas reales) y 6.8 (dry-run).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -441,6 +445,14 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-23 (55) — Fase 6.7: panel de ejecuciones de automatizaciones
+- **Query** `listAutomationRuns(automationId)` (owner-aware): runs recientes con estado,
+  disparador, entidad, error, fechas y `log`.
+- **UI** `AutomationRuns` (render puro) bajo el editor en `/automations/[id]`:
+  "Ejecuciones recientes" con badge de estado, disparador, fechas, error y **log por
+  nodo** (ok/skipped/failed con su mensaje). Hace visible lo que ejecuta 6.5.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-23 (54) — Fase 6.5: ejecución real de acciones de automatización
 - **`src/server/services/automation-executor.ts`** (`executeAutomationRun`): procesa un

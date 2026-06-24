@@ -346,7 +346,9 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       (necesita remitente/plantilla/transporte) y `ai_summary` (Fase 8); registran traza
       "pendiente".*
 - [ ] **6.6** Condiciones (if/else) y esperas reales sobre Inngest.
-- [ ] **6.7** Registro de ejecuciones (`automation_runs`) con el detalle de pasos.
+- [x] **6.7** Registro de ejecuciones: `listAutomationRuns` + panel "Ejecuciones
+      recientes" en `/automations/[id]` (estado, disparador, fechas, error y **log por
+      nodo** con su resultado ok/skipped/failed).
 - [ ] **6.8** Activar/pausar automatizaciones y pruebas en seco (dry-run).
 
 ### Criterios de aceptación
