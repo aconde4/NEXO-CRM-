@@ -446,6 +446,20 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 
 ## 🗒️ Changelog por sesión
 
+### 2026-06-23 (57) — 6.4g: acciones masivas en el embudo de Negocios
+- **Server** (`actions/deals.ts`): `bulkMoveDeals`, `bulkAddLabelToDeals` (etiqueta al
+  contacto, dedupe), `bulkEnrollDeals` (inscribe owner-aware + emite
+  `sequence/run.requested`) y `bulkRemoveDealsFromFunnel` (soft-delete). Todas validan
+  propietario y aceptan una lista de `dealId`.
+- **UI** (`deals-board.tsx`): checkbox de selección por tarjeta (con
+  `stopPropagation` para no interferir con el arrastre), tarjeta resaltada al
+  seleccionar, y **barra de acciones sticky** con selects de mover/etiquetar/inscribir y
+  botones "Quitar del embudo" y "Limpiar". La página pasa `labels` y las secuencias
+  inscribibles al tablero.
+- **Verificado:** `pnpm typecheck`, `lint` y `build` en verde; render de `/deals` con los
+  checkboxes y sin overlay de error (las acciones son owner-scoped y replican patrones ya
+  verificados: `inArray` update, dedupe de `entity_labels`/`enrollments`).
+
 ### 2026-06-23 (56) — 6.4e: "Cargar contactos" respeta el filtro activo
 - `loadContactsIntoFunnel(conditions?)` normaliza las condiciones (con
   `customFieldDefs`), resuelve `personId` con `listPersonIdsByFilters` y

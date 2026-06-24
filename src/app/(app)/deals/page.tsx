@@ -7,6 +7,8 @@ import {
   listPersonOptions,
 } from "@/server/queries/contacts";
 import { listCustomFieldDefs } from "@/server/queries/custom-fields";
+import { listLabels } from "@/server/queries/labels";
+import { listSequenceEnrollmentOptions } from "@/server/queries/sequences";
 import {
   getBoard,
   listDeals,
@@ -128,7 +130,16 @@ export default async function DealsPage({
     );
   }
 
-  const board = await getBoard(activePipelineId, { personIds });
+  const [board, allLabels, sequenceOptions] = await Promise.all([
+    getBoard(activePipelineId, { personIds }),
+    listLabels(),
+    listSequenceEnrollmentOptions(),
+  ]);
+  // Opciones para las acciones masivas (6.4g).
+  const labelOptions = allLabels.map((l) => ({ id: l.id, name: l.name }));
+  const enrollableSequences = sequenceOptions
+    .filter((s) => s.canEnroll)
+    .map((s) => ({ id: s.id, name: s.name }));
 
   // Firma de los datos: cambia al crear/mover/editar y remonta el tablero para
   // re-sincronizar su estado local tras revalidar.
@@ -150,6 +161,8 @@ export default async function DealsPage({
         organizations={organizations}
         conditions={conditions}
         customFieldDefs={customFieldDefs}
+        labels={labelOptions}
+        sequenceOptions={enrollableSequences}
       />
     </>
   );

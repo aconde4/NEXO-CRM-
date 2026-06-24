@@ -39,6 +39,10 @@ import type { CustomFieldDef } from "@/lib/custom-fields";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
+  bulkAddLabelToDeals,
+  bulkEnrollDeals,
+  bulkMoveDeals,
+  bulkRemoveDealsFromFunnel,
   deleteDeal,
   loadContactsIntoFunnel,
   moveDeal,
@@ -68,6 +72,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ContactFiltersBar } from "@/components/contacts/contact-filters-bar";
 
@@ -85,6 +90,8 @@ export function DealsBoard({
   stagesByPipeline,
   conditions,
   customFieldDefs,
+  labels,
+  sequenceOptions,
 }: {
   board: Board;
   persons: Option[];
@@ -92,6 +99,8 @@ export function DealsBoard({
   stagesByPipeline: Record<string, Option[]>;
   conditions: ContactFilterCondition[];
   customFieldDefs: CustomFieldDef[];
+  labels: Option[];
+  sequenceOptions: Option[];
 }) {
   const router = useRouter();
   const [cols, setCols] = React.useState<Col[]>(() =>
@@ -101,6 +110,36 @@ export function DealsBoard({
   const [editing, setEditing] = React.useState<DealInitial | null>(null);
   const [createStageId, setCreateStageId] = React.useState<string | null>(null);
   const [lost, setLost] = React.useState<DealCard | null>(null);
+  const [selected, setSelected] = React.useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = React.useState(false);
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function clearSelection() {
+    setSelected(new Set());
+  }
+  async function runBulk(fn: () => Promise<unknown>, okMsg: string) {
+    if (bulkBusy) return;
+    setBulkBusy(true);
+    try {
+      await fn();
+      toast.success(okMsg);
+      clearSelection();
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo completar",
+      );
+    } finally {
+      setBulkBusy(false);
+    }
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -353,6 +392,94 @@ export function DealsBoard({
         basePath="/deals"
       />
 
+      {selected.size > 0 ? (
+        <div className="bg-card sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-lg border p-2 shadow-xs">
+          <span className="text-sm font-medium">
+            {selected.size} seleccionado{selected.size === 1 ? "" : "s"}
+          </span>
+          <select
+            className={`${selectClass} h-8`}
+            value=""
+            disabled={bulkBusy}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v)
+                void runBulk(
+                  () => bulkMoveDeals([...selected], v),
+                  "Tarjetas movidas de etapa",
+                );
+            }}
+          >
+            <option value="">Mover a…</option>
+            {(stagesByPipeline[pipelineId] ?? []).map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          {labels.length > 0 ? (
+            <select
+              className={`${selectClass} h-8`}
+              value=""
+              disabled={bulkBusy}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v)
+                  void runBulk(
+                    () => bulkAddLabelToDeals([...selected], v),
+                    "Etiqueta añadida a los contactos",
+                  );
+              }}
+            >
+              <option value="">Etiquetar…</option>
+              {labels.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {sequenceOptions.length > 0 ? (
+            <select
+              className={`${selectClass} h-8`}
+              value=""
+              disabled={bulkBusy}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v)
+                  void runBulk(
+                    () => bulkEnrollDeals([...selected], v),
+                    "Contactos inscritos en la secuencia",
+                  );
+              }}
+            >
+              <option value="">Inscribir en…</option>
+              {sequenceOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={bulkBusy}
+            onClick={() =>
+              void runBulk(
+                () => bulkRemoveDealsFromFunnel([...selected]),
+                "Tarjetas quitadas del embudo",
+              )
+            }
+          >
+            Quitar del embudo
+          </Button>
+          <Button variant="ghost" size="sm" onClick={clearSelection}>
+            Limpiar
+          </Button>
+        </div>
+      ) : null}
+
       {cols.length === 0 ? (
         <div className="rounded-xl border border-dashed py-16 text-center">
           <p className="text-muted-foreground text-sm">
@@ -376,6 +503,8 @@ export function DealsBoard({
               <Column
                 key={col.stage.id}
                 col={col}
+                selected={selected}
+                onToggleSelect={toggleSelect}
                 onAdd={() => setCreateStageId(col.stage.id)}
                 onEdit={(d) => setEditing(toInitial(d, pipelineId))}
                 onWin={win}
@@ -446,6 +575,8 @@ function toInitial(d: DealCard, pipelineId: string): DealInitial {
 
 function Column({
   col,
+  selected,
+  onToggleSelect,
   onAdd,
   onEdit,
   onWin,
@@ -453,6 +584,8 @@ function Column({
   onDelete,
 }: {
   col: Col;
+  selected: Set<string>;
+  onToggleSelect: (id: string) => void;
   onAdd: () => void;
   onEdit: (deal: DealCard) => void;
   onWin: (id: string) => void;
@@ -498,6 +631,8 @@ function Column({
             <SortableCard
               key={deal.id}
               deal={deal}
+              selected={selected.has(deal.id)}
+              onToggleSelect={() => onToggleSelect(deal.id)}
               onEdit={() => onEdit(deal)}
               onWin={() => onWin(deal.id)}
               onLose={() => onLose(deal)}
@@ -517,12 +652,16 @@ function Column({
 
 function SortableCard({
   deal,
+  selected,
+  onToggleSelect,
   onEdit,
   onWin,
   onLose,
   onDelete,
 }: {
   deal: DealCard;
+  selected: boolean;
+  onToggleSelect: () => void;
   onEdit: () => void;
   onWin: () => void;
   onLose: () => void;
@@ -547,6 +686,8 @@ function SortableCard({
     >
       <CardBody
         deal={deal}
+        selected={selected}
+        onToggleSelect={onToggleSelect}
         onEdit={onEdit}
         onWin={onWin}
         onLose={onLose}
@@ -559,6 +700,8 @@ function SortableCard({
 function CardBody({
   deal,
   dragging,
+  selected,
+  onToggleSelect,
   onEdit,
   onWin,
   onLose,
@@ -566,6 +709,8 @@ function CardBody({
 }: {
   deal: DealCard;
   dragging?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
   onEdit?: () => void;
   onWin?: () => void;
   onLose?: () => void;
@@ -580,10 +725,24 @@ function CardBody({
       className={cn(
         "bg-card group cursor-grab rounded-lg border p-2.5 shadow-xs active:cursor-grabbing",
         dragging && "rotate-2 shadow-md",
+        selected && "ring-primary/50 border-primary/50 ring-2",
         deal.rotting && "border-destructive/40",
       )}
     >
       <div className="flex items-start gap-1.5">
+        {onToggleSelect ? (
+          <span
+            className="mt-0.5 shrink-0"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Checkbox
+              checked={Boolean(selected)}
+              onCheckedChange={() => onToggleSelect()}
+              aria-label="Seleccionar tarjeta"
+            />
+          </span>
+        ) : null}
         <Link href={`/deals/${deal.id}`} className="min-w-0 flex-1 text-left">
           <p className="flex items-center gap-1 truncate text-sm font-medium">
             <Building2 className="text-muted-foreground size-3.5 shrink-0" />

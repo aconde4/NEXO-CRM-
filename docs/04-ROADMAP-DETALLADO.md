@@ -331,8 +331,10 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       carga esos. Botón "Cargar filtrados" cuando hay filtro; verificado con `tsx`.
 - [ ] **6.4f** Selector de embudo tipo **combobox con buscador** (cierre fino de 6.4d) y
       recordar el último embudo abierto.
-- [ ] **6.4g** **Acciones masivas** en el tablero: seleccionar varias tarjetas →
-      mover de etapa, añadir etiqueta, inscribir en secuencia o quitar del embudo.
+- [x] **6.4g** **Acciones masivas** en el tablero: checkbox por tarjeta + barra de
+      acciones (sticky) con **mover de etapa**, **añadir etiqueta** (al contacto),
+      **inscribir en secuencia** y **quitar del embudo**. Acciones owner-aware en lote
+      (`bulkMoveDeals`/`bulkAddLabelToDeals`/`bulkEnrollDeals`/`bulkRemoveDealsFromFunnel`).
 - [ ] **6.4h** **Vistas guardadas** del embudo (reusar `saved_views`) y filtro por
       **etapa/embudo** como criterio (cross con 6.4b).
 - [ ] **6.4i** **Métricas del embudo** (estilo panel de secuencia): nº y % de conversión

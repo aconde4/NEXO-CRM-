@@ -1,7 +1,8 @@
 "use server";
 
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 import { requireUser } from "@/lib/session";
 import {
@@ -10,7 +11,16 @@ import {
   type DealFormValues,
 } from "@/lib/validations/deal";
 import { db } from "@/server/db";
-import { activityLog, deals, stages } from "@/server/db/schema";
+import {
+  activityLog,
+  deals,
+  enrollments,
+  entityLabels,
+  labels,
+  sequenceSteps,
+  sequences,
+  stages,
+} from "@/server/db/schema";
 import {
   type ContactFilterCondition,
   normalizeContactFilters,
@@ -23,6 +33,160 @@ import {
 import { backfillContactsIntoFunnel } from "@/server/services/contact-funnel";
 import { listPersonIdsByFilters } from "@/server/queries/contacts";
 import { listCustomFieldDefs } from "@/server/queries/custom-fields";
+import { inngest } from "@/server/inngest/client";
+import { SEQUENCE_RUN_EVENT } from "@/server/services/sequence-runner";
+
+const dealIdsSchema = z.array(z.string().uuid()).min(1).max(500);
+
+/** Filas de deal del propietario (no borradas) para una selección. */
+async function ownedDealRows(ownerId: string, dealIds: string[]) {
+  return db
+    .select({ id: deals.id, orgId: deals.orgId, personId: deals.personId })
+    .from(deals)
+    .where(
+      and(
+        eq(deals.ownerId, ownerId),
+        inArray(deals.id, dealIds),
+        isNull(deals.deletedAt),
+      ),
+    );
+}
+
+// --- Acciones masivas del embudo (6.4g) -------------------------------------
+export async function bulkMoveDeals(dealIds: string[], stageId: string) {
+  const user = await requireUser();
+  const ids = dealIdsSchema.parse(dealIds);
+  const [stage] = await db
+    .select({ id: stages.id })
+    .from(stages)
+    .where(and(eq(stages.id, stageId), eq(stages.ownerId, user.id)))
+    .limit(1);
+  if (!stage) throw new Error("Etapa no encontrada");
+
+  const updated = await db
+    .update(deals)
+    .set({ stageId, stageChangedAt: new Date() })
+    .where(
+      and(
+        eq(deals.ownerId, user.id),
+        inArray(deals.id, ids),
+        isNull(deals.deletedAt),
+      ),
+    )
+    .returning({ id: deals.id });
+  revalidatePath("/deals");
+  return { updated: updated.length };
+}
+
+export async function bulkRemoveDealsFromFunnel(dealIds: string[]) {
+  const user = await requireUser();
+  const ids = dealIdsSchema.parse(dealIds);
+  const removed = await db
+    .update(deals)
+    .set({ deletedAt: new Date() })
+    .where(
+      and(
+        eq(deals.ownerId, user.id),
+        inArray(deals.id, ids),
+        isNull(deals.deletedAt),
+      ),
+    )
+    .returning({ id: deals.id });
+  revalidatePath("/deals");
+  return { removed: removed.length };
+}
+
+export async function bulkAddLabelToDeals(dealIds: string[], labelId: string) {
+  const user = await requireUser();
+  const ids = dealIdsSchema.parse(dealIds);
+  const [label] = await db
+    .select({ id: labels.id })
+    .from(labels)
+    .where(and(eq(labels.id, labelId), eq(labels.ownerId, user.id)))
+    .limit(1);
+  if (!label) throw new Error("Etiqueta no encontrada");
+
+  const rows = await ownedDealRows(user.id, ids);
+  const personIds = [
+    ...new Set(rows.map((r) => r.personId).filter((x): x is string => !!x)),
+  ];
+  let added = 0;
+  for (const personId of personIds) {
+    const [existing] = await db
+      .select({ id: entityLabels.id })
+      .from(entityLabels)
+      .where(
+        and(
+          eq(entityLabels.labelId, labelId),
+          eq(entityLabels.entityType, "person"),
+          eq(entityLabels.entityId, personId),
+        ),
+      )
+      .limit(1);
+    if (existing) continue;
+    await db
+      .insert(entityLabels)
+      .values({ entityId: personId, entityType: "person", labelId });
+    added += 1;
+  }
+  revalidatePath("/deals");
+  revalidatePath("/contacts");
+  return { added };
+}
+
+export async function bulkEnrollDeals(dealIds: string[], sequenceId: string) {
+  const user = await requireUser();
+  const ids = dealIdsSchema.parse(dealIds);
+  const [seq] = await db
+    .select({ status: sequences.status })
+    .from(sequences)
+    .where(and(eq(sequences.id, sequenceId), eq(sequences.ownerId, user.id)))
+    .limit(1);
+  if (!seq) throw new Error("Secuencia no encontrada");
+  if (seq.status !== "active") throw new Error("La secuencia no está activa");
+  const stepCount = await db.$count(
+    sequenceSteps,
+    and(
+      eq(sequenceSteps.sequenceId, sequenceId),
+      eq(sequenceSteps.ownerId, user.id),
+    ),
+  );
+  if (stepCount === 0) throw new Error("La secuencia no tiene pasos");
+
+  const rows = await ownedDealRows(user.id, ids);
+  const now = new Date();
+  let enrolled = 0;
+  for (const row of rows) {
+    if (!row.personId) continue;
+    const [ins] = await db
+      .insert(enrollments)
+      .values({
+        context: { enrolledBy: "bulk" },
+        currentStepPosition: 0,
+        enrolledAt: now,
+        nextRunAt: now,
+        orgId: row.orgId,
+        ownerId: user.id,
+        personId: row.personId,
+        sequenceId,
+        status: "active",
+      })
+      .onConflictDoNothing({
+        target: [enrollments.sequenceId, enrollments.personId],
+      })
+      .returning({ id: enrollments.id });
+    if (ins) {
+      enrolled += 1;
+      await inngest.send({
+        data: { enrollmentId: ins.id, sequenceId },
+        name: SEQUENCE_RUN_EVENT,
+      });
+    }
+  }
+  revalidatePath("/deals");
+  revalidatePath("/sequences");
+  return { enrolled };
+}
 
 type AutomationRecord = Record<string, unknown>;
 
