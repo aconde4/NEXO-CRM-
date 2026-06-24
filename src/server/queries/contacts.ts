@@ -280,6 +280,23 @@ export async function listPersons(input: ContactListFilters = {}) {
   });
 }
 
+/**
+ * Solo los ids de contacto que cumplen los filtros (sin límite bajo). Lo usa el embudo
+ * de Negocios (6.4d) para acotar las tarjetas por contacto reutilizando el motor de
+ * filtros de 6.4b.
+ */
+export async function listPersonIdsByFilters(
+  input: ContactListFilters,
+): Promise<string[]> {
+  const user = await requireUser();
+  const rows = await db
+    .select({ id: persons.id })
+    .from(persons)
+    .where(personWhere(input, user.id))
+    .limit(50_000);
+  return rows.map((row) => row.id);
+}
+
 export async function getPerson(id: string) {
   const user = await requireUser();
   return db.query.persons.findFirst({

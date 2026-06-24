@@ -82,9 +82,12 @@ function buildGroups(fields: ContactFilterField[]) {
 export function ContactFiltersBar({
   conditions,
   customFieldDefs,
+  basePath = "/contacts",
 }: {
   conditions: ContactFilterCondition[];
   customFieldDefs: CustomFieldDef[];
+  /** Ruta destino al aplicar/limpiar (reutilizable fuera de /contacts, p. ej. /deals). */
+  basePath?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -111,7 +114,7 @@ export function ContactFiltersBar({
   function applyConditions(nextConditions: ContactFilterCondition[]) {
     const params = new URLSearchParams(searchParams.toString());
     appendContactFilterParams(params, nextConditions);
-    router.replace(`/contacts${params.size ? `?${params}` : ""}`);
+    router.replace(`${basePath}${params.size ? `?${params}` : ""}`);
   }
 
   function chooseField(field: ContactFilterField) {

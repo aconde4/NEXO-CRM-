@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 
+import { decodeContactFilterParams } from "@/lib/contact-filters";
 import {
   listOrganizationOptions,
+  listPersonIdsByFilters,
   listPersonOptions,
 } from "@/server/queries/contacts";
+import { listCustomFieldDefs } from "@/server/queries/custom-fields";
 import {
   getBoard,
   listDeals,
@@ -25,6 +28,7 @@ type DealsSearchParams = {
   status?: string | string[];
   q?: string | string[];
   sort?: string | string[];
+  filter?: string | string[];
 };
 
 function firstParam(value: string | string[] | undefined): string | undefined {
@@ -67,15 +71,24 @@ export default async function DealsPage({
     pipelines[0]?.id ??
     "";
 
-  const [stagesByPipeline, persons, organizations] = await Promise.all([
-    listStagesByPipeline(),
-    listPersonOptions(),
-    listOrganizationOptions(),
-  ]);
+  const [stagesByPipeline, persons, organizations, customFieldDefs] =
+    await Promise.all([
+      listStagesByPipeline(),
+      listPersonOptions(),
+      listOrganizationOptions(),
+      listCustomFieldDefs("person"),
+    ]);
 
   const activeStages = stagesByPipeline[activePipelineId] ?? [];
   const activeStageId =
     activeStages.find((stage) => stage.id === stageParam)?.id ?? "";
+
+  // Filtros 6.4b aplicados al embudo de contactos (6.4d): acotan por contacto.
+  const conditions = decodeContactFilterParams(params.filter, customFieldDefs);
+  const personIds =
+    conditions.length > 0
+      ? await listPersonIdsByFilters({ conditions })
+      : undefined;
 
   if (view === "list") {
     const deals = await listDeals({
@@ -84,6 +97,7 @@ export default async function DealsPage({
       status,
       query,
       sort,
+      personIds,
     });
 
     return (
@@ -107,12 +121,14 @@ export default async function DealsPage({
           stagesByPipeline={stagesByPipeline}
           persons={persons}
           organizations={organizations}
+          conditions={conditions}
+          customFieldDefs={customFieldDefs}
         />
       </>
     );
   }
 
-  const board = await getBoard(activePipelineId);
+  const board = await getBoard(activePipelineId, { personIds });
 
   // Firma de los datos: cambia al crear/mover/editar y remonta el tablero para
   // re-sincronizar su estado local tras revalidar.
@@ -132,6 +148,8 @@ export default async function DealsPage({
         stagesByPipeline={stagesByPipeline}
         persons={persons}
         organizations={organizations}
+        conditions={conditions}
+        customFieldDefs={customFieldDefs}
       />
     </>
   );

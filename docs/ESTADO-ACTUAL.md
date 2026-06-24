@@ -9,8 +9,7 @@
 ## 📍 Dónde estamos
 
 - **Bloque prioritario antes de continuar 6.5 (decisión de producto 2026-06-23):**
-  **en curso; 6.4a, 6.4b y 6.4c hechas, siguiente 6.4d.** No continuar con acciones de automatización hasta
-  corregir el modelo comercial y la UX detectada por el usuario:
+  **completo (6.4a–6.4d hechas).** Se puede retomar **6.5**. Resumen del bloque:
   - **6.4a HECHA** `campaign` nativo en contactos: migración, validación, formulario,
     ficha, listado, exportación, segmentos, merge tags y auto-mapeo desde Excel/CSV. Es
     la campaña/origen comercial de carga del contacto; no es la tabla `campaigns` de
@@ -37,11 +36,14 @@
     tarjeta es arrastrable** (listeners en la raíz, clic simple sigue abriendo) y botón
     **"Cargar contactos"** (backfill). **Fix 2026-06-23:** el dedupe mira **cualquier
     embudo** (no solo el por defecto): "Cargar contactos" solo añade contactos que no
-    estén ya en NINGÚN embudo. Pendiente (6.4d): filtros 6.4b en Kanban **y** Lista, y
-    que muchos embudos no rompan el layout.
-  - **6.4d** UX de Negocios con muchos funnels: el selector/gestión de pipelines debe
-    escalar sin desbordes ni pérdida de contexto (combobox/buscador, menú compacto,
-    responsive).
+    estén ya en NINGÚN embudo.
+  - **6.4d HECHA:** (a) **filtros 6.4b en Kanban y Lista** — `deals/page.tsx` decodifica
+    el filtro, resuelve `personId` con `listPersonIdsByFilters` y acota
+    `getBoard`/`listDeals` por `inArray(deals.personId, …)`; `ContactFiltersBar` con
+    `basePath` se renderiza en ambas vistas. (b) **layout** — `min-w-0` en `SidebarInset`
+    y `main` (scroll horizontal sin cortar la página) + selector de embudo acotado.
+    Pendiente menor opcional: selector tipo combobox con buscador si crecen mucho los
+    embudos.
 
 - **Fase 6 · Motor de automatizaciones:** **en curso (6.1 + 6.2 + 6.3 + 6.4 + 6.4a
   + 6.4b hechas; 6.5 pausada hasta cerrar 6.4c–6.4d).**
@@ -297,28 +299,21 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **6.4d (resto): filtros 6.4b en el tablero de
-Negocios (Kanban y Lista).** El layout y el selector ya están resueltos (ver abajo).
+**Siguiente tarea de desarrollo:** **6.5** Acciones de automatización (ejecución real
+de cada `kind`: create_task, add_label, enroll_sequence, send_email, move_stage,
+update_field, notify, webhook, ai_summary) desde el runner Inngest
+`run-automations-for-event` (que ya crea `automation_runs` en `waiting`). Luego 6.6
+(condiciones if/else + esperas reales con `step.sleep`), 6.7 (panel de ejecuciones) y
+6.8 (activar/pausar + dry-run).
 
-Plan de menor riesgo para los filtros (no romper el tablero core):
-1. En `deals/page.tsx`, decodificar el parámetro de filtros con
-   `decodeContactFilterParams` (de `@/lib/contact-filters`, ya usado en `/contacts`).
-2. Resolver los contactos que cumplen con la query existente de contactos
-   (`listPersons({ conditions })` / o un `listPersonIdsMatching(conditions)` nuevo sin
-   límite bajo) → lista de `personId`.
-3. Pasar esos `personId` a `getBoard` y `listDeals` y filtrar
-   `inArray(deals.personId, personIds)` (los deals del embudo son por contacto). Así se
-   reutiliza TODO el motor de 6.4b sin reescribir SQL de filtros para deals.
-4. Renderizar `<ContactFiltersBar>` (de `components/contacts`) en **ambas** vistas de
-   `/deals`, pasándole los `customFieldDefs` y opciones que ya usa en `/contacts`.
-5. Verificar: filtrar por empresa/campaign/"comienza por" filtra las tarjetas en Kanban
-   y las filas en Lista por igual; gates en verde.
-
-**6.4d HECHO:** (a) layout — `min-w-0` en `SidebarInset` y `main` para que el Kanban
-haga scroll horizontal sin cortar la página al haber muchos embudos/etapas; (b) selector
-de embudo acotado (`max-w-[12rem] truncate`).
-
-Tras 6.4d se retoma **6.5** (acciones de automatización).
+**6.4d HECHO (completo):**
+- **Filtros 6.4b en Kanban y Lista:** `deals/page.tsx` decodifica el filtro
+  (`decodeContactFilterParams`), resuelve los `personId` que cumplen
+  (`listPersonIdsByFilters`, reutilizando el motor de 6.4b) y acota el tablero/lista con
+  `inArray(deals.personId, …)` en `getBoard`/`listDeals`. `ContactFiltersBar` ahora
+  acepta `basePath` y se renderiza en **ambas** vistas de `/deals`.
+- **Layout:** `min-w-0` en `SidebarInset` y `main` (el Kanban hace scroll horizontal sin
+  cortar la página con muchos embudos/etapas); selector de embudo acotado.
 
 **(6.4c HECHA — referencia del plan que se siguió, Opción A · reutilizar `deals`):**
 
@@ -388,11 +383,11 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **6.4a–6.4d** (`campaign` nativo, filtros por prefijo, embudo de contactos no basado
 > en actividades y UX de muchos funnels en Negocios).
 >
-> **Hecho en la última sesión técnica:** **6.4c** (Negocios = embudo de contactos:
-> alta automática en "Cargadas" desde alta manual e importación, tarjeta empresa+contacto,
-> tarjeta arrastrable, botón "Cargar contactos"). Antes: 6.4a/6.4b (`campaign` + filtros),
-> **6.4** (eventos internos + Inngest), **6.3/6.2/6.1** (motor de automatizaciones) y
-> cierre de la **Fase 5**.
+> **Hecho en la última sesión técnica:** **6.4d** (filtros 6.4b en Kanban y Lista de
+> Negocios + layout que no se corta con muchos embudos) y **6.4c** (Negocios = embudo de
+> contactos: alta automática en "Cargadas", tarjeta empresa+contacto arrastrable, botón
+> "Cargar contactos" con dedupe global). Antes: 6.4a/6.4b, 6.4 (eventos + Inngest),
+> 6.3/6.2/6.1 y cierre de la **Fase 5**. **Bloque 6.4 completo → toca 6.5.**
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -433,6 +428,20 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-23 (53) — 6.4d: filtros 6.4b en Kanban y Lista de Negocios
+- **Filtros compartidos en ambas vistas:** `deals/page.tsx` decodifica el parámetro de
+  filtro y, si hay condiciones, resuelve los `personId` que cumplen con
+  `listPersonIdsByFilters` (nueva en `queries/contacts.ts`, reutiliza `personWhere` de
+  6.4b sin límite bajo). `getBoard(pipelineId, { personIds })` y `listDeals({ personIds })`
+  acotan por `inArray(deals.personId, …)` (array vacío ⇒ sin resultados).
+- **UI:** `ContactFiltersBar` ahora acepta `basePath` (default `/contacts`) y se renderiza
+  en el Kanban (`DealsBoard`) y en la Lista (`DealsListView`) con `basePath="/deals"`,
+  preservando el resto de parámetros (vista/embudo) desde la URL.
+- **Verificado:** semántica con `tsx` (campaign "comienza por 500" → solo el contacto
+  correcto → solo su deal) y render vía login de desarrollo de `/deals`, `/deals?view=list`
+  y `/deals?filter=campaign:starts_with:500` (200, barra de filtros visible, sin overlay).
+  `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde. **6.4d completa.**
 
 ### 2026-06-23 (52) — 6.4d (layout): muchos embudos ya no cortan la página
 - **Fix de layout:** `min-w-0` en `SidebarInset` y en el `main` de `(app)/layout.tsx`.

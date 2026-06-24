@@ -7,6 +7,7 @@ import {
   desc,
   eq,
   ilike,
+  inArray,
   isNull,
   or,
   sql,
@@ -218,6 +219,7 @@ export type DealListFilters = {
   status?: string;
   query?: string;
   sort?: string;
+  personIds?: string[];
 };
 
 export type DealListItem = {
@@ -280,8 +282,21 @@ function dealListOrderBy(sort?: string): SQL[] {
   }
 }
 
+/**
+ * Filtro por contacto para el embudo (6.4d). `undefined` = sin filtro; array vacío =
+ * ningún resultado (el filtro no casó con ningún contacto).
+ */
+function personIdsFilter(personIds?: string[]): SQL | undefined {
+  if (!personIds) return undefined;
+  if (personIds.length === 0) return sql`false`;
+  return inArray(deals.personId, personIds);
+}
+
 /** Datos del tablero Kanban para un embudo (el activo, el dado o el primero). */
-export async function getBoard(pipelineId?: string): Promise<Board> {
+export async function getBoard(
+  pipelineId?: string,
+  opts: { personIds?: string[] } = {},
+): Promise<Board> {
   const user = await requireUser();
   await ensureDefaultPipeline(user.id);
 
@@ -320,6 +335,7 @@ export async function getBoard(pipelineId?: string): Promise<Board> {
       eq(deals.pipelineId, active.id),
       eq(deals.status, "open"),
       isNull(deals.deletedAt),
+      personIdsFilter(opts.personIds),
     ),
     with: {
       person: { columns: { id: true, firstName: true, lastName: true } },
@@ -411,6 +427,9 @@ export async function listDeals(filters: DealListFilters = {}) {
     );
     if (match) where.push(match);
   }
+
+  const personFilter = personIdsFilter(filters.personIds);
+  if (personFilter) where.push(personFilter);
 
   const rows = await db
     .select({

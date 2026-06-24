@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import type { ContactFilterCondition } from "@/lib/contact-filters";
+import type { CustomFieldDef } from "@/lib/custom-fields";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { DealStatus } from "@/server/db/schema";
 import {
@@ -58,6 +60,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { ContactFiltersBar } from "@/components/contacts/contact-filters-bar";
 
 const selectClass =
   "border-input dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 h-9 shrink-0 rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none transition focus-visible:ring-[3px]";
@@ -101,6 +104,8 @@ export function DealsListView({
   stagesByPipeline,
   persons,
   organizations,
+  conditions,
+  customFieldDefs,
 }: {
   deals: DealListItem[];
   filters: DealListFilters;
@@ -108,6 +113,8 @@ export function DealsListView({
   stagesByPipeline: Record<string, Option[]>;
   persons: Option[];
   organizations: Option[];
+  conditions: ContactFilterCondition[];
+  customFieldDefs: CustomFieldDef[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -291,6 +298,12 @@ export function DealsListView({
           </Button>
         </div>
       </div>
+
+      <ContactFiltersBar
+        conditions={conditions}
+        customFieldDefs={customFieldDefs}
+        basePath="/deals"
+      />
 
       <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
         <span>

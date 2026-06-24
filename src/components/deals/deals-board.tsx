@@ -34,6 +34,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import type { ContactFilterCondition } from "@/lib/contact-filters";
+import type { CustomFieldDef } from "@/lib/custom-fields";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -67,6 +69,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { ContactFiltersBar } from "@/components/contacts/contact-filters-bar";
 
 const selectClass =
   "border-input dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 h-9 shrink-0 rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none transition focus-visible:ring-[3px]";
@@ -80,11 +83,15 @@ export function DealsBoard({
   persons,
   organizations,
   stagesByPipeline,
+  conditions,
+  customFieldDefs,
 }: {
   board: Board;
   persons: Option[];
   organizations: Option[];
   stagesByPipeline: Record<string, Option[]>;
+  conditions: ContactFilterCondition[];
+  customFieldDefs: CustomFieldDef[];
 }) {
   const router = useRouter();
   const [cols, setCols] = React.useState<Col[]>(() =>
@@ -318,6 +325,12 @@ export function DealsBoard({
           </Button>
         </div>
       </div>
+
+      <ContactFiltersBar
+        conditions={conditions}
+        customFieldDefs={customFieldDefs}
+        basePath="/deals"
+      />
 
       {cols.length === 0 ? (
         <div className="rounded-xl border border-dashed py-16 text-center">
