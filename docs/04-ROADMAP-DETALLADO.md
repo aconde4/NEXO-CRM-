@@ -325,9 +325,10 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
 #### Mejoras del embudo de contactos habilitadas por 6.4 (propuestas 2026-06-23)
 > Estas opciones se abren tras convertir Negocios en el embudo de contactos + filtros.
 > Priorizar con el usuario; no bloquean 6.5–6.8.
-- [ ] **6.4e** "Cargar contactos" **respetando el filtro activo**: el backfill mete solo
-      los contactos que cumplen el filtro actual (hoy mete todos los que no estén en
-      ningún embudo). Útil para cargar por campaña/segmento concreto.
+- [x] **6.4e** "Cargar contactos" **respetando el filtro activo**: `loadContactsIntoFunnel`
+      acepta las condiciones del tablero, resuelve los `personId` que cumplen
+      (`listPersonIdsByFilters`) y `backfillContactsIntoFunnel(userId, personIds)` solo
+      carga esos. Botón "Cargar filtrados" cuando hay filtro; verificado con `tsx`.
 - [ ] **6.4f** Selector de embudo tipo **combobox con buscador** (cierre fino de 6.4d) y
       recordar el último embudo abierto.
 - [ ] **6.4g** **Acciones masivas** en el tablero: seleccionar varias tarjetas →

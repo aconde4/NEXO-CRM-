@@ -446,6 +446,14 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 
 ## 🗒️ Changelog por sesión
 
+### 2026-06-23 (56) — 6.4e: "Cargar contactos" respeta el filtro activo
+- `loadContactsIntoFunnel(conditions?)` normaliza las condiciones (con
+  `customFieldDefs`), resuelve `personId` con `listPersonIdsByFilters` y
+  `backfillContactsIntoFunnel(userId, personIds?)` solo carga esos (array vacío ⇒ 0, no
+  carga todos). El botón del tablero pasa el filtro activo y muestra "Cargar filtrados".
+- Verificado con `tsx`: backfill con subconjunto crea solo ese contacto; `[]` ⇒ 0.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
+
 ### 2026-06-23 (55) — Fase 6.7: panel de ejecuciones de automatizaciones
 - **Query** `listAutomationRuns(automationId)` (owner-aware): runs recientes con estado,
   disparador, entidad, error, fechas y `log`.

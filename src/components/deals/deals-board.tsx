@@ -212,14 +212,18 @@ export function DealsBoard({
   }
 
   const [loadingContacts, setLoadingContacts] = React.useState(false);
+  const hasFilter = conditions.length > 0;
   async function loadContacts() {
     setLoadingContacts(true);
     try {
-      const { created } = await loadContactsIntoFunnel();
+      const { created } = await loadContactsIntoFunnel(
+        hasFilter ? conditions : undefined,
+      );
+      const scope = hasFilter ? " (del filtro)" : "";
       toast.success(
         created > 0
-          ? `${created} contacto(s) añadidos a Cargadas`
-          : "Todos los contactos ya están en el embudo",
+          ? `${created} contacto(s)${scope} añadidos a Cargadas`
+          : `Todos los contactos${scope} ya están en el embudo`,
       );
       router.refresh();
     } catch (error) {
@@ -313,7 +317,11 @@ export function DealsBoard({
             disabled={loadingContacts}
           >
             <User />
-            {loadingContacts ? "Cargando…" : "Cargar contactos"}
+            {loadingContacts
+              ? "Cargando…"
+              : hasFilter
+                ? "Cargar filtrados"
+                : "Cargar contactos"}
           </Button>
           <Button
             className="shrink-0"

@@ -12,23 +12,37 @@ import {
 import { db } from "@/server/db";
 import { activityLog, deals, stages } from "@/server/db/schema";
 import {
+  type ContactFilterCondition,
+  normalizeContactFilters,
+} from "@/lib/contact-filters";
+import {
   createFieldChangedEvents,
   diffAutomationFields,
   emitAutomationEventsSafely,
 } from "@/server/services/automation-runner";
 import { backfillContactsIntoFunnel } from "@/server/services/contact-funnel";
+import { listPersonIdsByFilters } from "@/server/queries/contacts";
+import { listCustomFieldDefs } from "@/server/queries/custom-fields";
 
 type AutomationRecord = Record<string, unknown>;
 
 /**
- * Embudo de contactos (6.4c): mete en "Cargadas" todos los contactos del usuario que
- * aún no tengan tarjeta (los importados/creados antes de activar el embudo).
+ * Embudo de contactos (6.4c/6.4e): mete en "Cargadas" los contactos sin tarjeta. Si se
+ * pasan condiciones de filtro (las activas en el tablero), solo carga los que cumplen.
  */
-export async function loadContactsIntoFunnel() {
+export async function loadContactsIntoFunnel(
+  conditions?: ContactFilterCondition[],
+) {
   const user = await requireUser();
-  const created = await backfillContactsIntoFunnel(user.id);
+  const defs = await listCustomFieldDefs("person");
+  const normalized = normalizeContactFilters(conditions ?? [], defs);
+  const personIds =
+    normalized.length > 0
+      ? await listPersonIdsByFilters({ conditions: normalized })
+      : undefined;
+  const created = await backfillContactsIntoFunnel(user.id, personIds);
   revalidatePath("/deals");
-  return { created };
+  return { created, filtered: normalized.length > 0 };
 }
 
 const DEAL_AUTOMATION_FIELDS = [

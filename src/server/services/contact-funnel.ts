@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/server/db";
 import {
@@ -148,19 +148,28 @@ export async function addContactToFunnelSafely(
 }
 
 /**
- * Backfill: mete en el embudo todos los contactos del usuario que aún no tienen tarjeta
- * (los importados/creados antes de activar el embudo). Devuelve cuántos se crearon.
+ * Backfill: mete en el embudo los contactos del usuario que aún no tienen tarjeta (los
+ * importados/creados antes de activar el embudo). Si se pasan `personIds` (6.4e), solo
+ * carga esos (p. ej. los que cumplen el filtro activo del tablero). Devuelve cuántos se
+ * crearon.
  */
 export async function backfillContactsIntoFunnel(
   userId: string,
+  personIds?: string[],
 ): Promise<number> {
   const entry = await getDefaultFunnelEntry(userId);
   if (!entry) return 0;
+  if (personIds && personIds.length === 0) return 0;
 
-  const rows = await db
-    .select({ id: persons.id })
-    .from(persons)
-    .where(and(eq(persons.ownerId, userId), isNull(persons.deletedAt)));
+  const where = personIds
+    ? and(
+        eq(persons.ownerId, userId),
+        isNull(persons.deletedAt),
+        inArray(persons.id, personIds),
+      )
+    : and(eq(persons.ownerId, userId), isNull(persons.deletedAt));
+
+  const rows = await db.select({ id: persons.id }).from(persons).where(where);
 
   let created = 0;
   for (const row of rows) {
