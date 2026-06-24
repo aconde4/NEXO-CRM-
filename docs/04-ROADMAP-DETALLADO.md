@@ -300,7 +300,7 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       aplique, Actividad/Negocio), con operadores legibles (`comienza por`, `contiene`,
       `es`, `tiene valor`, `está vacío`). Debe soportar varias condiciones combinadas en
       AND y mantener el estado en URL para compartir/guardar vistas.
-- [ ] **6.4c** Embudo de **contactos/prospección** basado en contactos, no en
+- [x] **6.4c** Embudo de **contactos/prospección** basado en contactos, no en
       actividades: modelo propio de pipeline/etapas de contacto, etapa inicial
       **"Cargadas"**, importación Excel/CSV que mete los nuevos contactos en esa etapa,
       tablero que muestra **todos los contactos cargados** y movimiento manual entre
@@ -317,9 +317,28 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       arrastrar entre etapas sin crear actividades. Los contactos existentes deben poder
       incorporarse al embudo (backfill a `Cargadas` en el embudo por defecto) para que el
       tablero no empiece vacío.
-- [ ] **6.4d** Negocios con muchos embudos: rediseñar el selector/gestión de funnels de
-      `/deals` y Ajustes para que escale con muchos pipelines (buscador/combobox,
-      menú compacto, layout responsive y sin desbordes).
+- [x] **6.4d** Negocios con muchos embudos + filtros: filtros 6.4b en Kanban **y**
+      Lista (acotan por contacto), `min-w-0` para que el tablero haga scroll sin cortar
+      la página y selector de embudo acotado. *(Opcional pendiente: selector combobox
+      con buscador si crecen mucho los embudos — recogido en 6.4f.)*
+
+#### Mejoras del embudo de contactos habilitadas por 6.4 (propuestas 2026-06-23)
+> Estas opciones se abren tras convertir Negocios en el embudo de contactos + filtros.
+> Priorizar con el usuario; no bloquean 6.5–6.8.
+- [ ] **6.4e** "Cargar contactos" **respetando el filtro activo**: el backfill mete solo
+      los contactos que cumplen el filtro actual (hoy mete todos los que no estén en
+      ningún embudo). Útil para cargar por campaña/segmento concreto.
+- [ ] **6.4f** Selector de embudo tipo **combobox con buscador** (cierre fino de 6.4d) y
+      recordar el último embudo abierto.
+- [ ] **6.4g** **Acciones masivas** en el tablero: seleccionar varias tarjetas →
+      mover de etapa, añadir etiqueta, inscribir en secuencia o quitar del embudo.
+- [ ] **6.4h** **Vistas guardadas** del embudo (reusar `saved_views`) y filtro por
+      **etapa/embudo** como criterio (cross con 6.4b).
+- [ ] **6.4i** **Métricas del embudo** (estilo panel de secuencia): nº y % de conversión
+      entre etapas, estancados por etapa, por campaña. (Adelanta parte de Fase 9.)
+- [ ] **6.4j** **Sincronía con automatizaciones**: plantillas de automatización "al
+      entrar en etapa X → inscribir en secuencia / crear tarea" (se apoya en
+      `deal_stage_changed`, ya emitido). Encaja al cerrar 6.5–6.6.
 - [ ] **6.5** Acciones: crear/actualizar registro, enviar email, inscribir en
       secuencia, crear actividad, añadir etiqueta, mover de etapa, webhook, Slack.
 - [ ] **6.6** Condiciones (if/else) y esperas reales sobre Inngest.
