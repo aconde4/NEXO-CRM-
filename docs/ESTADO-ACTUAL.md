@@ -45,7 +45,18 @@
     Pendiente menor opcional: selector tipo combobox con buscador si crecen mucho los
     embudos.
 
-- **Fase 6 · Motor de automatizaciones:** **en curso (6.1 + 6.2 + 6.3 + 6.4 + 6.4a
+- **Fase 6 · Motor de automatizaciones:** **6.5 hecha (acciones reales).**
+  - **6.5** ejecución de acciones: `src/server/services/automation-executor.ts`
+    (`executeAutomationRun`) procesa cada `automation_runs` en `waiting`, recorre el
+    grafo y ejecuta los nodos de acción sobre la entidad disparadora, con log por nodo y
+    estado final `completed`/`failed`. Acciones: `create_task`, `add_label`,
+    `move_stage` (negocios), `update_field` (custom field), `enroll_sequence` (inscribe +
+    emite `sequence/run.requested`), `webhook` (POST) y `notify` (traza). `send_email` y
+    `ai_summary` quedan como "pendiente" (6.x/Fase 8). Cableado en
+    `run-automations-for-event` (ejecuta cada run tras crearlo; idempotente por carrera
+    `waiting`→`running`). Verificado con `tsx`: evento → run → 3 acciones ok → completed,
+    2.ª ejecución skip.
+  - (resto de la fase) **en curso (6.1 + 6.2 + 6.3 + 6.4 + 6.4a
   + 6.4b hechas; 6.5 pausada hasta cerrar 6.4c–6.4d).**
   - **6.4** sistema de eventos interno: `src/server/services/automation-runner.ts`
     define `AUTOMATION_EVENT` (`automation/event`), emisores best-effort hacia Inngest,
@@ -299,12 +310,15 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **6.5** Acciones de automatización (ejecución real
-de cada `kind`: create_task, add_label, enroll_sequence, send_email, move_stage,
-update_field, notify, webhook, ai_summary) desde el runner Inngest
-`run-automations-for-event` (que ya crea `automation_runs` en `waiting`). Luego 6.6
-(condiciones if/else + esperas reales con `step.sleep`), 6.7 (panel de ejecuciones) y
-6.8 (activar/pausar + dry-run).
+**Siguiente tarea de desarrollo:** **6.6** Condiciones if/else + esperas reales en el
+ejecutor. Hoy el ejecutor recorre el grafo lineal y **omite** los nodos `wait`/
+`condition` (deja traza "se ejecuta en 6.6"). Plan: mover la ejecución a un workflow
+Inngest duradero por run (o por evento) que respete `wait` con `step.sleep` y evalúe
+`condition` (ramas if/else del grafo; hoy las aristas son lineales — añadir `branch`
+true/false en el editor 6.2 y seguirlas). Luego 6.7 (panel de `automation_runs` con el
+log por nodo) y 6.8 (activar/pausar ya está; añadir **dry-run** que simula sin efectos).
+Pendiente menor de 6.5: `send_email` (remitente/plantilla/transporte) y `ai_summary`
+(Fase 8).
 
 **6.4d HECHO (completo):**
 - **Filtros 6.4b en Kanban y Lista:** `deals/page.tsx` decodifica el filtro
@@ -383,11 +397,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **6.4a–6.4d** (`campaign` nativo, filtros por prefijo, embudo de contactos no basado
 > en actividades y UX de muchos funnels en Negocios).
 >
-> **Hecho en la última sesión técnica:** **6.4d** (filtros 6.4b en Kanban y Lista de
-> Negocios + layout que no se corta con muchos embudos) y **6.4c** (Negocios = embudo de
-> contactos: alta automática en "Cargadas", tarjeta empresa+contacto arrastrable, botón
-> "Cargar contactos" con dedupe global). Antes: 6.4a/6.4b, 6.4 (eventos + Inngest),
-> 6.3/6.2/6.1 y cierre de la **Fase 5**. **Bloque 6.4 completo → toca 6.5.**
+> **Hecho en la última sesión técnica:** **6.5** (ejecución real de acciones de
+> automatización) y el bloque **6.4** completo (embudo de contactos + filtros en
+> Kanban/Lista + layout). Antes: 6.4a/6.4b, 6.4 (eventos + Inngest), 6.3/6.2/6.1 y cierre
+> de la **Fase 5**. **Siguiente: 6.6** (condiciones if/else + esperas reales).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -428,6 +441,22 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-23 (54) — Fase 6.5: ejecución real de acciones de automatización
+- **`src/server/services/automation-executor.ts`** (`executeAutomationRun`): procesa un
+  `automation_runs` en `waiting` (claim atómico `waiting`→`running`), resuelve la entidad
+  disparadora (persona/empresa/negocio + relaciones) y ejecuta los nodos de acción del
+  grafo, guardando un log por nodo y dejando el run en `completed`/`failed`.
+- **Acciones:** `create_task` (actividad), `add_label` (con dedupe y validación de
+  propietario), `move_stage` (solo negocios), `update_field` (sobre `custom_fields` de la
+  entidad), `enroll_sequence` (inscribe owner-aware + emite `sequence/run.requested`),
+  `webhook` (POST con el evento) y `notify` (traza). `send_email` y `ai_summary` quedan
+  como "pendiente" sin fallar.
+- **Cableado:** `run-automations-for-event` ejecuta cada run creado (idempotente).
+- **Verificado** con `tsx` (borrado): evento `record_created`(person) → automatización
+  activa coincide → run creado → 3 acciones (tarea + etiqueta + notify) ejecutadas,
+  estado `completed`; 2.ª ejecución `skipped` (idempotencia). `pnpm typecheck`, `lint` y
+  `build` en verde.
 
 ### 2026-06-23 (53) — 6.4d: filtros 6.4b en Kanban y Lista de Negocios
 - **Filtros compartidos en ambas vistas:** `deals/page.tsx` decodifica el parámetro de

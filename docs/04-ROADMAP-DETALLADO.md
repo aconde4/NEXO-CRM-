@@ -339,8 +339,12 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
 - [ ] **6.4j** **Sincronía con automatizaciones**: plantillas de automatización "al
       entrar en etapa X → inscribir en secuencia / crear tarea" (se apoya en
       `deal_stage_changed`, ya emitido). Encaja al cerrar 6.5–6.6.
-- [ ] **6.5** Acciones: crear/actualizar registro, enviar email, inscribir en
-      secuencia, crear actividad, añadir etiqueta, mover de etapa, webhook, Slack.
+- [x] **6.5** Acciones (ejecución real): `create_task`, `add_label`, `move_stage`,
+      `update_field` (custom field), `enroll_sequence`, `webhook` y `notify` ejecutadas
+      por `automation-executor.ts` desde `run-automations-for-event` (idempotente por
+      `waiting`→`running`→`completed/failed`, con log por nodo). *Pendiente: `send_email`
+      (necesita remitente/plantilla/transporte) y `ai_summary` (Fase 8); registran traza
+      "pendiente".*
 - [ ] **6.6** Condiciones (if/else) y esperas reales sobre Inngest.
 - [ ] **6.7** Registro de ejecuciones (`automation_runs`) con el detalle de pasos.
 - [ ] **6.8** Activar/pausar automatizaciones y pruebas en seco (dry-run).

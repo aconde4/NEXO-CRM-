@@ -39,6 +39,7 @@ import {
   dispatchAutomationEvent,
   parseAutomationEvent,
 } from "@/server/services/automation-runner";
+import { executeAutomationRun } from "@/server/services/automation-executor";
 
 /**
  * Función de prueba para validar que Inngest está conectado (tarea 0.13).
@@ -384,7 +385,17 @@ export const runAutomationsForEvent = inngest.createFunction(
     const result = await step.run("preparar-ejecuciones", () =>
       dispatchAutomationEvent(automationEvent),
     );
-    return { ok: true, result };
+
+    // 6.5: ejecuta cada run preparado (idempotente: solo actúa sobre los `waiting`).
+    const runResults = [];
+    for (const runId of result.runIds ?? []) {
+      const runResult = await step.run(`ejecutar-${runId}`, () =>
+        executeAutomationRun(runId),
+      );
+      runResults.push({ runId, ...runResult });
+    }
+
+    return { ok: true, result, runResults };
   },
 );
 
