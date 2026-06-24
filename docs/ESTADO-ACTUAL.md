@@ -452,6 +452,9 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
   `backfillContactsIntoFunnel(userId, personIds?)` solo carga esos (array vacío ⇒ 0, no
   carga todos). El botón del tablero pasa el filtro activo y muestra "Cargar filtrados".
 - Verificado con `tsx`: backfill con subconjunto crea solo ese contacto; `[]` ⇒ 0.
+- **Pulido:** al cambiar de embudo o alternar Kanban/Lista se **preserva el filtro**
+  activo (antes se perdía): `deals-board` y `deals-list-view` construyen las URLs a
+  partir de los parámetros actuales.
 - `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-23 (55) — Fase 6.7: panel de ejecuciones de automatizaciones

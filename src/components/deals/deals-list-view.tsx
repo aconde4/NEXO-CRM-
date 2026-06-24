@@ -137,10 +137,11 @@ export function DealsListView({
   );
 
   const boardHref = React.useMemo(() => {
-    const params = new URLSearchParams();
-    if (filters.pipelineId) params.set("pipeline", filters.pipelineId);
+    // Preserva el filtro (y demás parámetros) al cambiar a Kanban; solo quita `view`.
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("view");
     return `/deals${params.size ? `?${params}` : ""}`;
-  }, [filters.pipelineId]);
+  }, [searchParams]);
 
   function replaceParams(next: {
     q?: string;

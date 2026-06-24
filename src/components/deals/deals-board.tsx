@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -106,10 +106,21 @@ export function DealsBoard({
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   );
 
+  const searchParams = useSearchParams();
   const pipelineId = board.activePipelineId ?? "";
-  const listHref = pipelineId
-    ? `/deals?view=list&pipeline=${encodeURIComponent(pipelineId)}`
-    : "/deals?view=list";
+
+  // Navega dentro de /deals preservando el resto de parámetros (filtro, etc.).
+  function dealsHref(overrides: Record<string, string | null>) {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(overrides)) {
+      if (value === null) params.delete(key);
+      else params.set(key, value);
+    }
+    const qs = params.toString();
+    return `/deals${qs ? `?${qs}` : ""}`;
+  }
+  const listHref = dealsHref({ view: "list" });
+
   const activeDeal = activeId
     ? (cols.flatMap((c) => c.deals).find((d) => d.id === activeId) ?? null)
     : null;
@@ -267,7 +278,9 @@ export function DealsBoard({
           <select
             className={cn(selectClass, "max-w-[12rem] truncate")}
             value={pipelineId}
-            onChange={(e) => router.push(`/deals?pipeline=${e.target.value}`)}
+            onChange={(e) =>
+              router.push(dealsHref({ pipeline: e.target.value }))
+            }
             aria-label="Embudo"
           >
             {board.pipelines.map((p) => (
