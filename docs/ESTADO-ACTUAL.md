@@ -446,6 +446,15 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 
 ## 🗒️ Changelog por sesión
 
+### 2026-06-23 (58) — 6.4h (base): cimientos de vistas guardadas del embudo
+- `SavedViewFilters` (esquema) y `savedViewSchema.filters` (validación) ahora admiten
+  `pipeline`/`stage`/`view` (compatible hacia atrás) para poder guardar vistas del
+  embudo de Negocios.
+- **Pendiente (documentado):** `saved_views.entityType` está atado a `CustomEntityType`
+  (person/organization). Para vistas de `deal` hay que **desacoplar** ese tipo y luego
+  reutilizar `SavedViewsBar` en `/deals`. Detalle en el roadmap (6.4h) y en el prompt de
+  relevo. `pnpm typecheck`, `lint` y `build` en verde.
+
 ### 2026-06-23 (57) — 6.4g: acciones masivas en el embudo de Negocios
 - **Server** (`actions/deals.ts`): `bulkMoveDeals`, `bulkAddLabelToDeals` (etiqueta al
   contacto, dedupe), `bulkEnrollDeals` (inscribe owner-aware + emite

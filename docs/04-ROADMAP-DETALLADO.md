@@ -336,7 +336,15 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       **inscribir en secuencia** y **quitar del embudo**. Acciones owner-aware en lote
       (`bulkMoveDeals`/`bulkAddLabelToDeals`/`bulkEnrollDeals`/`bulkRemoveDealsFromFunnel`).
 - [ ] **6.4h** **Vistas guardadas** del embudo (reusar `saved_views`) y filtro por
-      **etapa/embudo** como criterio (cross con 6.4b).
+      **etapa/embudo** como criterio (cross con 6.4b). *En curso:* base lista —
+      `SavedViewFilters` y `savedViewSchema.filters` admiten `pipeline`/`stage`/`view`.
+      **Pendiente (clave):** `saved_views.entityType` está atado a `CustomEntityType`
+      (solo person/organization); para vistas de Negocios hay que **desacoplar** ese
+      tipo (p. ej. nuevo `SavedViewEntity = person|organization|deal` en el esquema +
+      `savedViewSchema` + `listSavedViews`/acciones) y luego reutilizar
+      `SavedViewsBar`/`saved-views` en `/deals` (con `basePath` y guardando
+      pipeline/view/conditions). Filtro por etapa: en Kanban son columnas; aplicarlo en
+      la vista Lista (el param `stage` ya existe en `listDeals`).
 - [ ] **6.4i** **Métricas del embudo** (estilo panel de secuencia): nº y % de conversión
       entre etapas, estancados por etapa, por campaña. (Adelanta parte de Fase 9.)
 - [ ] **6.4j** **Sincronía con automatizaciones**: plantillas de automatización "al

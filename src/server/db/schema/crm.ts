@@ -377,6 +377,10 @@ export type SavedViewFilters = {
   q?: string;
   label?: string;
   sort?: string;
+  /** Vistas del embudo de Negocios (6.4h): embudo, etapa y vista (kanban/list). */
+  pipeline?: string;
+  stage?: string;
+  view?: string;
 };
 
 export const savedViews = pgTable(
