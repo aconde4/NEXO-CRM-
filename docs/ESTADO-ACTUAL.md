@@ -331,19 +331,21 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 7.4**: endpoint de recepción del formulario.
-Crear `POST /api/forms/[id]/submit` (ruta **pública**; el prefijo `/api/forms` ya está en
-`proxy.ts`) que: valide que el form existe y está `active`; lea el `FormData`; **honeypot**
-(`_hp`) → si viene relleno, descartar silenciosamente (base de 7.6); aplique los `mappings`
-para **crear/encontrar la persona** (dedupe por email como en importación), guarde un
-`form_submissions` (con `ip`/`user_agent`) y cree un `leads` (`source` = nombre del form,
-`status='new'`); dispare la automatización: emitir evento `form_submitted`
-(`emitAutomationEventSafely`, entityType `person`) y, si el form tiene `automation_id`,
-encolarla también. Responder con redirección a `redirect_url` o a `/f/[id]?ok=1`. Reutiliza
-el patrón de creación de contactos/`addContactToFunnel` y de merge/dedupe de la importación.
-Después: 7.5 (bandeja de leads: calificar/basura/convertir a negocio), 7.6 (anti-spam:
-honeypot ya sembrado + rate limit). La Fase 6 queda cerrada. Pendiente futuro: `send_email`
-y `ai_summary` (Fase 8); conversión temporal real del embudo (6.4i) con historial de etapas.
+**Siguiente tarea de desarrollo:** **Fase 7.5**: bandeja de leads. Página `/leads` (o
+sección) que liste los `leads` (con su persona/empresa, origen, fecha, estado) con
+acciones: **calificar** (`status` → `qualified`), **marcar basura** (`junk`) y
+**convertir a negocio** (crear un `deal` en el embudo a partir de la persona del lead —
+reutiliza `addContactToFunnel`/creación de deal — y fijar `leads.converted_deal_id` +
+`status='converted'`). Owner-aware, mutaciones con Zod. Añadir "Leads" a la navegación.
+Después: **7.6** (anti-spam: el honeypot `_hp` ya está sembrado en `/f/[id]` y se filtra
+en el intake; falta **rate limit** por IP/formulario en el endpoint). La Fase 6 queda
+cerrada. Pendiente futuro: `send_email`/`ai_summary` en automatizaciones (Fase 8);
+conversión temporal real del embudo (6.4i) con historial de etapas.
+
+**Nota de 7.4 (motor):** la automatización directa del formulario (`forms.automation_id`)
+se ejecuta **en proceso** (esperas inmediatas, como el dry-run) solo si su disparador no
+es `form_submitted` (para no duplicar con el evento). Si en el futuro se quieren esperas
+reales también ahí, habría que encolarla como run duradero (Inngest) en vez de en proceso.
 
 **6.4d HECHO (completo):**
 - **Filtros 6.4b en Kanban y Lista:** `deals/page.tsx` decodifica el filtro
@@ -466,6 +468,29 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-25 (68) — Fase 7.4: endpoint de recepción del formulario
+- **Endpoint público** `POST /api/forms/[id]/submit` (`src/app/api/forms/[id]/submit/route.ts`):
+  parsea el `FormData` (urlencoded o multipart), extrae `ip` (`x-forwarded-for`) y
+  `user_agent`, llama al servicio y **redirige 303** a `redirect_url` o `/f/[id]?ok=1`
+  (form inexistente/no publicado → a `/f/[id]`, que muestra el aviso).
+- **Servicio** `src/server/services/form-intake.ts` (`submitForm`, sin sesión; el
+  `ownerId` sale del form): valida `active`; **honeypot** `_hp` (si viene relleno,
+  descarta en silencio y responde ok); aplica los `mappings` para **empresa** (find/create
+  por nombre), **persona** (dedupe por email case-insensitive; crea con `firstName` por
+  defecto = parte del email; a la existente solo le enriquece campos personalizados y la
+  empresa si estaba vacía) y **campos personalizados**; guarda `form_submissions` (sin el
+  honeypot, con ip/user_agent) y crea un `lead` (`source` = nombre del form, `status='new'`).
+- **Automatizaciones:** emite el evento `form_submitted` (`emitAutomationEventSafely`,
+  persona) — disparo general; y si el form tiene `automation_id` con **otro** disparador,
+  la ejecuta **en proceso** (best-effort, reusa `executeAutomationRun`; esperas inmediatas
+  como el dry-run) evitando doble ejecución.
+- **Verificado** con `tsx` (borrado): flujo completo (persona+empresa+submission+lead,
+  `_hp` no guardado, ip), **dedupe** por email (mayúsculas → 1 persona, 2 envíos),
+  **honeypot** (no crea nada), **not_found**; y **POST HTTP real sin sesión** → 303 a
+  `?ok=1` con persona/lead creados (user-agent capturado). El fallo de Inngest sin
+  `INNGEST_EVENT_KEY` lo absorbe `emitAutomationEventSafely`. `pnpm typecheck`,
+  `pnpm lint` (a cero) y `pnpm build` en verde.
 
 ### 2026-06-25 (67) — Fase 7.3: página pública del formulario + insertar
 - **Ruta pública `/f/[id]`** (`src/app/f/[id]/page.tsx`, fuera de `(app)`,

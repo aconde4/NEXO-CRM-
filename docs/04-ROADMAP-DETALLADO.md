@@ -428,8 +428,18 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       (endpoint en 7.4). El editor muestra un panel **"Compartir e insertar"** con el
       enlace público y el snippet `<iframe>` (origin calculado en servidor con `headers()`)
       y botón de copiar.
-- [ ] **7.4** Endpoint de recepción: crea/encuentra persona, crea lead, dispara
-      automatización opcional.
+- [x] **7.4** Endpoint de recepción: crea/encuentra persona, crea lead, dispara
+      automatización opcional. **Público** `POST /api/forms/[id]/submit` (route handler) +
+      servicio `form-intake.ts` (`submitForm`): valida form `active`, **honeypot** `_hp`
+      (descarta en silencio), aplica los mapeos para **crear/encontrar la persona**
+      (dedupe por email, empresa por nombre, campos personalizados), guarda
+      `form_submissions` (ip/user_agent) y crea un `lead` (`source` = nombre del form,
+      `status='new'`). Dispara automatizaciones: emite el evento `form_submitted`
+      (`emitAutomationEventSafely`, entityType persona) y, si el form tiene
+      `automation_id` con otro disparador, la ejecuta en proceso (best-effort, reusa
+      `executeAutomationRun`, sin doble ejecución). Redirige 303 a `redirect_url` o
+      `/f/[id]?ok=1`. Verificado con `tsx` (flujo, dedupe, honeypot, not_found) y POST
+      HTTP real sin sesión.
 - [ ] **7.5** Bandeja de leads: calificar, marcar basura, convertir a negocio.
 - [ ] **7.6** Anti-spam (honeypot / rate limit) en el endpoint público.
 
