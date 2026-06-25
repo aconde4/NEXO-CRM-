@@ -120,12 +120,38 @@ export function AutomationBuilder({
   }
 
   async function onSubmit(values: AutomationFormValues) {
-    // Cadena lineal de aristas entre nodos consecutivos (las ramas if/else, en 6.6).
-    const edges = nodes.slice(1).map((node, i) => ({
-      id: `edge-${nodes[i]!.id}-${node.id}`,
-      source: nodes[i]!.id,
-      target: node.id,
-    }));
+    const edges = nodes.flatMap((node, index) => {
+      const next = nodes[index + 1];
+      if (!next) return [];
+      if (node.type !== "condition") {
+        return [
+          {
+            id: `edge-${node.id}-${next.id}`,
+            source: node.id,
+            target: next.id,
+          },
+        ];
+      }
+
+      const out = [];
+      if (node.config?.trueBranch !== "stop") {
+        out.push({
+          branch: "true" as const,
+          id: `edge-${node.id}-true-${next.id}`,
+          source: node.id,
+          target: next.id,
+        });
+      }
+      if (node.config?.falseBranch === "continue") {
+        out.push({
+          branch: "false" as const,
+          id: `edge-${node.id}-false-${next.id}`,
+          source: node.id,
+          target: next.id,
+        });
+      }
+      return out;
+    });
     // Normaliza al shape que valida el action (config siempre objeto; sin nodo trigger).
     const graphNodes = nodes.map((node) => ({
       config: node.config ?? {},
@@ -547,40 +573,67 @@ function ConditionNodeFields({
 }) {
   const op = (node.config?.op as ConditionOperator) ?? "eq";
   return (
-    <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1.2fr]">
-      <div className="grid gap-1.5">
-        <Label className="text-xs">Campo</Label>
-        <Input
-          value={String(node.config?.field ?? "")}
-          onChange={(e) => setConfig("field", e.target.value)}
-          placeholder="p. ej. marketingStatus"
-        />
-      </div>
-      <div className="grid gap-1.5">
-        <Label className="text-xs">Operador</Label>
-        <select
-          className={selectClass}
-          value={op}
-          onChange={(e) => setConfig("op", e.target.value)}
-        >
-          {CONDITION_OPERATORS.map((o) => (
-            <option key={o.op} value={o.op}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      {opNeedsValue(op) ? (
+    <div className="grid gap-3">
+      <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1.2fr]">
         <div className="grid gap-1.5">
-          <Label className="text-xs">Valor</Label>
+          <Label className="text-xs">Campo</Label>
           <Input
-            value={String(node.config?.value ?? "")}
-            onChange={(e) => setConfig("value", e.target.value)}
+            value={String(node.config?.field ?? "")}
+            onChange={(e) => setConfig("field", e.target.value)}
+            placeholder="p. ej. marketingStatus"
           />
         </div>
-      ) : (
-        <div />
-      )}
+        <div className="grid gap-1.5">
+          <Label className="text-xs">Operador</Label>
+          <select
+            className={selectClass}
+            value={op}
+            onChange={(e) => setConfig("op", e.target.value)}
+          >
+            {CONDITION_OPERATORS.map((o) => (
+              <option key={o.op} value={o.op}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        {opNeedsValue(op) ? (
+          <div className="grid gap-1.5">
+            <Label className="text-xs">Valor</Label>
+            <Input
+              value={String(node.config?.value ?? "")}
+              onChange={(e) => setConfig("value", e.target.value)}
+            />
+          </div>
+        ) : (
+          <div />
+        )}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-1.5">
+          <Label className="text-xs">Si se cumple</Label>
+          <select
+            className={selectClass}
+            value={String(node.config?.trueBranch ?? "continue")}
+            onChange={(e) => setConfig("trueBranch", e.target.value)}
+          >
+            <option value="continue">Continuar</option>
+            <option value="stop">Detener flujo</option>
+          </select>
+        </div>
+        <div className="grid gap-1.5">
+          <Label className="text-xs">Si no se cumple</Label>
+          <select
+            className={selectClass}
+            value={String(node.config?.falseBranch ?? "stop")}
+            onChange={(e) => setConfig("falseBranch", e.target.value)}
+          >
+            <option value="stop">Detener flujo</option>
+            <option value="continue">Continuar</option>
+          </select>
+        </div>
+      </div>
     </div>
   );
 }

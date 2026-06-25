@@ -23,11 +23,10 @@ import { inngest } from "@/server/inngest/client";
 import { SEQUENCE_RUN_EVENT } from "@/server/services/sequence-runner";
 
 /**
- * Ejecutor de automatizaciones (Fase 6.5). Procesa un `automation_runs` en estado
- * `waiting`: recorre el grafo y ejecuta cada nodo de **acción** sobre la entidad que
- * disparó el flujo, registrando el resultado en `log` y dejando el run en `completed`
- * (o `failed` si alguna acción falla). Las esperas y condiciones (nodos wait/condition)
- * se resuelven en 6.6; aquí se omiten dejando traza.
+ * Ejecutor de automatizaciones (Fase 6.6). Procesa un `automation_runs` en estado
+ * `waiting`: recorre el grafo sobre la entidad que disparó el flujo, evaluando
+ * condiciones, respetando esperas duraderas vía Inngest y ejecutando acciones con log
+ * por nodo. El executor sigue siendo idempotente en la entrada (`waiting` → `running`).
  */
 
 type EntityType = "person" | "organization" | "deal";
@@ -41,6 +40,21 @@ type EntityContext = {
 };
 
 type ActionResult = { skipped: boolean; message: string };
+type ConditionResult = {
+  matched: boolean;
+  message: string;
+  value?: unknown;
+};
+type RunRef = { id: string; automationId: string; triggerEvent: unknown };
+
+export type AutomationSleep = (input: {
+  duration: string;
+  node: AutomationNode;
+}) => Promise<void>;
+
+export type ExecuteAutomationRunOptions = {
+  sleep?: AutomationSleep;
+};
 
 function clean(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -50,14 +64,72 @@ function logEntry(
   node: AutomationNode,
   status: AutomationRunLogEntry["status"],
   message: string,
+  detail?: Record<string, unknown>,
 ): AutomationRunLogEntry {
   return {
     at: new Date().toISOString(),
+    ...(detail ? { detail } : {}),
     kind: node.kind ?? node.type,
     message,
     nodeId: node.id,
     status,
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readPath(value: unknown, path: string): unknown {
+  if (!path) return undefined;
+  return path.split(".").reduce<unknown>((current, part) => {
+    if (!isRecord(current)) return undefined;
+    return current[part];
+  }, value);
+}
+
+function isEmptyValue(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string") return value.trim() === "";
+  if (Array.isArray(value)) return value.length === 0;
+  return false;
+}
+
+function asText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+function compareGreater(left: unknown, right: string, op: "gt" | "lt"): boolean {
+  const leftNumber =
+    typeof left === "number" ? left : Number.parseFloat(asText(left));
+  const rightNumber = Number.parseFloat(right);
+  if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber)) {
+    return op === "gt" ? leftNumber > rightNumber : leftNumber < rightNumber;
+  }
+
+  const leftDate = new Date(asText(left)).getTime();
+  const rightDate = new Date(right).getTime();
+  if (!Number.isNaN(leftDate) && !Number.isNaN(rightDate)) {
+    return op === "gt" ? leftDate > rightDate : leftDate < rightDate;
+  }
+
+  return false;
+}
+
+function conditionBranchValue(value: unknown): "continue" | "stop" {
+  return value === "continue" ? "continue" : "stop";
+}
+
+function waitDuration(node: AutomationNode): string {
+  const days = Math.max(0, Number(node.config?.waitDays ?? 0));
+  const hours = Math.max(0, Number(node.config?.waitHours ?? 0));
+  const totalHours = days * 24 + hours;
+  if (totalHours <= 0) return "1s";
+  if (hours === 0) return `${days}d`;
+  return `${totalHours}h`;
 }
 
 /** Resuelve persona/empresa/negocio relacionados con la entidad disparadora. */
@@ -100,6 +172,214 @@ async function resolveEntityContext(
     };
   }
   return base;
+}
+
+async function loadPersonSnapshot(ownerId: string, personId: string | null) {
+  if (!personId) return null;
+  const [row] = await db
+    .select({
+      campaign: persons.campaign,
+      customFields: persons.customFields,
+      email: persons.email,
+      firstName: persons.firstName,
+      id: persons.id,
+      lastName: persons.lastName,
+      marketingStatus: persons.marketingStatus,
+      orgId: persons.orgId,
+      phone: persons.phone,
+      source: persons.source,
+      title: persons.title,
+    })
+    .from(persons)
+    .where(and(eq(persons.id, personId), eq(persons.ownerId, ownerId)))
+    .limit(1);
+  return row ?? null;
+}
+
+async function loadOrganizationSnapshot(ownerId: string, orgId: string | null) {
+  if (!orgId) return null;
+  const [row] = await db
+    .select({
+      address: organizations.address,
+      customFields: organizations.customFields,
+      domain: organizations.domain,
+      id: organizations.id,
+      industry: organizations.industry,
+      name: organizations.name,
+      phone: organizations.phone,
+      size: organizations.size,
+      tradeName: organizations.tradeName,
+      website: organizations.website,
+    })
+    .from(organizations)
+    .where(and(eq(organizations.id, orgId), eq(organizations.ownerId, ownerId)))
+    .limit(1);
+  return row ?? null;
+}
+
+async function loadDealSnapshot(ownerId: string, dealId: string | null) {
+  if (!dealId) return null;
+  const [row] = await db
+    .select({
+      currency: deals.currency,
+      customFields: deals.customFields,
+      expectedCloseDate: deals.expectedCloseDate,
+      id: deals.id,
+      orgId: deals.orgId,
+      personId: deals.personId,
+      pipelineId: deals.pipelineId,
+      stageChangedAt: deals.stageChangedAt,
+      stageId: deals.stageId,
+      status: deals.status,
+      title: deals.title,
+      value: deals.value,
+    })
+    .from(deals)
+    .where(and(eq(deals.id, dealId), eq(deals.ownerId, ownerId)))
+    .limit(1);
+  return row ?? null;
+}
+
+async function resolveScopedField(input: {
+  ctx: EntityContext;
+  field: string;
+  ownerId: string;
+  scope: EntityType;
+}) {
+  if (input.scope === "person") {
+    const person = await loadPersonSnapshot(input.ownerId, input.ctx.personId);
+    return readPath(person, input.field);
+  }
+  if (input.scope === "organization") {
+    const org = await loadOrganizationSnapshot(input.ownerId, input.ctx.orgId);
+    return readPath(org, input.field);
+  }
+  const deal = await loadDealSnapshot(input.ownerId, input.ctx.dealId);
+  return readPath(deal, input.field);
+}
+
+async function resolveConditionValue(input: {
+  ctx: EntityContext;
+  field: string;
+  ownerId: string;
+  triggerEvent: unknown;
+}): Promise<unknown> {
+  const field = input.field.trim();
+  if (!field) return undefined;
+
+  if (field.startsWith("payload.")) {
+    return readPath(readPath(input.triggerEvent, "payload"), field.slice(8));
+  }
+  if (field.startsWith("event.")) {
+    return readPath(input.triggerEvent, field.slice(6));
+  }
+
+  const explicit = field.match(/^(person|organization|deal)\.(.+)$/);
+  if (explicit) {
+    return resolveScopedField({
+      ctx: input.ctx,
+      field: explicit[2]!,
+      ownerId: input.ownerId,
+      scope: explicit[1] as EntityType,
+    });
+  }
+
+  const custom = field.match(/^custom[:.](.+)$/);
+  if (custom) {
+    const key = custom[1]!;
+    const scope = input.ctx.entityType ?? "person";
+    return resolveScopedField({
+      ctx: input.ctx,
+      field: `customFields.${key}`,
+      ownerId: input.ownerId,
+      scope,
+    });
+  }
+
+  if (input.ctx.entityType) {
+    const value = await resolveScopedField({
+      ctx: input.ctx,
+      field,
+      ownerId: input.ownerId,
+      scope: input.ctx.entityType,
+    });
+    if (value !== undefined) return value;
+  }
+
+  if (input.ctx.personId) {
+    const value = await resolveScopedField({
+      ctx: input.ctx,
+      field,
+      ownerId: input.ownerId,
+      scope: "person",
+    });
+    if (value !== undefined) return value;
+  }
+
+  if (input.ctx.orgId) {
+    const value = await resolveScopedField({
+      ctx: input.ctx,
+      field,
+      ownerId: input.ownerId,
+      scope: "organization",
+    });
+    if (value !== undefined) return value;
+  }
+
+  return undefined;
+}
+
+async function evaluateCondition(input: {
+  ctx: EntityContext;
+  node: AutomationNode;
+  ownerId: string;
+  triggerEvent: unknown;
+}): Promise<ConditionResult> {
+  const field = clean(input.node.config?.field);
+  if (!field) {
+    return { matched: false, message: "Condición sin campo configurado." };
+  }
+
+  const op = clean(input.node.config?.op) ?? "eq";
+  const expected = clean(input.node.config?.value) ?? "";
+  const value = await resolveConditionValue({
+    ctx: input.ctx,
+    field,
+    ownerId: input.ownerId,
+    triggerEvent: input.triggerEvent,
+  });
+
+  let matched = false;
+  switch (op) {
+    case "is_set":
+      matched = !isEmptyValue(value);
+      break;
+    case "is_empty":
+      matched = isEmptyValue(value);
+      break;
+    case "neq":
+      matched = asText(value).toLowerCase() !== expected.toLowerCase();
+      break;
+    case "contains":
+      matched = asText(value).toLowerCase().includes(expected.toLowerCase());
+      break;
+    case "gt":
+    case "lt":
+      matched = compareGreater(value, expected, op);
+      break;
+    case "eq":
+    default:
+      matched = asText(value).toLowerCase() === expected.toLowerCase();
+      break;
+  }
+
+  return {
+    matched,
+    message: matched
+      ? `Condición cumplida: ${field}.`
+      : `Condición no cumplida: ${field}.`,
+    value,
+  };
 }
 
 /** Aplica `customFields[field] = value` a la entidad principal del contexto. */
@@ -253,7 +533,7 @@ async function enrollSequence(
 
 async function callWebhook(
   url: string,
-  run: { id: string; automationId: string; triggerEvent: unknown },
+  run: RunRef,
 ): Promise<ActionResult> {
   const response = await fetch(url, {
     body: JSON.stringify({
@@ -270,11 +550,77 @@ async function callWebhook(
   return { message: `Webhook llamado (${response.status}).`, skipped: false };
 }
 
+function nodeLabel(node: AutomationNode, index: number): string {
+  if (node.type === "action") return `${index + 1}. Acción ${node.kind ?? ""}`;
+  if (node.type === "wait") return `${index + 1}. Espera`;
+  return `${index + 1}. Condición`;
+}
+
+function nextNodeForBranch(input: {
+  branch?: "true" | "false";
+  graph: AutomationGraph;
+  node: AutomationNode;
+}): AutomationNode | null {
+  const index = input.graph.nodes.findIndex((node) => node.id === input.node.id);
+  const outgoing = input.graph.edges.filter(
+    (edge) => edge.source === input.node.id,
+  );
+
+  let targetId: string | undefined;
+  if (input.node.type === "condition") {
+    const branchEdge = outgoing.find((edge) => edge.branch === input.branch);
+    const fallbackEdge = outgoing.find((edge) => !edge.branch);
+    if (branchEdge) {
+      targetId = branchEdge.target;
+    } else if (input.branch === "true" && fallbackEdge) {
+      targetId = fallbackEdge.target;
+    } else if (
+      input.branch === "false" &&
+      conditionBranchValue(input.node.config?.falseBranch) === "continue" &&
+      fallbackEdge
+    ) {
+      targetId = fallbackEdge.target;
+    }
+  } else {
+    targetId = outgoing.find((edge) => !edge.branch)?.target;
+  }
+
+  if (!targetId && index >= 0 && input.node.type !== "condition") {
+    targetId = input.graph.nodes[index + 1]?.id;
+  }
+  return targetId
+    ? (input.graph.nodes.find((node) => node.id === targetId) ?? null)
+    : null;
+}
+
+async function executeWait(
+  node: AutomationNode,
+  log: AutomationRunLogEntry[],
+  sleep?: AutomationSleep,
+) {
+  const duration = waitDuration(node);
+  log.push(
+    logEntry(node, "waiting", `Esperando ${duration}.`, {
+      duration,
+      phase: "wait_started",
+    }),
+  );
+  if (sleep) {
+    await sleep({ duration, node });
+  }
+  log.push(
+    logEntry(node, "ok", `Espera completada (${duration}).`, {
+      duration,
+      phase: "wait_finished",
+    }),
+  );
+}
+
 async function executeAction(
   ownerId: string,
   node: AutomationNode,
   ctx: EntityContext,
-  run: { id: string; automationId: string; triggerEvent: unknown },
+  run: RunRef,
 ): Promise<ActionResult> {
   const config = node.config ?? {};
   switch (node.kind) {
@@ -345,6 +691,7 @@ export type AutomationRunResult = {
 /** Ejecuta un run (idempotente: solo actúa si está en `waiting`). */
 export async function executeAutomationRun(
   runId: string,
+  options: ExecuteAutomationRunOptions = {},
 ): Promise<AutomationRunResult> {
   const [run] = await db
     .select({
@@ -393,40 +740,97 @@ export async function executeAutomationRun(
   let executed = 0;
   let failed = 0;
 
-  for (const node of graph.nodes) {
-    if (node.type !== "action") {
-      log.push(
-        logEntry(
-          node,
-          "skipped",
-          node.type === "wait"
-            ? "Espera (se ejecuta en 6.6)."
-            : "Condición (se evalúa en 6.6).",
-        ),
-      );
-      continue;
-    }
-    try {
-      const result = await executeAction(run.ownerId, node, ctx, runRef);
-      log.push(logEntry(node, result.skipped ? "skipped" : "ok", result.message));
-      if (!result.skipped) executed += 1;
-    } catch (error) {
+  let node = graph.nodes[0] ?? null;
+  const visited = new Map<string, number>();
+  let steps = 0;
+
+  while (node && steps < 100) {
+    steps += 1;
+    visited.set(node.id, (visited.get(node.id) ?? 0) + 1);
+    if ((visited.get(node.id) ?? 0) > 3) {
       failed += 1;
       log.push(
+        logEntry(node, "failed", "Bucle detectado en el grafo.", {
+          label: nodeLabel(node, graph.nodes.indexOf(node)),
+        }),
+      );
+      break;
+    }
+
+    if (node.type === "wait") {
+      await executeWait(node, log, options.sleep);
+      node = nextNodeForBranch({ graph, node });
+      continue;
+    }
+
+    if (node.type === "condition") {
+      const result = await evaluateCondition({
+        ctx,
+        node,
+        ownerId: run.ownerId,
+        triggerEvent: run.triggerEvent,
+      });
+      log.push(
         logEntry(
           node,
-          "failed",
-          error instanceof Error ? error.message : "Error en la acción.",
+          result.matched ? "ok" : "skipped",
+          result.message,
+          {
+            branch: result.matched ? "true" : "false",
+            field: clean(node.config?.field),
+            value: result.value,
+          },
         ),
       );
+      node = nextNodeForBranch({
+        branch: result.matched ? "true" : "false",
+        graph,
+        node,
+      });
+      continue;
     }
+
+    if (node.type === "action") {
+      try {
+        const result = await executeAction(run.ownerId, node, ctx, runRef);
+        log.push(
+          logEntry(node, result.skipped ? "skipped" : "ok", result.message),
+        );
+        if (!result.skipped) executed += 1;
+      } catch (error) {
+        failed += 1;
+        log.push(
+          logEntry(
+            node,
+            "failed",
+            error instanceof Error ? error.message : "Error en la acción.",
+          ),
+        );
+      }
+      node = nextNodeForBranch({ graph, node });
+      continue;
+    }
+
+    log.push(logEntry(node, "skipped", `Nodo no soportado: ${node.type}.`));
+    node = nextNodeForBranch({ graph, node });
+  }
+
+  if (steps >= 100) {
+    failed += 1;
+    log.push({
+      at: new Date().toISOString(),
+      kind: "automation",
+      message: "Ejecución detenida por superar 100 pasos.",
+      nodeId: "runner",
+      status: "failed",
+    });
   }
 
   const status = failed > 0 ? "failed" : "completed";
   await db
     .update(automationRuns)
     .set({
-      error: failed > 0 ? `${failed} acción(es) fallaron` : null,
+      error: failed > 0 ? `${failed} paso(s) fallaron` : null,
       finishedAt: new Date(),
       log,
       status,

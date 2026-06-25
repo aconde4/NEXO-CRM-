@@ -386,12 +386,13 @@ export const runAutomationsForEvent = inngest.createFunction(
       dispatchAutomationEvent(automationEvent),
     );
 
-    // 6.5: ejecuta cada run preparado (idempotente: solo actúa sobre los `waiting`).
+    // 6.6: ejecuta cada run preparado; las esperas usan `step.sleep` de Inngest.
     const runResults = [];
     for (const runId of result.runIds ?? []) {
-      const runResult = await step.run(`ejecutar-${runId}`, () =>
-        executeAutomationRun(runId),
-      );
+      const runResult = await executeAutomationRun(runId, {
+        sleep: ({ duration, node }) =>
+          step.sleep(`esperar-${runId}-${node.id}`, duration),
+      });
       runResults.push({ runId, ...runResult });
     }
 

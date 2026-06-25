@@ -373,7 +373,12 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       `waiting`→`running`→`completed/failed`, con log por nodo). *Pendiente: `send_email`
       (necesita remitente/plantilla/transporte) y `ai_summary` (Fase 8); registran traza
       "pendiente".*
-- [ ] **6.6** Condiciones (if/else) y esperas reales sobre Inngest.
+- [x] **6.6** Condiciones (if/else) y esperas reales sobre Inngest.
+      **HECHA:** el executor recorre el grafo por aristas, evalua condiciones contra
+      payload/evento y snapshots de persona/empresa/negocio, respeta ramas `true`/`false`
+      y ejecuta esperas duraderas con `step.sleep` en Inngest. El builder guarda ramas
+      "continuar/detener" para condiciones. Verificado con `tsx`: rama true crea tarea
+      tras espera, rama false se detiene sin efectos.
 - [x] **6.7** Registro de ejecuciones: `listAutomationRuns` + panel "Ejecuciones
       recientes" en `/automations/[id]` (estado, disparador, fechas, error y **log por
       nodo** con su resultado ok/skipped/failed).

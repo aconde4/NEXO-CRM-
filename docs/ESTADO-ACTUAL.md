@@ -45,11 +45,17 @@
     Pendiente menor opcional: selector tipo combobox con buscador si crecen mucho los
     embudos.
 
-- **Fase 6 · Motor de automatizaciones:** **6.5 + 6.7 hechas.**
+- **Fase 6 · Motor de automatizaciones:** **6.5 + 6.6 + 6.7 hechas.**
   - **6.7** registro de ejecuciones: query `listAutomationRuns` (owner-aware) y panel
     `AutomationRuns` ("Ejecuciones recientes") bajo el editor en `/automations/[id]`:
     estado del run, disparador, fechas, error y **log por nodo** (ok/skipped/failed con
     su mensaje). Render puro (sin cliente).
+  - **6.6** condiciones y esperas reales: `executeAutomationRun` ya recorre el grafo por
+    aristas, evalua nodos `condition` contra `payload.*`/`event.*`, campos de persona,
+    empresa, negocio y `custom:*`, respeta ramas `true`/`false` y ejecuta nodos `wait`
+    mediante `step.sleep` cuando viene desde Inngest. El builder guarda para cada
+    condicion si la rama cumplida/no cumplida continua o detiene el flujo. Verificado con
+    `tsx` contra BD real y limpieza QA: rama true condicion+espera+tarea, rama false stop.
   - **6.5** ejecución de acciones: `src/server/services/automation-executor.ts`
     (`executeAutomationRun`) procesa cada `automation_runs` en `waiting`, recorre el
     grafo y ejecuta los nodos de acción sobre la entidad disparadora, con log por nodo y
@@ -314,29 +320,17 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** cierra el bloque **6.4** con **6.4j** **Sincronía con
-automatizaciones**: plantillas de automatización "al entrar en etapa X → inscribir en
-secuencia / crear tarea", apoyándose en el evento `deal_stage_changed` que ya se emite.
-**Ojo:** encaja mejor **después** de 6.6 (condiciones if/else + esperas reales), porque
-hoy el ejecutor (`automation-executor.ts`) recorre el grafo lineal; una plantilla por
-cambio de etapa funcionaría ya (disparador `deal_stage_changed` + acción
-`enroll_sequence`/`create_task`, todas implementadas en 6.5), pero la propuesta completa
-de "plantillas" gana con las ramas/esperas de 6.6.
+**Siguiente tarea de desarrollo:** **6.8** Activar/pausar automatizaciones y pruebas en
+seco (**dry-run**). Activar/pausar ya existe en la UI, pero falta una prueba segura que
+simule el grafo completo sin crear tareas, etiquetas, movimientos, inscripciones ni
+webhooks reales. Debe quedar visible desde el editor de automatizaciones y registrar un
+resultado claro para revisar condiciones, esperas y acciones antes de activar.
 
-Por eso, salvo preferencia distinta del usuario, la prioridad pasa a **6.6** (motor:
-if/else + esperas reales con `step.sleep` en un workflow Inngest duradero por run; añadir
-`branch` true/false en el editor 6.2) y luego **6.8** (dry-run) y **6.4j**. Pendiente
-menor de 6.5: `send_email` y `ai_summary` (Fase 8). **Métricas (6.4i): pendiente futuro**
-= conversión temporal real entre etapas cuando haya historial de cambios de etapa.
-
-Luego del bloque 6.4: **6.6** Condiciones if/else + esperas reales en el ejecutor. Hoy
-el ejecutor recorre el grafo lineal y **omite** los nodos `wait`/`condition` (deja traza
-"se ejecuta en 6.6"). Plan: mover la ejecución a un workflow Inngest duradero por run (o
-por evento) que respete `wait` con `step.sleep` y evalúe `condition` (ramas if/else del
-grafo; hoy las aristas son lineales — añadir `branch` true/false en el editor 6.2 y
-seguirlas). Luego 6.8 (activar/pausar ya está; añadir **dry-run** que simula sin
-efectos). Pendiente menor de 6.5: `send_email` (remitente/plantilla/transporte) y
-`ai_summary` (Fase 8). **6.7 ya hecha** (panel de ejecuciones).
+Después, cerrar **6.4j**: plantillas de automatización "al entrar en etapa X → inscribir
+en secuencia / crear tarea", apoyándose en `deal_stage_changed` y en el executor 6.5/6.6.
+Pendiente menor de 6.5: `send_email` y `ai_summary` (Fase 8). **Métricas (6.4i):
+pendiente futuro** = conversión temporal real entre etapas cuando haya historial de
+cambios de etapa.
 
 **6.4d HECHO (completo):**
 - **Filtros 6.4b en Kanban y Lista:** `deals/page.tsx` decodifica el filtro
@@ -415,10 +409,11 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **6.4a–6.4d** (`campaign` nativo, filtros por prefijo, embudo de contactos no basado
 > en actividades y UX de muchos funnels en Negocios).
 >
-> **Hecho en la última sesión técnica:** **6.5** (acciones reales) y **6.7** (panel de
-> ejecuciones) del motor de automatizaciones, más el bloque **6.4** completo (embudo de
-> contactos + filtros + layout). Antes: 6.3/6.2/6.1 y cierre de la **Fase 5**.
-> **Siguiente: 6.6** (condiciones if/else + esperas reales) y 6.8 (dry-run).
+> **Hecho en la última sesión técnica:** **6.5** (acciones reales), **6.6** (condiciones
+> if/else + esperas reales) y **6.7** (panel de ejecuciones) del motor de
+> automatizaciones, más el bloque **6.4** casi completo (embudo de contactos + filtros +
+> layout + métricas). Antes: 6.3/6.2/6.1 y cierre de la **Fase 5**.
+> **Siguiente: 6.8** (dry-run) y después 6.4j (plantillas de automatización del embudo).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -459,6 +454,21 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-25 (62) — 6.6: condiciones if/else y esperas reales
+- **Executor por grafo:** `executeAutomationRun` ya no omite `wait`/`condition`; recorre
+  aristas, evita bucles, deja log por nodo y conserva la idempotencia `waiting` →
+  `running` → `completed/failed`.
+- **Condiciones:** evalua operadores `eq`, `neq`, `contains`, `gt`, `lt`, `is_set` e
+  `is_empty` contra `payload.*`, `event.*`, campos de persona/empresa/negocio y
+  `custom:*`, resolviendo snapshots owner-aware.
+- **Esperas reales:** `run-automations-for-event` pasa `step.sleep` al executor para que
+  las esperas sean duraderas en Inngest; en pruebas se puede inyectar un `sleep` fake.
+- **Builder:** los nodos condicion guardan ramas `true`/`false` configurables
+  (continuar/detener) y persisten aristas con `branch`.
+- **Verificado:** `tsx` contra BD real con datos QA borrados al final: rama true
+  condicion + espera + tarea (`completed`, 1 accion) y rama false detenida sin efectos.
+  `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-25 (61) — 6.4i: métricas del embudo (v1, instantánea)
 - **Nueva vista `?view=metrics`** en `/deals`, con toggle **Kanban / Lista / Métricas**

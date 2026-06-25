@@ -223,7 +223,13 @@ export function createNode(type: AutomationNodeType): AutomationNode {
       id: createNodeId("cond"),
       type: "condition",
       kind: "condition",
-      config: { field: "", op: "eq", value: "" },
+      config: {
+        falseBranch: "stop",
+        field: "",
+        op: "eq",
+        trueBranch: "continue",
+        value: "",
+      },
     };
   }
   return {
