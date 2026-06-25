@@ -78,6 +78,13 @@
       "when": 1782214678841,
       "tag": "0010_glossy_catseye",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1782395859658,
+      "tag": "0011_far_shinko_yamashiro",
+      "breakpoints": true
     }
   ]
 }

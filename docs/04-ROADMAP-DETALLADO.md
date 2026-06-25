@@ -403,7 +403,13 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
 (equivalente gratis al LeadBooster de Pipedrive).
 
 ### Tareas
-- [ ] **7.1** Migración: `forms`, `form_submissions`, `leads`.
+- [x] **7.1** Migración: `forms`, `form_submissions`, `leads`. Esquema en
+      `src/server/db/schema/forms.ts` (con tipos `FormFieldDef`/`FormMapping`/
+      `FormEmbedSettings` y estados `FormStatus`/`LeadStatus`), migración
+      `0011_far_shinko_yamashiro` aplicada. `forms` (campos/mapeos/redirect/embed +
+      `automation_id` opcional), `form_submissions` (data/person/ip/user_agent, cascade
+      por form) y `leads` (person/submission/source/status/score/converted_deal). FKs
+      owner→cascade, persona/negocio/automatización/submission→set null.
 - [ ] **7.2** Constructor de formularios (campos, mapeo a persona/negocio).
 - [ ] **7.3** Página pública del formulario + script/iframe embebible.
 - [ ] **7.4** Endpoint de recepción: crea/encuentra persona, crea lead, dispara

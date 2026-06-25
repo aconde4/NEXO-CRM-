@@ -331,12 +331,17 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** empezar **Fase 7.1**: migración para captación
-(`forms`, `form_submissions`, `leads`) según `04-ROADMAP-DETALLADO.md`. La Fase 6 queda
-cerrada. Pendiente conscientemente futuro: `send_email` en automatizaciones (cuando se
-defina remitente/plantilla/transporte) y `ai_summary` (Fase 8). **Métricas (6.4i):
-pendiente futuro** = conversión temporal real entre etapas cuando haya historial de
-cambios de etapa.
+**Siguiente tarea de desarrollo:** **Fase 7.2**: constructor de formularios (definir
+campos y su mapeo a persona/negocio) sobre el esquema de 7.1. Reaprovecha el patrón de
+otros constructores (p. ej. `AutomationBuilder`/secuencias): formulario con
+react-hook-form + Zod, validación en Server Action, autorización por `ownerId`. El
+esquema `forms` ya admite `fields` (`FormFieldDef[]`), `mappings` (`FormMapping[]`),
+`redirect_url`, `embed_settings` y `automation_id`. Después: 7.3 (página pública +
+embed), 7.4 (endpoint de recepción → crea/encuentra persona, lead y dispara
+automatización vía evento `form_submitted`, ya en el catálogo), 7.5 (bandeja de leads),
+7.6 (anti-spam). La Fase 6 queda cerrada. Pendiente futuro conocido: `send_email` y
+`ai_summary` en automatizaciones (Fase 8); conversión temporal real del embudo (6.4i)
+cuando haya historial de cambios de etapa.
 
 **6.4d HECHO (completo):**
 - **Filtros 6.4b en Kanban y Lista:** `deals/page.tsx` decodifica el filtro
@@ -459,6 +464,22 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-25 (65) — Fase 7.1: migración de captación (forms/submissions/leads)
+- **Esquema** `src/server/db/schema/forms.ts` con tres tablas y sus relaciones:
+  - `forms`: `name`/`description`/`status` (`draft`/`active`/`archived`), `fields`
+    (`FormFieldDef[]`), `mappings` (`FormMapping[]`), `redirect_url`, `embed_settings`
+    (`FormEmbedSettings`) y `automation_id` (opcional, set null).
+  - `form_submissions`: `data` (JSONB), `person_id` (creado/encontrado), `ip`,
+    `user_agent`; cascade por `form_id` y por `owner_id`.
+  - `leads`: `person_id`, `submission_id`, `source`, `status` (`new`/`qualified`/
+    `converted`/`junk`), `score` (lead scoring, Fase 8) y `converted_deal_id`.
+- **Migración** `drizzle/0011_far_shinko_yamashiro.sql` generada y aplicada
+  (`db:generate` + `db:migrate`). Exportado desde `schema/index.ts`.
+- **Verificado** con `tsx` (borrado): round-trip form → submission → lead con defaults
+  correctos (`status='draft'`/`'new'`, `score=0`, `fields`/`mappings`/`embed`) y
+  **cascade** real (borrar el form elimina sus submissions y pone `lead.submission_id`
+  a null). `pnpm typecheck`, `pnpm lint` (a cero) y `pnpm build` en verde.
 
 ### 2026-06-25 (64) — 6.4j: plantillas de automatización del embudo
 - **Nueva plantilla rápida en `/automations`:** botón **Plantilla de embudo** para crear
