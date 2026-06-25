@@ -249,10 +249,11 @@ de pago solo editando `.env.local`. Ver `docs/07-IA-PROVEEDORES-Y-MODELOS.md`.
 ### `ai_runs`
 Trazas de **cada llamada al modelo** (de cualquier proveedor): `feature`
 (`draft`/`summary`/`score`/`nl_automation`/`sentiment`...), `provider`
-(`openai-compatible`/`gemini`/`anthropic`/`ollama`...), `model`, `input` (resumen),
-`output` (resumen), `tokens` (in/out), `cost` (estimado; **0** para local/gratis),
-`status`/`error`, `created_at`. Para control de gasto, depuración y auditoría —
-independiente del proveedor activo.
+(`openai-compatible`/`gemini`/`anthropic`...), `model`, `request_summary` (resumen
+seguro, sin prompts completos), `response_summary`, `input_tokens`, `output_tokens`,
+`total_tokens`, `estimated_cost_usd` (0 por defecto para local/gratis o si no se definen
+precios), `latency_ms`, `status`/`error`, `started_at`/`finished_at`, timestamps. Para
+control de gasto, depuración y auditoría — independiente del proveedor activo.
 
 ### Campos derivados de IA
 - `persons.score` / `leads.score` (lead scoring).

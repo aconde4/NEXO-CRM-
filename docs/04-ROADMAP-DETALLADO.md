@@ -491,11 +491,15 @@ otro proveedor de pago editando solo variables de entorno. El gran diferenciador
   estimado, 0 para local/gratis).
 
 ### Tareas
-- [ ] **8.1** Capa de IA agnóstica: interfaz `AIProvider` + adaptador
+- [x] **8.1** Capa de IA agnóstica: interfaz `AIProvider` + adaptador
       `openai-compatible` (cubre los gratuitos y la mayoría de pago) + tabla **`ai_runs`**
       (incluye `provider`) + servicio con control de coste y degradación elegante. *(Los
       adaptadores `gemini` y `anthropic` se añaden cuando el usuario elija proveedor; el
       `openai-compatible` con Groq/Ollama ya permite probar todo gratis.)*
+      **HECHA:** migración `0012_flat_namor` aplicada con `ai_runs`; capa `src/server/ai`
+      + `src/server/services/ai.ts` con `AIProvider`, adaptador OpenAI-compatible,
+      timeout/reintentos, salida estructurada con Zod/JSON Schema, coste estimado por env
+      y panel de estado en Ajustes. Verificado con servidor OpenAI-compatible local fake.
 - [ ] **8.2** Redacción y respuesta de correos asistida (en tu tono).
 - [ ] **8.3** Resumen del historial de contacto/negocio.
 - [ ] **8.4** Crear secuencias/automatizaciones por lenguaje natural (salida estructurada

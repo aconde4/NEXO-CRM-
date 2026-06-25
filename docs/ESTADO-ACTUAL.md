@@ -8,6 +8,15 @@
 
 ## 📍 Dónde estamos
 
+- **Fase 8 · IA agnóstica:** **activa. 8.1 HECHA.** La base de IA ya no depende de un
+  proveedor concreto: `ai_runs` está migrada, `src/server/ai` define `AIProvider`, el
+  adaptador `openai-compatible` permite probar con Groq/Ollama/OpenRouter/etc., y
+  `src/server/services/ai.ts` centraliza timeout, reintentos, salida estructurada con
+  Zod/JSON Schema, coste estimado y degradación elegante si no hay `.env.local` de IA.
+  Ajustes muestra estado de configuración y ejecuciones recientes sin exponer secretos
+  ni prompts completos. **Siguiente: 8.2**, redacción y respuesta de correos asistida en
+  el tono del usuario.
+
 - **Bloque prioritario antes de continuar 6.5 (decisión de producto 2026-06-23):**
   **completo (6.4a–6.4d hechas).** Se puede retomar **6.5**. Resumen del bloque:
   - **6.4a HECHA** `campaign` nativo en contactos: migración, validación, formulario,
@@ -331,25 +340,23 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 8.1** (la Fase 7 queda **cerrada**) — **capa de
-IA AGNÓSTICA de proveedor** (decisión del usuario 2026-06-25, ver
-`docs/07-IA-PROVEEDORES-Y-MODELOS.md`). NO se ata a Anthropic: se construye una interfaz
-`AIProvider` + adaptador `openai-compatible` (cubre los gratuitos y casi todos los de
-pago), tabla **`ai_runs`** (con `provider`), y un `ai-service` con control de coste,
-salida estructurada (Zod) y **degradación elegante** sin configuración (como Resend en
-4.x). Config solo por `.env.local` (`AI_PROVIDER`/`AI_BASE_URL`/`AI_API_KEY`/`AI_MODEL`
-[+`AI_MODEL_FAST`]). **Se puede probar todo GRATIS** ya (Groq, Gemini free tier u Ollama
-local) sin claves de pago; cambiar a Claude luego es solo editar el `.env.local`. Los
-adaptadores `gemini`/`anthropic` se añaden cuando el usuario elija. Luego 8.2–8.7
-(redacción de emails, resúmenes, NL→secuencia, lead scoring, next best action,
-sentimiento). Pendiente futuro: `send_email`/`ai_summary` en automatizaciones (se apoyan
-en esta capa); conversión temporal real del embudo (6.4i) con historial de etapas.
+**Siguiente tarea de desarrollo:** **Fase 8.2** — **redacción y respuesta de correos
+asistida (en tu tono)** sobre la capa agnóstica de 8.1. Debe usar `completeAI` y registrar
+`ai_runs`, degradar con claridad si no hay IA configurada, trabajar desde el contexto del
+hilo/contacto/negocio y generar borradores editables, nunca enviar automáticamente.
+Mantener la arquitectura independiente del proveedor: OpenAI-compatible queda operativo
+para pruebas gratis/locales; `gemini`/`anthropic` se añaden solo cuando el usuario elija
+proveedor concreto. Después siguen 8.3–8.7 (resúmenes, NL→secuencia/automatización, lead
+scoring, next best action y sentimiento). Pendiente futuro: `send_email`/`ai_summary` en
+automatizaciones (se apoyan en esta capa); conversión temporal real del embudo (6.4i) con
+historial de etapas.
 
 > **Recomendación de modelos (resumen, detalle en `docs/07-IA-PROVEEDORES-Y-MODELOS.md`):**
 > empezar **gratis** con **Gemini 2.5 Flash** (mejor calidad gratis) o **Groq + Llama 3.3
 > 70B** (rápido); para coste cero/privado total, **Ollama + Qwen2.5** (datos locales). De
 > pago, cuando convenga: **Claude Sonnet 4.6** (calidad) + **Claude Haiku 4.5** (volumen
-> barato). **No hace falta confirmar ninguna clave para empezar 8.1.**
+> barato). **No hace falta confirmar ninguna clave para empezar 8.2**: la UI debe
+> degradar si no hay proveedor configurado.
 
 **Nota de 7.4 (motor):** la automatización directa del formulario (`forms.automation_id`)
 se ejecuta **en proceso** (esperas inmediatas, como el dry-run) solo si su disparador no
@@ -433,10 +440,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **6.4a–6.4d** (`campaign` nativo, filtros por prefijo, embudo de contactos no basado
 > en actividades y UX de muchos funnels en Negocios).
 >
-> **Hecho en la última sesión técnica:** **Fase 6 completa**: 6.4j (plantillas del
-> embudo), 6.8 (dry-run), 6.7 (panel), 6.6 (if/else + esperas), 6.5 (acciones), 6.4
-> (eventos + embudo de contactos) y 6.1–6.3. Antes: cierre de la **Fase 5**.
-> **Siguiente: Fase 7.1** (migración `forms`, `form_submissions`, `leads`).
+> **Hecho en la última sesión técnica:** **Fase 8.1** (capa de IA agnóstica de
+> proveedor) sobre la Fase 7 ya cerrada. Antes: Fase 6 completa (automatizaciones) y
+> Fase 5 completa (secuencias). **Siguiente: Fase 8.2** (redacción y respuesta de
+> correos asistida en el tono del usuario).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -477,6 +484,24 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-25 (73) — Fase 8.1: capa de IA agnóstica de proveedor
+- **Persistencia:** migración `0012_flat_namor` aplicada con tabla `ai_runs` owner-aware
+  para registrar proveedor, modelo, estado, tokens, coste estimado, latencia, resúmenes
+  seguros de petición/respuesta y errores.
+- **Arquitectura:** nueva capa `src/server/ai` con interfaz `AIProvider`, configuración
+  por `.env.local`, selector de modelo normal/rápido, estimación de coste y adaptador
+  `openai-compatible` (Groq, OpenRouter, Together, Ollama/LM Studio, etc.).
+- **Servicio:** `src/server/services/ai.ts` expone `completeAI`, centraliza timeout,
+  reintentos, salida estructurada con Zod/JSON Schema, validación de JSON devuelto,
+  trazas en `ai_runs` y degradación controlada cuando falta configuración.
+- **UI/operación:** Ajustes muestra el estado de IA y ejecuciones recientes sin exponer
+  claves ni prompts completos; `SETUP.md` documenta Groq/OpenAI-compatible, Ollama local
+  y variables opcionales de coste/reintentos.
+- **Verificado:** prueba `tsx` con servidor OpenAI-compatible local fake: salida
+  estructurada validada, modelo rápido seleccionado, coste calculado, fila `ai_runs`
+  completada y error `not_configured` controlado sin proveedor.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-25 (72) — Plan: Fase 8 (IA) reescrita como AGNÓSTICA de proveedor
 - **Decisión de producto del usuario:** la IA no se ata a Claude; se prepara para

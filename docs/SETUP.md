@@ -186,6 +186,46 @@ Resend no está configurado y no intenta ningún envío.
 
 ---
 
+## 7. IA (Fase 8) — opcional al principio
+
+Sin estas variables, Nexo CRM no rompe: el panel **Ajustes → IA** mostrará la capa como
+sin configurar y las futuras funciones de IA quedarán desactivadas.
+
+Para empezar gratis con un proveedor OpenAI-compatible:
+
+```env
+AI_PROVIDER=openai-compatible
+AI_BASE_URL=https://api.groq.com/openai/v1
+AI_API_KEY="tu_api_key"
+AI_MODEL=llama-3.3-70b-versatile
+AI_MODEL_FAST=llama-3.1-8b-instant
+```
+
+Para Ollama local:
+
+```env
+AI_PROVIDER=openai-compatible
+AI_BASE_URL=http://localhost:11434/v1
+AI_API_KEY=ollama
+AI_MODEL=qwen2.5:14b
+AI_MODEL_FAST=qwen2.5:7b
+```
+
+Opcionalmente, para estimar coste en `ai_runs`:
+
+```env
+AI_INPUT_COST_PER_1M=0
+AI_OUTPUT_COST_PER_1M=0
+AI_TIMEOUT_MS=30000
+AI_RETRIES=1
+```
+
+Los adaptadores `gemini` y `anthropic` se añadirán cuando elijas proveedor concreto; la
+base actual ya permite probar gratis con Groq, OpenRouter, Together, Ollama/LM Studio y
+otros endpoints OpenAI-compatible.
+
+---
+
 ## Cuando termines
 
 Dime **“ya tengo Supabase y Google”** y haré:

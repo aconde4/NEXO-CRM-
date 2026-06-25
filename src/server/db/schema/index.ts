@@ -8,3 +8,4 @@ export * from "./marketing";
 export * from "./sequences";
 export * from "./automations";
 export * from "./forms";
+export * from "./ai";
