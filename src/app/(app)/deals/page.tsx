@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 
 import { decodeContactFilterParams } from "@/lib/contact-filters";
+import { DEALS_PIPELINE_COOKIE } from "@/lib/deals-pipeline";
 import {
   listOrganizationOptions,
   listPersonIdsByFilters,
@@ -69,8 +71,13 @@ export default async function DealsPage({
   const sort = normalizeSort(firstParam(params.sort));
 
   const pipelines = await listPipelines();
+  // 6.4f: si no hay embudo en la URL, recordamos el último abierto (cookie). El
+  // parámetro de la URL siempre manda sobre la cookie.
+  const cookieStore = await cookies();
+  const lastPipelineId = cookieStore.get(DEALS_PIPELINE_COOKIE)?.value;
   const activePipelineId =
     pipelines.find((pipeline) => pipeline.id === pipelineParam)?.id ??
+    pipelines.find((pipeline) => pipeline.id === lastPipelineId)?.id ??
     pipelines[0]?.id ??
     "";
 

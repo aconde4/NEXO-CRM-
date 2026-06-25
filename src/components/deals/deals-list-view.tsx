@@ -62,6 +62,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ContactFiltersBar } from "@/components/contacts/contact-filters-bar";
+import { PipelineCombobox } from "@/components/deals/pipeline-combobox";
 import { SavedViewsBar } from "@/components/saved-views/saved-views-bar";
 
 const selectClass =
@@ -240,20 +241,11 @@ export function DealsListView({
             />
           </div>
 
-          <select
-            className={selectClass}
+          <PipelineCombobox
+            pipelines={pipelines}
             value={filters.pipelineId}
-            onChange={(event) =>
-              replaceParams({ pipeline: event.target.value })
-            }
-            aria-label="Embudo"
-          >
-            {pipelines.map((pipeline) => (
-              <option key={pipeline.id} value={pipeline.id}>
-                {pipeline.name}
-              </option>
-            ))}
-          </select>
+            onSelect={(id) => replaceParams({ pipeline: id })}
+          />
 
           <select
             className={selectClass}

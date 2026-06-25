@@ -329,8 +329,15 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       acepta las condiciones del tablero, resuelve los `personId` que cumplen
       (`listPersonIdsByFilters`) y `backfillContactsIntoFunnel(userId, personIds)` solo
       carga esos. Botón "Cargar filtrados" cuando hay filtro; verificado con `tsx`.
-- [ ] **6.4f** Selector de embudo tipo **combobox con buscador** (cierre fino de 6.4d) y
-      recordar el último embudo abierto.
+- [x] **6.4f** Selector de embudo tipo **combobox con buscador** (cierre fino de 6.4d) y
+      recordar el último embudo abierto. **HECHA:** `PipelineCombobox`
+      (`src/components/deals/pipeline-combobox.tsx`, Popover + Command/cmdk) sustituye al
+      `<select>` nativo en el Kanban y la Lista; filtra embudos por nombre. El último
+      embudo elegido se guarda en una cookie (`nexo_deals_pipeline`, lib neutra
+      `src/lib/deals-pipeline.ts`) que la página lee en servidor como fallback cuando no
+      hay `?pipeline=` (precedencia URL > cookie > primero). Verificado con login dev +
+      embudo temporal: el trigger muestra el embudo activo en ambas vistas y el fallback
+      respeta la precedencia (incl. cookie inválida ignorada).
 - [x] **6.4g** **Acciones masivas** en el tablero: checkbox por tarjeta + barra de
       acciones (sticky) con **mover de etapa**, **añadir etiqueta** (al contacto),
       **inscribir en secuencia** y **quitar del embudo**. Acciones owner-aware en lote

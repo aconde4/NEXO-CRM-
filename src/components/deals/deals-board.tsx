@@ -76,6 +76,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ContactFiltersBar } from "@/components/contacts/contact-filters-bar";
+import { PipelineCombobox } from "@/components/deals/pipeline-combobox";
 import { SavedViewsBar } from "@/components/saved-views/saved-views-bar";
 
 const selectClass =
@@ -333,20 +334,11 @@ export function DealsBoard({
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
-          <select
-            className={cn(selectClass, "max-w-[12rem] truncate")}
+          <PipelineCombobox
+            pipelines={board.pipelines}
             value={pipelineId}
-            onChange={(e) =>
-              router.push(dealsHref({ pipeline: e.target.value }))
-            }
-            aria-label="Embudo"
-          >
-            {board.pipelines.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+            onSelect={(id) => router.push(dealsHref({ pipeline: id }))}
+          />
           <div className="text-muted-foreground hidden gap-3 text-xs sm:flex">
             <span>
               <span className="text-foreground font-semibold tabular-nums">

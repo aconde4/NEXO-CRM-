@@ -314,14 +314,15 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo (por prioridad del bloque 6.4):** **6.4f** Selector de
-embudo tipo **combobox con buscador** (cierre fino de 6.4d/6.4e) y recordar el último
-embudo abierto. Hoy el selector es un `<select>` nativo acotado (`max-w-[12rem]`) en
-`DealsBoard`/`DealsListView`; con muchos embudos conviene un combobox con búsqueda.
-Después, por prioridad: **6.4i** (métricas del embudo estilo panel de secuencia —
-ojo: la conversión "real" necesita historial de cambios de etapa; hoy solo
-`deals.stageChangedAt`) y **6.4j** (plantillas de automatización por cambio de etapa, se
-apoya en el evento `deal_stage_changed` que ya se emite).
+**Siguiente tarea de desarrollo (por prioridad del bloque 6.4):** **6.4i** **Métricas del
+embudo** (estilo panel de secuencia): nº y % de conversión entre etapas, estancados por
+etapa, por campaña. **Ojo:** la conversión "real" entre etapas necesita historial de
+cambios de etapa; hoy solo existe `deals.stageChangedAt` (último cambio), no un log
+histórico. Para una primera versión se pueden dar métricas de **estado actual** (nº de
+tarjetas y valor por etapa, estancados por etapa, reparto por `campaign`) y dejar la
+conversión temporal real para cuando haya historial. Después: **6.4j** (plantillas de
+automatización por cambio de etapa, se apoya en el evento `deal_stage_changed` que ya se
+emite; encaja mejor al cerrar 6.5–6.6).
 
 Luego del bloque 6.4: **6.6** Condiciones if/else + esperas reales en el ejecutor. Hoy
 el ejecutor recorre el grafo lineal y **omite** los nodos `wait`/`condition` (deja traza
@@ -453,6 +454,23 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-25 (60) — 6.4f: selector de embudo combobox con buscador + recordar el último
+- **`PipelineCombobox`** (`src/components/deals/pipeline-combobox.tsx`): combobox con
+  buscador (Popover de Base UI + Command/cmdk) que **sustituye al `<select>` nativo** de
+  embudo en el Kanban (`DealsBoard`) y la Lista (`DealsListView`). Filtra los embudos por
+  nombre; el activo lleva el check integrado del `CommandItem` (`data-checked`).
+- **Recordar el último embudo abierto:** al elegir un embudo se guarda una cookie
+  `nexo_deals_pipeline` (nombre en la lib neutra `src/lib/deals-pipeline.ts` para que la
+  lea el servidor sin convertirse en client-reference). `deals/page.tsx` la lee con
+  `cookies()` (Next 16, async) y la usa como **fallback** del embudo activo cuando no hay
+  `?pipeline=` en la URL. **Precedencia: URL > cookie > primer embudo.**
+- **Verificado** con login dev + embudo temporal (creado y borrado): aislando el trigger
+  del combobox por su clase única, las 5 escenas dieron lo esperado — sin cookie/param →
+  primer embudo; cookie=temp sin param → temp (fallback); cookie=temp + `?pipeline=real`
+  → real (URL manda); cookie inválida → primer embudo; y el combobox funciona igual en la
+  vista Lista. Sin marcadores de error. `pnpm typecheck`, `pnpm lint` (a cero) y
+  `pnpm build` en verde.
 
 ### 2026-06-25 (59) — 6.4h: vistas guardadas del embudo de Negocios
 - **Desacoplado el tipo de entidad de las vistas guardadas:** nuevo
