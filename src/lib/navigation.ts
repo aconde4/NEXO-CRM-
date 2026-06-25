@@ -10,6 +10,7 @@ import {
   Repeat,
   Settings,
   Target,
+  UserPlus,
   Users,
   Workflow,
   type LucideIcon,
@@ -55,6 +56,7 @@ export const navGroups: NavGroup[] = [
         icon: Workflow,
       },
       { title: "Formularios", href: "/forms", icon: ClipboardList },
+      { title: "Leads", href: "/leads", icon: UserPlus },
     ],
   },
   {

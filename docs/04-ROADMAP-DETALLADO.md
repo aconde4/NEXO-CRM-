@@ -440,7 +440,14 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       `executeAutomationRun`, sin doble ejecución). Redirige 303 a `redirect_url` o
       `/f/[id]?ok=1`. Verificado con `tsx` (flujo, dedupe, honeypot, not_found) y POST
       HTTP real sin sesión.
-- [ ] **7.5** Bandeja de leads: calificar, marcar basura, convertir a negocio.
+- [x] **7.5** Bandeja de leads: calificar, marcar basura, convertir a negocio. Página
+      `/leads` con pestañas por estado (Nuevos/Calificados/Convertidos/Basura/Todos) y
+      contadores, tabla con contacto/empresa/origen/fecha/estado y acciones por fila:
+      **calificar** (`qualified`), **marcar basura** (`junk`), **volver a nuevos**,
+      **convertir a negocio** (mete al contacto en el embudo con `addContactToFunnel`,
+      fija `converted_deal_id` + `status='converted'` y enlaza al negocio) y eliminar.
+      Query `queries/leads.ts` (owner-aware, con conteos), acciones `actions/leads.ts`
+      (Zod, ownership). "Leads" añadido a la navegación.
 - [ ] **7.6** Anti-spam (honeypot / rate limit) en el endpoint público.
 
 ### Criterios de aceptación

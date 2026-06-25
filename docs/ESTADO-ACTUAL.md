@@ -331,16 +331,15 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 7.5**: bandeja de leads. Página `/leads` (o
-sección) que liste los `leads` (con su persona/empresa, origen, fecha, estado) con
-acciones: **calificar** (`status` → `qualified`), **marcar basura** (`junk`) y
-**convertir a negocio** (crear un `deal` en el embudo a partir de la persona del lead —
-reutiliza `addContactToFunnel`/creación de deal — y fijar `leads.converted_deal_id` +
-`status='converted'`). Owner-aware, mutaciones con Zod. Añadir "Leads" a la navegación.
-Después: **7.6** (anti-spam: el honeypot `_hp` ya está sembrado en `/f/[id]` y se filtra
-en el intake; falta **rate limit** por IP/formulario en el endpoint). La Fase 6 queda
-cerrada. Pendiente futuro: `send_email`/`ai_summary` en automatizaciones (Fase 8);
-conversión temporal real del embudo (6.4i) con historial de etapas.
+**Siguiente tarea de desarrollo:** **Fase 7.6** (cierra la Fase 7): anti-spam en el
+endpoint público de recepción. El **honeypot** `_hp` ya está sembrado en `/f/[id]` y se
+filtra en `submitForm`; falta un **rate limit** por IP+formulario en
+`POST /api/forms/[id]/submit` (p. ej. ventana corta en memoria/BD: contar
+`form_submissions` recientes por `form_id`+`ip` y rechazar con 429 si exceden un umbral).
+Considerar también un límite por formulario global. Tras 7.6, la **Fase 7 queda cerrada**;
+siguiente fase: **8 (IA)** o **9 (analítica)** según prioridad del usuario. Pendiente
+futuro: `send_email`/`ai_summary` en automatizaciones (Fase 8); conversión temporal real
+del embudo (6.4i) con historial de etapas.
 
 **Nota de 7.4 (motor):** la automatización directa del formulario (`forms.automation_id`)
 se ejecuta **en proceso** (esperas inmediatas, como el dry-run) solo si su disparador no
@@ -468,6 +467,23 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-25 (69) — Fase 7.5: bandeja de leads
+- **Página `/leads`** (`LeadsView`): pestañas por estado (Nuevos/Calificados/Convertidos/
+  Basura/Todos) con **contadores**, y tabla con contacto (enlace a la ficha), empresa,
+  origen, fecha relativa y estado. Acciones por fila: **calificar**, **marcar basura**,
+  **volver a nuevos**, **convertir a negocio**, **ver contacto/negocio** y **eliminar**.
+- **Conversión a negocio** (`convertLeadToDeal`): mete al contacto del lead en el embudo
+  con `addContactToFunnel` (etapa "Cargadas"), captura el `deal` y marca el lead
+  `status='converted'` con `converted_deal_id`; revalida `/leads` y `/deals`.
+- **Capas:** query `src/server/queries/leads.ts` (`listLeads(status?)` con join a
+  persona/empresa + `getLeadCounts`), acciones `src/server/actions/leads.ts`
+  (`setLeadStatus` con Zod, `convertLeadToDeal`, `deleteLead`, todas owner-aware).
+  "Leads" añadido a la navegación (grupo Comunicación).
+- **Verificado:** `tsx` (borrado) — la **conversión** crea el deal y deja el lead
+  `converted` con `convertedDealId`; render real vía login dev: `/leads` 200 con pestañas/
+  contadores/badges, filtro `?status=junk` correcto (excluye los demás) y enlace en el nav.
+  `pnpm typecheck`, `pnpm lint` (a cero) y `pnpm build` en verde.
 
 ### 2026-06-25 (68) — Fase 7.4: endpoint de recepción del formulario
 - **Endpoint público** `POST /api/forms/[id]/submit` (`src/app/api/forms/[id]/submit/route.ts`):
