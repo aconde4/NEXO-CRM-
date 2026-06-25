@@ -13,6 +13,7 @@ import {
   customFieldDefs,
   formSubmissions,
   forms,
+  persons,
 } from "@/server/db/schema";
 
 export type FormListItem = {
@@ -152,6 +153,59 @@ export async function getPublicForm(id: string): Promise<PublicForm | null> {
     submitLabel: row.embedSettings?.submitLabel ?? "Enviar",
     successMessage: row.embedSettings?.successMessage ?? "",
   };
+}
+
+export type FormSubmissionItem = {
+  id: string;
+  createdAt: string;
+  ip: string | null;
+  data: Record<string, unknown>;
+  person: { id: string; name: string; email: string | null } | null;
+};
+
+/** Envíos recientes de un formulario (owner-aware), con el contacto creado/encontrado. */
+export async function listFormSubmissions(
+  formId: string,
+  limit = 20,
+): Promise<FormSubmissionItem[]> {
+  const user = await requireUser();
+  const rows = await db
+    .select({
+      id: formSubmissions.id,
+      createdAt: formSubmissions.createdAt,
+      ip: formSubmissions.ip,
+      data: formSubmissions.data,
+      personId: persons.id,
+      firstName: persons.firstName,
+      lastName: persons.lastName,
+      email: persons.email,
+    })
+    .from(formSubmissions)
+    .leftJoin(persons, eq(formSubmissions.personId, persons.id))
+    .where(
+      and(
+        eq(formSubmissions.formId, formId),
+        eq(formSubmissions.ownerId, user.id),
+      ),
+    )
+    .orderBy(desc(formSubmissions.createdAt))
+    .limit(limit);
+
+  return rows.map((row) => ({
+    createdAt: row.createdAt.toISOString(),
+    data: row.data ?? {},
+    id: row.id,
+    ip: row.ip,
+    person: row.personId
+      ? {
+          email: row.email,
+          id: row.personId,
+          name:
+            [row.firstName, row.lastName].filter(Boolean).join(" ").trim() ||
+            "Contacto",
+        }
+      : null,
+  }));
 }
 
 export type FormBuilderOption = { id: string; name: string };

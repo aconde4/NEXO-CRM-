@@ -474,6 +474,18 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 
 ## 🗒️ Changelog por sesión
 
+### 2026-06-25 (71) — Pulido: panel de envíos en el editor de formularios
+- **Observabilidad de la captación:** los envíos de un formulario ya se pueden ver en la
+  app (antes solo se materializaban como leads). Nuevo panel **"Envíos recientes"** bajo el
+  editor de `/forms/[id]` (`FormSubmissions`, render puro estilo "Ejecuciones recientes"):
+  contacto creado/encontrado (enlace a la ficha), fecha, y los **datos del envío
+  etiquetados** con los `label` de los campos del formulario (el honeypot `_hp` se excluye).
+- **Capa:** query `listFormSubmissions(formId)` (owner-aware, join a persona) en
+  `queries/forms.ts`; la página del editor la carga y la pasa al panel.
+- **Verificado** vía login dev (datos QA borrados): el panel muestra los 2 envíos con
+  nombre, datos etiquetados ("Mensaje", valores) y sin el honeypot. `pnpm typecheck`,
+  `pnpm lint` (a cero) y `pnpm build` en verde.
+
 ### 2026-06-25 (70) — Fase 7.6: anti-spam (honeypot + rate limit) · Fase 7 cerrada
 - **Honeypot** `_hp`: ya sembrado en `/f/[id]` (7.3) y descartado en silencio en
   `submitForm` (7.4); no crea persona/lead ni cuenta para el rate limit.
