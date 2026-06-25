@@ -117,6 +117,43 @@ export async function getFormForOwner(
   };
 }
 
+export type PublicForm = {
+  id: string;
+  name: string;
+  fields: FormFieldDef[];
+  intro: string;
+  submitLabel: string;
+  successMessage: string;
+};
+
+/**
+ * Formulario para su página pública (7.3): **sin autenticación** y solo si está
+ * `active`. Devuelve únicamente los datos visibles (sin owner ni mapeos internos).
+ */
+export async function getPublicForm(id: string): Promise<PublicForm | null> {
+  const [row] = await db
+    .select({
+      id: forms.id,
+      name: forms.name,
+      status: forms.status,
+      fields: forms.fields,
+      embedSettings: forms.embedSettings,
+    })
+    .from(forms)
+    .where(eq(forms.id, id))
+    .limit(1);
+  if (!row || row.status !== "active") return null;
+
+  return {
+    fields: row.fields ?? [],
+    id: row.id,
+    intro: row.embedSettings?.intro ?? "",
+    name: row.name,
+    submitLabel: row.embedSettings?.submitLabel ?? "Enviar",
+    successMessage: row.embedSettings?.successMessage ?? "",
+  };
+}
+
 export type FormBuilderOption = { id: string; name: string };
 export type FormPersonField = { key: string; label: string };
 export type FormBuilderOptions = {

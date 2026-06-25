@@ -9,6 +9,8 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowUp,
+  Check,
+  Copy,
   GripVertical,
   Plus,
   Save,
@@ -56,9 +58,11 @@ type TargetOption = { value: string; label: string };
 export function FormBuilder({
   form,
   options,
+  origin,
 }: {
   form: FormDetail;
   options: FormBuilderOptions;
+  origin: string;
 }) {
   const router = useRouter();
 
@@ -299,6 +303,8 @@ export function FormBuilder({
               </p>
             </div>
           </div>
+
+          <SharePanel origin={origin} formId={form.id} />
         </div>
 
         {/* Campos */}
@@ -343,6 +349,85 @@ export function FormBuilder({
         </Button>
       </div>
     </form>
+  );
+}
+
+function SharePanel({
+  origin,
+  formId,
+}: {
+  origin: string;
+  formId: string;
+}) {
+  const url = `${origin}/f/${formId}`;
+  const iframe = `<iframe src="${url}" width="100%" height="600" style="border:0" title="Formulario"></iframe>`;
+
+  return (
+    <div className="grid gap-3 rounded-lg border p-3">
+      <p className="text-sm font-medium">Compartir e insertar</p>
+      <p className="text-muted-foreground text-xs">
+        Disponible cuando el formulario está publicado.
+      </p>
+      <div className="grid gap-1.5">
+        <Label className="text-xs">Enlace público</Label>
+        <CopyField value={url} />
+      </div>
+      <div className="grid gap-1.5">
+        <Label className="text-xs">Insertar (iframe)</Label>
+        <CopyField value={iframe} multiline />
+      </div>
+    </div>
+  );
+}
+
+function CopyField({
+  value,
+  multiline,
+}: {
+  value: string;
+  multiline?: boolean;
+}) {
+  const [copied, setCopied] = React.useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      toast.success("Copiado");
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("No se pudo copiar");
+    }
+  }
+
+  return (
+    <div className="flex items-start gap-2">
+      {multiline ? (
+        <textarea
+          readOnly
+          value={value}
+          rows={3}
+          onFocus={(e) => e.currentTarget.select()}
+          className="border-input bg-muted/40 min-w-0 flex-1 rounded-md border px-2 py-1.5 font-mono text-xs"
+        />
+      ) : (
+        <Input
+          readOnly
+          value={value}
+          onFocus={(e) => e.currentTarget.select()}
+          className="min-w-0 flex-1 font-mono text-xs"
+        />
+      )}
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        aria-label="Copiar"
+        onClick={() => void copy()}
+      >
+        {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+      </Button>
+    </div>
   );
 }
 

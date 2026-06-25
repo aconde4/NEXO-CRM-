@@ -331,16 +331,19 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 7.3**: página pública del formulario +
-script/iframe embebible. Sobre el constructor de 7.2: renderizar el formulario por su id
-en una ruta **pública** (sin login; recordar añadirla en `proxy.ts`, como
-`/unsubscribe/[token]`), respetando `embed_settings` (texto del botón, intro, mensaje de
-éxito) y los `fields`. El POST de envío se construye en 7.4 (endpoint que crea/encuentra
-persona, lead y dispara automatización vía evento `form_submitted` + `forms.automation_id`).
-Solo formularios `status='active'` deben aceptarse en público. Después: 7.4 (endpoint),
-7.5 (bandeja de leads), 7.6 (anti-spam: honeypot + rate limit). La Fase 6 queda cerrada.
-Pendiente futuro conocido: `send_email` y `ai_summary` en automatizaciones (Fase 8);
-conversión temporal real del embudo (6.4i) cuando haya historial de cambios de etapa.
+**Siguiente tarea de desarrollo:** **Fase 7.4**: endpoint de recepción del formulario.
+Crear `POST /api/forms/[id]/submit` (ruta **pública**; el prefijo `/api/forms` ya está en
+`proxy.ts`) que: valide que el form existe y está `active`; lea el `FormData`; **honeypot**
+(`_hp`) → si viene relleno, descartar silenciosamente (base de 7.6); aplique los `mappings`
+para **crear/encontrar la persona** (dedupe por email como en importación), guarde un
+`form_submissions` (con `ip`/`user_agent`) y cree un `leads` (`source` = nombre del form,
+`status='new'`); dispare la automatización: emitir evento `form_submitted`
+(`emitAutomationEventSafely`, entityType `person`) y, si el form tiene `automation_id`,
+encolarla también. Responder con redirección a `redirect_url` o a `/f/[id]?ok=1`. Reutiliza
+el patrón de creación de contactos/`addContactToFunnel` y de merge/dedupe de la importación.
+Después: 7.5 (bandeja de leads: calificar/basura/convertir a negocio), 7.6 (anti-spam:
+honeypot ya sembrado + rate limit). La Fase 6 queda cerrada. Pendiente futuro: `send_email`
+y `ai_summary` (Fase 8); conversión temporal real del embudo (6.4i) con historial de etapas.
 
 **6.4d HECHO (completo):**
 - **Filtros 6.4b en Kanban y Lista:** `deals/page.tsx` decodifica el filtro
@@ -463,6 +466,24 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-25 (67) — Fase 7.3: página pública del formulario + insertar
+- **Ruta pública `/f/[id]`** (`src/app/f/[id]/page.tsx`, fuera de `(app)`,
+  `force-dynamic`): renderiza el formulario por id **solo si está `active`** (query
+  pública `getPublicForm`, sin owner ni mapeos). Pinta intro + campos por tipo
+  (texto/email/teléfono/largo/selección/checkbox), botón con el texto configurado, y
+  muestra el **mensaje de éxito** con `?ok=1`. Casos borrador/inexistente → "no
+  disponible". Incluye un **honeypot** oculto (`_hp`) para 7.6 y postea a
+  `/api/forms/[id]/submit` (endpoint en 7.4).
+- **proxy.ts:** añadidos los prefijos públicos `/f/` y `/api/forms` (sin login).
+- **Editor:** panel **"Compartir e insertar"** con el enlace público y el snippet
+  `<iframe>` + botón copiar; el `origin` se calcula en servidor con `headers()` y se pasa
+  al `FormBuilder` (sin `window`, sin efectos, sin mismatch de hidratación).
+- **Verificado** vía login dev + form de prueba (borrados): `/f/[active]` **sin cookie**
+  responde 200 (el proxy no redirige a /login) y pinta todos los campos + `action` al
+  endpoint; `?ok=1` muestra el éxito; borrador e id inexistente → "no disponible"; el panel
+  de compartir del editor muestra el enlace `/f/{id}` y el iframe. `pnpm typecheck`,
+  `pnpm lint` (a cero) y `pnpm build` en verde.
 
 ### 2026-06-25 (66) — Fase 7.2: constructor de formularios
 - **`/forms` lista real** (sustituye el placeholder): tarjetas con estado

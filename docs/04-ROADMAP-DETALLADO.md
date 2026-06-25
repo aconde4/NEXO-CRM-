@@ -420,7 +420,14 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       queries `queries/forms.ts`, acciones `actions/forms.ts`. Las claves de campo se
       derivan de las etiquetas al guardar (uniquificadas) y los mapeos se filtran a
       campos existentes; autorización por `ownerId`.
-- [ ] **7.3** Página pública del formulario + script/iframe embebible.
+- [x] **7.3** Página pública del formulario + script/iframe embebible. Ruta **pública**
+      `/f/[id]` (fuera de `(app)`, `force-dynamic`, añadida a `proxy.ts`) que renderiza el
+      formulario solo si está `active` (query pública `getPublicForm`, sin owner ni
+      mapeos), respetando intro/campos/texto del botón y mostrando el mensaje de éxito con
+      `?ok=1`; incluye honeypot oculto (para 7.6) y postea a `/api/forms/[id]/submit`
+      (endpoint en 7.4). El editor muestra un panel **"Compartir e insertar"** con el
+      enlace público y el snippet `<iframe>` (origin calculado en servidor con `headers()`)
+      y botón de copiar.
 - [ ] **7.4** Endpoint de recepción: crea/encuentra persona, crea lead, dispara
       automatización opcional.
 - [ ] **7.5** Bandeja de leads: calificar, marcar basura, convertir a negocio.

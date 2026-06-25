@@ -16,6 +16,8 @@ const PUBLIC_PREFIXES = [
   "/api/campaigns/unsubscribe",
   "/api/webhooks/resend",
   "/unsubscribe",
+  "/f/",
+  "/api/forms",
 ];
 
 export function proxy(req: NextRequest) {
