@@ -50,6 +50,7 @@ import {
   setDealWon,
 } from "@/server/actions/deals";
 import type { Board, BoardColumn, DealCard } from "@/server/queries/deals";
+import type { SavedView } from "@/server/queries/saved-views";
 import {
   DealFormDialog,
   type DealInitial,
@@ -75,6 +76,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ContactFiltersBar } from "@/components/contacts/contact-filters-bar";
+import { SavedViewsBar } from "@/components/saved-views/saved-views-bar";
 
 const selectClass =
   "border-input dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 h-9 shrink-0 rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none transition focus-visible:ring-[3px]";
@@ -92,6 +94,7 @@ export function DealsBoard({
   customFieldDefs,
   labels,
   sequenceOptions,
+  savedViews,
 }: {
   board: Board;
   persons: Option[];
@@ -101,6 +104,7 @@ export function DealsBoard({
   customFieldDefs: CustomFieldDef[];
   labels: Option[];
   sequenceOptions: Option[];
+  savedViews: SavedView[];
 }) {
   const router = useRouter();
   const [cols, setCols] = React.useState<Col[]>(() =>
@@ -159,6 +163,14 @@ export function DealsBoard({
     return `/deals${qs ? `?${qs}` : ""}`;
   }
   const listHref = dealsHref({ view: "list" });
+
+  // Vista guardada actual (6.4h): en Kanban guardamos embudo + condiciones (la etapa
+  // son las columnas; la vista por defecto es el tablero). Usamos el param crudo para
+  // que el tablero por defecto cuente como "sin filtro".
+  const savedViewCurrent = {
+    conditions,
+    pipeline: searchParams.get("pipeline") ?? undefined,
+  };
 
   const activeDeal = activeId
     ? (cols.flatMap((c) => c.deals).find((d) => d.id === activeId) ?? null)
@@ -312,6 +324,13 @@ export function DealsBoard({
 
   return (
     <>
+      <SavedViewsBar
+        entityType="deal"
+        basePath="/deals"
+        views={savedViews}
+        current={savedViewCurrent}
+      />
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <select

@@ -15,6 +15,7 @@ import {
   createSavedView,
   deleteSavedView,
 } from "@/server/actions/saved-views";
+import type { SavedViewEntity } from "@/server/db/schema";
 import type { SavedView } from "@/server/queries/saved-views";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +34,10 @@ export type ViewFilters = {
   label?: string;
   q?: string;
   sort?: string;
+  // Embudo de Negocios (6.4h): embudo, etapa y vista (kanban/list).
+  pipeline?: string;
+  stage?: string;
+  view?: string;
 };
 
 function buildHref(basePath: string, filters: ViewFilters): string {
@@ -40,6 +45,9 @@ function buildHref(basePath: string, filters: ViewFilters): string {
   if (filters.q) params.set("q", filters.q);
   if (filters.label) params.set("label", filters.label);
   if (filters.sort) params.set("sort", filters.sort);
+  if (filters.pipeline) params.set("pipeline", filters.pipeline);
+  if (filters.stage) params.set("stage", filters.stage);
+  if (filters.view) params.set("view", filters.view);
   appendContactFilterParams(params, filters.conditions ?? []);
   return params.size ? `${basePath}?${params}` : basePath;
 }
@@ -49,6 +57,9 @@ function sameFilters(a: ViewFilters, b: ViewFilters): boolean {
     (a.q ?? "") === (b.q ?? "") &&
     (a.label ?? "") === (b.label ?? "") &&
     (a.sort ?? "") === (b.sort ?? "") &&
+    (a.pipeline ?? "") === (b.pipeline ?? "") &&
+    (a.stage ?? "") === (b.stage ?? "") &&
+    (a.view ?? "") === (b.view ?? "") &&
     contactFiltersKey(a.conditions) === contactFiltersKey(b.conditions)
   );
 }
@@ -59,7 +70,7 @@ export function SavedViewsBar({
   views,
   current,
 }: {
-  entityType: "person" | "organization";
+  entityType: SavedViewEntity;
   basePath: string;
   views: SavedView[];
   current: ViewFilters;
@@ -73,6 +84,8 @@ export function SavedViewsBar({
     current.q ||
       current.label ||
       current.sort ||
+      current.pipeline ||
+      current.stage ||
       (current.conditions?.length ?? 0) > 0,
   );
   const onDefault = !hasFilters;

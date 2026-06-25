@@ -335,16 +335,17 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       acciones (sticky) con **mover de etapa**, **añadir etiqueta** (al contacto),
       **inscribir en secuencia** y **quitar del embudo**. Acciones owner-aware en lote
       (`bulkMoveDeals`/`bulkAddLabelToDeals`/`bulkEnrollDeals`/`bulkRemoveDealsFromFunnel`).
-- [ ] **6.4h** **Vistas guardadas** del embudo (reusar `saved_views`) y filtro por
-      **etapa/embudo** como criterio (cross con 6.4b). *En curso:* base lista —
-      `SavedViewFilters` y `savedViewSchema.filters` admiten `pipeline`/`stage`/`view`.
-      **Pendiente (clave):** `saved_views.entityType` está atado a `CustomEntityType`
-      (solo person/organization); para vistas de Negocios hay que **desacoplar** ese
-      tipo (p. ej. nuevo `SavedViewEntity = person|organization|deal` en el esquema +
-      `savedViewSchema` + `listSavedViews`/acciones) y luego reutilizar
-      `SavedViewsBar`/`saved-views` en `/deals` (con `basePath` y guardando
-      pipeline/view/conditions). Filtro por etapa: en Kanban son columnas; aplicarlo en
-      la vista Lista (el param `stage` ya existe en `listDeals`).
+- [x] **6.4h** **Vistas guardadas** del embudo (reusar `saved_views`) y filtro por
+      **etapa/embudo** como criterio (cross con 6.4b). **HECHA:** desacoplado el tipo de
+      entidad (`SavedViewEntity = person|organization|deal` en el esquema, usado en la
+      columna `saved_views.entityType` —sin migración: sigue siendo `text`—, en
+      `savedViewSchema`, `listSavedViews` y acciones). `SavedViewsBar` ahora admite
+      `entityType="deal"` y los campos `pipeline`/`stage`/`view`; se renderiza en el
+      Kanban y la Lista de `/deals` (guarda embudo + condiciones; la Lista añade etapa +
+      vista). `createSavedView` carga los campos personalizados de **persona** también
+      para `deal` (las condiciones del embudo filtran por contacto), preservándolas. El
+      filtro por etapa se aplica en la vista Lista (el param `stage` ya existía en
+      `listDeals`); en Kanban son las columnas.
 - [ ] **6.4i** **Métricas del embudo** (estilo panel de secuencia): nº y % de conversión
       entre etapas, estancados por etapa, por campaña. (Adelanta parte de Fase 9.)
 - [ ] **6.4j** **Sincronía con automatizaciones**: plantillas de automatización "al

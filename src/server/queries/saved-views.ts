@@ -2,20 +2,23 @@ import "server-only";
 
 import { and, asc, eq } from "drizzle-orm";
 
-import type { CustomEntityType } from "@/lib/custom-fields";
 import { requireUser } from "@/lib/session";
 import { db } from "@/server/db";
-import { savedViews, type SavedViewFilters } from "@/server/db/schema";
+import {
+  savedViews,
+  type SavedViewEntity,
+  type SavedViewFilters,
+} from "@/server/db/schema";
 
 export type SavedView = {
   id: string;
   name: string;
-  entityType: CustomEntityType;
+  entityType: SavedViewEntity;
   filters: SavedViewFilters;
 };
 
 export async function listSavedViews(
-  entityType: CustomEntityType,
+  entityType: SavedViewEntity,
 ): Promise<SavedView[]> {
   const user = await requireUser();
   const rows = await db

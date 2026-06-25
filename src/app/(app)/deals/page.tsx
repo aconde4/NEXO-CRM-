@@ -8,6 +8,7 @@ import {
 } from "@/server/queries/contacts";
 import { listCustomFieldDefs } from "@/server/queries/custom-fields";
 import { listLabels } from "@/server/queries/labels";
+import { listSavedViews } from "@/server/queries/saved-views";
 import { listSequenceEnrollmentOptions } from "@/server/queries/sequences";
 import {
   getBoard,
@@ -73,12 +74,13 @@ export default async function DealsPage({
     pipelines[0]?.id ??
     "";
 
-  const [stagesByPipeline, persons, organizations, customFieldDefs] =
+  const [stagesByPipeline, persons, organizations, customFieldDefs, savedViews] =
     await Promise.all([
       listStagesByPipeline(),
       listPersonOptions(),
       listOrganizationOptions(),
       listCustomFieldDefs("person"),
+      listSavedViews("deal"),
     ]);
 
   const activeStages = stagesByPipeline[activePipelineId] ?? [];
@@ -125,6 +127,7 @@ export default async function DealsPage({
           organizations={organizations}
           conditions={conditions}
           customFieldDefs={customFieldDefs}
+          savedViews={savedViews}
         />
       </>
     );
@@ -163,6 +166,7 @@ export default async function DealsPage({
         customFieldDefs={customFieldDefs}
         labels={labelOptions}
         sequenceOptions={enrollableSequences}
+        savedViews={savedViews}
       />
     </>
   );

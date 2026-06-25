@@ -372,6 +372,14 @@ export const customFieldDefs = pgTable(
 );
 
 // --- Vistas guardadas (saved views) -----------------------------------------
+/**
+ * Entidades que admiten vistas guardadas. Desacoplado de `CustomEntityType`
+ * (6.4h) para que el embudo de Negocios (`deal`) también pueda guardar vistas
+ * (embudo/etapa/vista + condiciones), sin afectar a campos personalizados/archivos
+ * que siguen siendo solo `person`/`organization`.
+ */
+export type SavedViewEntity = "person" | "organization" | "deal";
+
 export type SavedViewFilters = {
   conditions?: ContactFilterCondition[];
   q?: string;
@@ -388,7 +396,7 @@ export const savedViews = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
-    entityType: text("entity_type").$type<CustomEntityType>().notNull(),
+    entityType: text("entity_type").$type<SavedViewEntity>().notNull(),
     filters: jsonb("filters")
       .$type<SavedViewFilters>()
       .default({})

@@ -11,11 +11,13 @@ import {
   type SavedViewValues,
 } from "@/lib/validations/saved-view";
 import { db } from "@/server/db";
-import { savedViews } from "@/server/db/schema";
+import { savedViews, type SavedViewEntity } from "@/server/db/schema";
 import { listCustomFieldDefs } from "@/server/queries/custom-fields";
 
-function pathFor(entityType: "person" | "organization") {
-  return entityType === "person" ? "/contacts" : "/organizations";
+function pathFor(entityType: SavedViewEntity) {
+  if (entityType === "person") return "/contacts";
+  if (entityType === "deal") return "/deals";
+  return "/organizations";
 }
 
 /** Quita claves vacías de los filtros para no guardar ruido. */
@@ -32,14 +34,23 @@ function cleanFilters(
   if (filters.q?.trim()) out.q = filters.q.trim();
   if (filters.label?.trim()) out.label = filters.label.trim();
   if (filters.sort?.trim()) out.sort = filters.sort.trim();
+  // Vistas del embudo de Negocios (6.4h): embudo, etapa y vista.
+  if (filters.pipeline?.trim()) out.pipeline = filters.pipeline.trim();
+  if (filters.stage?.trim()) out.stage = filters.stage.trim();
+  if (filters.view?.trim()) out.view = filters.view.trim();
   return out;
 }
 
 export async function createSavedView(raw: SavedViewValues) {
   const user = await requireUser();
   const data = savedViewSchema.parse(raw);
+  // Las condiciones del embudo de Negocios (`deal`) filtran por contacto, así que
+  // se validan/normalizan contra los campos personalizados de persona (igual que
+  // hace `/deals` al decodificar el filtro). Sin esto se perderían al guardar.
   const customFieldDefs =
-    data.entityType === "person" ? await listCustomFieldDefs("person") : [];
+    data.entityType === "person" || data.entityType === "deal"
+      ? await listCustomFieldDefs("person")
+      : [];
 
   const [{ max } = { max: 0 }] = await db
     .select({ max: sql<number>`coalesce(max(${savedViews.position}), 0)` })

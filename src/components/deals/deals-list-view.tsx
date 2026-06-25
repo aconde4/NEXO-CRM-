@@ -36,6 +36,7 @@ import type {
   DealListStatusFilter,
   PipelineOption,
 } from "@/server/queries/deals";
+import type { SavedView } from "@/server/queries/saved-views";
 import {
   DealFormDialog,
   type DealInitial,
@@ -61,6 +62,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ContactFiltersBar } from "@/components/contacts/contact-filters-bar";
+import { SavedViewsBar } from "@/components/saved-views/saved-views-bar";
 
 const selectClass =
   "border-input dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 h-9 shrink-0 rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none transition focus-visible:ring-[3px]";
@@ -106,6 +108,7 @@ export function DealsListView({
   organizations,
   conditions,
   customFieldDefs,
+  savedViews,
 }: {
   deals: DealListItem[];
   filters: DealListFilters;
@@ -115,6 +118,7 @@ export function DealsListView({
   organizations: Option[];
   conditions: ContactFilterCondition[];
   customFieldDefs: CustomFieldDef[];
+  savedViews: SavedView[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -142,6 +146,15 @@ export function DealsListView({
     params.delete("view");
     return `/deals${params.size ? `?${params}` : ""}`;
   }, [searchParams]);
+
+  // Vista guardada actual (6.4h): en la lista guardamos embudo + etapa + vista +
+  // condiciones. Params crudos para que coincidan con lo que reaplica la vista.
+  const savedViewCurrent = {
+    conditions,
+    pipeline: searchParams.get("pipeline") ?? undefined,
+    stage: searchParams.get("stage") ?? undefined,
+    view: "list",
+  };
 
   function replaceParams(next: {
     q?: string;
@@ -208,6 +221,13 @@ export function DealsListView({
 
   return (
     <>
+      <SavedViewsBar
+        entityType="deal"
+        basePath="/deals"
+        views={savedViews}
+        current={savedViewCurrent}
+      />
+
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-1 flex-wrap items-center gap-2">
           <div className="relative w-full sm:max-w-xs">

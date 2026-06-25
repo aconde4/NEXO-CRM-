@@ -4,7 +4,7 @@ import { contactFilterConditionSchema } from "@/lib/contact-filters";
 
 export const savedViewSchema = z.object({
   name: z.string().trim().min(1, "Ponle un nombre").max(60),
-  entityType: z.enum(["person", "organization"]),
+  entityType: z.enum(["person", "organization", "deal"]),
   filters: z.object({
     conditions: z.array(contactFilterConditionSchema).max(8).optional(),
     q: z.string().max(200).optional(),

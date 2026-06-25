@@ -314,15 +314,23 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **6.6** Condiciones if/else + esperas reales en el
-ejecutor. Hoy el ejecutor recorre el grafo lineal y **omite** los nodos `wait`/
-`condition` (deja traza "se ejecuta en 6.6"). Plan: mover la ejecución a un workflow
-Inngest duradero por run (o por evento) que respete `wait` con `step.sleep` y evalúe
-`condition` (ramas if/else del grafo; hoy las aristas son lineales — añadir `branch`
-true/false en el editor 6.2 y seguirlas). Luego 6.7 (panel de `automation_runs` con el
-log por nodo) y 6.8 (activar/pausar ya está; añadir **dry-run** que simula sin efectos).
-Pendiente menor de 6.5: `send_email` (remitente/plantilla/transporte) y `ai_summary`
-(Fase 8). **6.7 ya hecha** (panel de ejecuciones).
+**Siguiente tarea de desarrollo (por prioridad del bloque 6.4):** **6.4f** Selector de
+embudo tipo **combobox con buscador** (cierre fino de 6.4d/6.4e) y recordar el último
+embudo abierto. Hoy el selector es un `<select>` nativo acotado (`max-w-[12rem]`) en
+`DealsBoard`/`DealsListView`; con muchos embudos conviene un combobox con búsqueda.
+Después, por prioridad: **6.4i** (métricas del embudo estilo panel de secuencia —
+ojo: la conversión "real" necesita historial de cambios de etapa; hoy solo
+`deals.stageChangedAt`) y **6.4j** (plantillas de automatización por cambio de etapa, se
+apoya en el evento `deal_stage_changed` que ya se emite).
+
+Luego del bloque 6.4: **6.6** Condiciones if/else + esperas reales en el ejecutor. Hoy
+el ejecutor recorre el grafo lineal y **omite** los nodos `wait`/`condition` (deja traza
+"se ejecuta en 6.6"). Plan: mover la ejecución a un workflow Inngest duradero por run (o
+por evento) que respete `wait` con `step.sleep` y evalúe `condition` (ramas if/else del
+grafo; hoy las aristas son lineales — añadir `branch` true/false en el editor 6.2 y
+seguirlas). Luego 6.8 (activar/pausar ya está; añadir **dry-run** que simula sin
+efectos). Pendiente menor de 6.5: `send_email` (remitente/plantilla/transporte) y
+`ai_summary` (Fase 8). **6.7 ya hecha** (panel de ejecuciones).
 
 **6.4d HECHO (completo):**
 - **Filtros 6.4b en Kanban y Lista:** `deals/page.tsx` decodifica el filtro
@@ -445,6 +453,34 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-25 (59) — 6.4h: vistas guardadas del embudo de Negocios
+- **Desacoplado el tipo de entidad de las vistas guardadas:** nuevo
+  `SavedViewEntity = "person" | "organization" | "deal"` en
+  `src/server/db/schema/crm.ts`, usado en la columna `saved_views.entityType` (sin
+  migración: sigue siendo `text`), en `savedViewSchema.entityType`
+  (`src/lib/validations/saved-view.ts`), en `listSavedViews`
+  (`src/server/queries/saved-views.ts`) y en las acciones
+  (`src/server/actions/saved-views.ts`: `pathFor("deal") → /deals`, `cleanFilters`
+  preserva `pipeline`/`stage`/`view`). `CustomEntityType` sigue siendo solo
+  person/organization para campos personalizados y archivos.
+- **`SavedViewsBar` reutilizable en `/deals`:** acepta `entityType="deal"` y los campos
+  `pipeline`/`stage`/`view` (en `ViewFilters`, `buildHref`, `sameFilters` y
+  `hasFilters`). Se renderiza en el Kanban (`DealsBoard`) y en la Lista
+  (`DealsListView`): el Kanban guarda **embudo + condiciones** (la etapa son las
+  columnas; la vista por defecto es el tablero); la Lista añade **etapa + `view=list`**.
+  La página carga `listSavedViews("deal")` y lo pasa a ambos.
+- **Condiciones de campo personalizado preservadas:** `createSavedView` carga los campos
+  personalizados de **persona** también cuando `entityType === "deal"` (las condiciones
+  del embudo filtran por contacto); sin esto, `normalizeContactFilters` con defs vacíos
+  las descartaba al guardar.
+- **Filtro por etapa:** se aplica en la vista Lista (el param `stage` ya existía en
+  `listDeals`); en Kanban son las columnas.
+- **Verificado** con `tsx` (borrado): `savedViewSchema` acepta `deal` +
+  pipeline/stage/view; round-trip real en BD (insert/list/delete de una vista `deal` con
+  filtros intactos) sin mezclarse con las vistas `person`; y `normalizeContactFilters`
+  conserva una condición `custom:` con defs de persona (1) y la descarta sin defs (0).
+  `pnpm typecheck`, `pnpm lint` (a cero) y `pnpm build` en verde.
 
 ### 2026-06-23 (58) — 6.4h (base): cimientos de vistas guardadas del embudo
 - `SavedViewFilters` (esquema) y `savedViewSchema.filters` (validación) ahora admiten
