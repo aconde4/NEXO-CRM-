@@ -364,9 +364,12 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       estado actual (negocios abiertos en cada etapa o más adelante), no temporal: falta
       historial de cambios de etapa (hoy solo `deals.stageChangedAt`). Verificado con
       `tsx` (22 aserciones de la agregación) + render real (HTTP 200, conteo coincide).
-- [ ] **6.4j** **Sincronía con automatizaciones**: plantillas de automatización "al
+- [x] **6.4j** **Sincronía con automatizaciones**: plantillas de automatización "al
       entrar en etapa X → inscribir en secuencia / crear tarea" (se apoya en
       `deal_stage_changed`, ya emitido). Encaja al cerrar 6.5–6.6.
+      **HECHA:** `/automations` añade "Plantilla de embudo" para crear en borrador
+      flujos `deal_stage_changed(stageId)` → `create_task` o `enroll_sequence`, validando
+      ownership de etapa/secuencia y abriendo el editor para revisar, dry-run y activar.
 - [x] **6.5** Acciones (ejecución real): `create_task`, `add_label`, `move_stage`,
       `update_field` (custom field), `enroll_sequence`, `webhook` y `notify` ejecutadas
       por `automation-executor.ts` desde `run-automations-for-event` (idempotente por

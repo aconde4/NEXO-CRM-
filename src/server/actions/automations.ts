@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 import {
   type AutomationInputValues,
@@ -21,6 +22,8 @@ import {
   deals,
   organizations,
   persons,
+  sequences,
+  stages,
 } from "@/server/db/schema";
 import { executeAutomationRun } from "@/server/services/automation-executor";
 
@@ -40,6 +43,19 @@ async function assertOwned(ownerId: string, id: string) {
 }
 
 type DryRunEntityType = "person" | "organization" | "deal";
+
+const pipelineAutomationTemplateSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("stage_task"),
+    stageId: z.string().uuid("Etapa no válida"),
+    taskSubject: z.string().trim().max(160).optional(),
+  }),
+  z.object({
+    kind: z.literal("stage_sequence"),
+    sequenceId: z.string().uuid("Secuencia no válida"),
+    stageId: z.string().uuid("Etapa no válida"),
+  }),
+]);
 
 function asDryRunEntityType(value: unknown): DryRunEntityType | null {
   return value === "person" || value === "organization" || value === "deal"
@@ -140,6 +156,70 @@ export async function createAutomation(input: { name: string }) {
     .values({ name: name.slice(0, 120), ownerId: user.id, status: "draft" })
     .returning({ id: automations.id });
   if (!row) throw new Error("No se pudo crear la automatización");
+  revalidateAutomations(row.id);
+  return row;
+}
+
+export async function createPipelineAutomationTemplate(input: unknown) {
+  const user = await requireUser();
+  const data = pipelineAutomationTemplateSchema.parse(input);
+
+  const [stage] = await db
+    .select({ id: stages.id, name: stages.name })
+    .from(stages)
+    .where(and(eq(stages.id, data.stageId), eq(stages.ownerId, user.id)))
+    .limit(1);
+  if (!stage) throw new Error("Etapa no encontrada");
+
+  let name = `Al entrar en ${stage.name}: crear tarea`;
+  let description = `Crea una tarea cuando un negocio entra en ${stage.name}.`;
+  let node: AutomationGraph["nodes"][number] = {
+    config: {
+      subject:
+        data.kind === "stage_task" && data.taskSubject?.trim()
+          ? data.taskSubject.trim()
+          : `Revisar ${stage.name}`,
+    },
+    id: "action-create-task",
+    kind: "create_task",
+    type: "action" as const,
+  };
+
+  if (data.kind === "stage_sequence") {
+    const [sequence] = await db
+      .select({ id: sequences.id, name: sequences.name })
+      .from(sequences)
+      .where(and(eq(sequences.id, data.sequenceId), eq(sequences.ownerId, user.id)))
+      .limit(1);
+    if (!sequence) throw new Error("Secuencia no encontrada");
+
+    name = `Al entrar en ${stage.name}: inscribir en ${sequence.name}`;
+    description = `Inscribe el contacto en ${sequence.name} cuando el negocio entra en ${stage.name}.`;
+    node = {
+      config: { sequenceId: sequence.id },
+      id: "action-enroll-sequence",
+      kind: "enroll_sequence",
+      type: "action" as const,
+    };
+  }
+
+  const [row] = await db
+    .insert(automations)
+    .values({
+      description,
+      graph: { edges: [], nodes: [node] },
+      name: name.slice(0, 120),
+      ownerId: user.id,
+      status: "draft",
+      trigger: {
+        config: { stageId: stage.id },
+        type: "deal_stage_changed",
+      },
+      triggerType: "deal_stage_changed",
+    })
+    .returning({ id: automations.id });
+  if (!row) throw new Error("No se pudo crear la automatización");
+
   revalidateAutomations(row.id);
   return row;
 }

@@ -2,12 +2,18 @@ import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/page-header";
 import { AutomationsView } from "@/components/automations/automations-view";
-import { listAutomations } from "@/server/queries/automations";
+import {
+  listAutomationBuilderOptions,
+  listAutomations,
+} from "@/server/queries/automations";
 
 export const metadata: Metadata = { title: "Automatizaciones" };
 
 export default async function AutomationsPage() {
-  const automations = await listAutomations();
+  const [automations, options] = await Promise.all([
+    listAutomations(),
+    listAutomationBuilderOptions(),
+  ]);
 
   return (
     <>
@@ -15,7 +21,7 @@ export default async function AutomationsPage() {
         title="Automatizaciones"
         description="Flujos: disparador → condiciones → esperas → acciones. Se ejecutan en segundo plano."
       />
-      <AutomationsView automations={automations} />
+      <AutomationsView automations={automations} options={options} />
     </>
   );
 }

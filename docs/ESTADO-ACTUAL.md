@@ -45,7 +45,7 @@
     Pendiente menor opcional: selector tipo combobox con buscador si crecen mucho los
     embudos.
 
-- **Fase 6 · Motor de automatizaciones:** **6.5 + 6.6 + 6.7 + 6.8 hechas.**
+- **Fase 6 · Motor de automatizaciones:** **completa (6.1–6.8 + 6.4a–6.4j).**
   - **6.7** registro de ejecuciones: query `listAutomationRuns` (owner-aware) y panel
     `AutomationRuns` ("Ejecuciones recientes") bajo el editor en `/automations/[id]`:
     estado del run, disparador, fechas, error y **log por nodo** (ok/skipped/failed con
@@ -62,6 +62,11 @@
     dormir y valida acciones sin efectos reales (sin tareas, etiquetas, movimientos,
     inscripciones ni webhooks). Verificado con `tsx`: dry-run con condicion+espera+tarea
     completo, `sleep` no llamado y 0 tareas creadas.
+  - **6.4j** sincronía con el embudo: `/automations` añade **Plantilla de embudo** para
+    crear en borrador flujos `deal_stage_changed(stageId)` → `create_task` o
+    `enroll_sequence`, validando ownership de etapa/secuencia y abriendo el editor para
+    revisar, probar en seco y activar. Verificado con `tsx` stubbeando sesión/revalidate:
+    dos plantillas reales en BD con trigger/grafo correctos y limpieza QA.
   - **6.5** ejecución de acciones: `src/server/services/automation-executor.ts`
     (`executeAutomationRun`) procesa cada `automation_runs` en `waiting`, recorre el
     grafo y ejecuta los nodos de acción sobre la entidad disparadora, con log por nodo y
@@ -326,11 +331,10 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** cerrar **6.4j**: plantillas de automatización "al
-entrar en etapa X → inscribir en secuencia / crear tarea", apoyándose en
-`deal_stage_changed` y en el executor 6.5/6.6. Debe ser una ayuda rápida desde
-Automatizaciones para crear flujos del embudo sin montar el grafo a mano.
-Pendiente menor de 6.5: `send_email` y `ai_summary` (Fase 8). **Métricas (6.4i):
+**Siguiente tarea de desarrollo:** empezar **Fase 7.1**: migración para captación
+(`forms`, `form_submissions`, `leads`) según `04-ROADMAP-DETALLADO.md`. La Fase 6 queda
+cerrada. Pendiente conscientemente futuro: `send_email` en automatizaciones (cuando se
+defina remitente/plantilla/transporte) y `ai_summary` (Fase 8). **Métricas (6.4i):
 pendiente futuro** = conversión temporal real entre etapas cuando haya historial de
 cambios de etapa.
 
@@ -411,11 +415,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **6.4a–6.4d** (`campaign` nativo, filtros por prefijo, embudo de contactos no basado
 > en actividades y UX de muchos funnels en Negocios).
 >
-> **Hecho en la última sesión técnica:** **6.5** (acciones reales), **6.6** (condiciones
-> if/else + esperas reales), **6.7** (panel de ejecuciones) y **6.8** (dry-run) del motor de
-> automatizaciones, más el bloque **6.4** casi completo (embudo de contactos + filtros +
-> layout + métricas). Antes: 6.3/6.2/6.1 y cierre de la **Fase 5**.
-> **Siguiente: 6.4j** (plantillas de automatización del embudo).
+> **Hecho en la última sesión técnica:** **Fase 6 completa**: 6.4j (plantillas del
+> embudo), 6.8 (dry-run), 6.7 (panel), 6.6 (if/else + esperas), 6.5 (acciones), 6.4
+> (eventos + embudo de contactos) y 6.1–6.3. Antes: cierre de la **Fase 5**.
+> **Siguiente: Fase 7.1** (migración `forms`, `form_submissions`, `leads`).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -456,6 +459,19 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-25 (64) — 6.4j: plantillas de automatización del embudo
+- **Nueva plantilla rápida en `/automations`:** botón **Plantilla de embudo** para crear
+  flujos al entrar en una etapa sin montar el grafo a mano.
+- **Dos casos cubiertos:** `deal_stage_changed(stageId)` → `create_task` con asunto
+  configurable, y `deal_stage_changed(stageId)` → `enroll_sequence` con secuencia
+  seleccionada.
+- **Seguridad y flujo profesional:** Server Action validada con Zod, ownership de etapa y
+  secuencia, estado inicial `draft`, apertura directa del editor para revisar, dry-run y
+  activar.
+- **Verificado:** `tsx` contra BD real con sesión y `revalidatePath` stubbeados:
+  creación de plantilla de tarea y de secuencia, triggers `deal_stage_changed`, grafos
+  correctos y limpieza QA.
 
 ### 2026-06-25 (63) — 6.8: dry-run de automatizaciones
 - **Server Action `dryRunAutomation`:** guarda una ejecución visible como
