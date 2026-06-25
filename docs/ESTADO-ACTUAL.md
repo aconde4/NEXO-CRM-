@@ -331,17 +331,16 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 7.2**: constructor de formularios (definir
-campos y su mapeo a persona/negocio) sobre el esquema de 7.1. Reaprovecha el patrón de
-otros constructores (p. ej. `AutomationBuilder`/secuencias): formulario con
-react-hook-form + Zod, validación en Server Action, autorización por `ownerId`. El
-esquema `forms` ya admite `fields` (`FormFieldDef[]`), `mappings` (`FormMapping[]`),
-`redirect_url`, `embed_settings` y `automation_id`. Después: 7.3 (página pública +
-embed), 7.4 (endpoint de recepción → crea/encuentra persona, lead y dispara
-automatización vía evento `form_submitted`, ya en el catálogo), 7.5 (bandeja de leads),
-7.6 (anti-spam). La Fase 6 queda cerrada. Pendiente futuro conocido: `send_email` y
-`ai_summary` en automatizaciones (Fase 8); conversión temporal real del embudo (6.4i)
-cuando haya historial de cambios de etapa.
+**Siguiente tarea de desarrollo:** **Fase 7.3**: página pública del formulario +
+script/iframe embebible. Sobre el constructor de 7.2: renderizar el formulario por su id
+en una ruta **pública** (sin login; recordar añadirla en `proxy.ts`, como
+`/unsubscribe/[token]`), respetando `embed_settings` (texto del botón, intro, mensaje de
+éxito) y los `fields`. El POST de envío se construye en 7.4 (endpoint que crea/encuentra
+persona, lead y dispara automatización vía evento `form_submitted` + `forms.automation_id`).
+Solo formularios `status='active'` deben aceptarse en público. Después: 7.4 (endpoint),
+7.5 (bandeja de leads), 7.6 (anti-spam: honeypot + rate limit). La Fase 6 queda cerrada.
+Pendiente futuro conocido: `send_email` y `ai_summary` en automatizaciones (Fase 8);
+conversión temporal real del embudo (6.4i) cuando haya historial de cambios de etapa.
 
 **6.4d HECHO (completo):**
 - **Filtros 6.4b en Kanban y Lista:** `deals/page.tsx` decodifica el filtro
@@ -464,6 +463,31 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-25 (66) — Fase 7.2: constructor de formularios
+- **`/forms` lista real** (sustituye el placeholder): tarjetas con estado
+  (borrador/publicado/archivado), nº de campos y de envíos, crear (diálogo →
+  `/forms/[id]`), publicar/despublicar y eliminar (`FormsView`).
+- **Editor `/forms/[id]`** (`FormBuilder`): encabezado (nombre/descr/estado) con
+  react-hook-form + Zod; **campos** (etiqueta, tipo texto/email/teléfono/largo/selección/
+  sí-no, obligatorio, opciones de selección) reordenables; **mapeo** por campo a un campo
+  del CRM (persona/empresa nativos + campos personalizados de persona) o "solo guardar";
+  ajustes de envío (texto del botón, mensaje de éxito, URL de redirección), introducción
+  y **automatización opcional** al recibir.
+- **Capas:** catálogo `src/lib/forms.ts` (tipos de campo, destinos de mapeo, `uniqueFieldKey`),
+  validación `src/lib/validations/form.ts`, queries `src/server/queries/forms.ts`
+  (`listForms` con contador de envíos, `getForm`/`getFormForOwner`,
+  `listFormBuilderOptions`) y acciones `src/server/actions/forms.ts`
+  (`createForm`/`updateForm`/`setFormStatus`/`deleteForm`). Las **claves** de campo se
+  derivan de las etiquetas al guardar (uniquificadas) y los mapeos se filtran a campos
+  existentes; la automatización elegida se valida por `ownerId`. "Formularios" deja de ser
+  "próximamente" en la navegación.
+- **Verificado:** `tsx` (borrado) — `uniqueFieldKey` (slug + uniquificado),
+  `formInputSchema` (acepta válido, rechaza clave/URL inválidas) y round-trip en BD (form
+  con 3 campos + 2 mapeos + embed + redirect persistidos). Render real vía login dev:
+  `/forms` (lista con contadores) y `/forms/[id]` (editor con campos cargados, selector de
+  mapeo y automatización), HTTP 200 sin errores. `pnpm typecheck`, `pnpm lint` (a cero) y
+  `pnpm build` en verde.
 
 ### 2026-06-25 (65) — Fase 7.1: migración de captación (forms/submissions/leads)
 - **Esquema** `src/server/db/schema/forms.ts` con tres tablas y sus relaciones:

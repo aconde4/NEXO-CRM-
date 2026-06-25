@@ -410,7 +410,16 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       `automation_id` opcional), `form_submissions` (data/person/ip/user_agent, cascade
       por form) y `leads` (person/submission/source/status/score/converted_deal). FKs
       owner→cascade, persona/negocio/automatización/submission→set null.
-- [ ] **7.2** Constructor de formularios (campos, mapeo a persona/negocio).
+- [x] **7.2** Constructor de formularios (campos, mapeo a persona/negocio). `/forms`
+      lista real (crear/editar/publicar/eliminar) y editor `/forms/[id]`
+      (`FormBuilder`): campos (etiqueta, tipo texto/email/teléfono/largo/selección/
+      sí-no, obligatorio, opciones) reordenables, **mapeo** de cada campo a un campo del
+      CRM (persona/empresa + campos personalizados) o "solo guardar", ajustes de envío
+      (texto del botón, mensaje de éxito, redirección), introducción y automatización
+      opcional al recibir. Catálogo `lib/forms.ts`, validación `lib/validations/form.ts`,
+      queries `queries/forms.ts`, acciones `actions/forms.ts`. Las claves de campo se
+      derivan de las etiquetas al guardar (uniquificadas) y los mapeos se filtran a
+      campos existentes; autorización por `ownerId`.
 - [ ] **7.3** Página pública del formulario + script/iframe embebible.
 - [ ] **7.4** Endpoint de recepción: crea/encuentra persona, crea lead, dispara
       automatización opcional.

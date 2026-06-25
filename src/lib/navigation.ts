@@ -54,7 +54,7 @@ export const navGroups: NavGroup[] = [
         href: "/automations",
         icon: Workflow,
       },
-      { title: "Formularios", href: "/forms", icon: ClipboardList, soon: true },
+      { title: "Formularios", href: "/forms", icon: ClipboardList },
     ],
   },
   {
