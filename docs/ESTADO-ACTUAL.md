@@ -8,14 +8,16 @@
 
 ## 📍 Dónde estamos
 
-- **Fase 8 · IA agnóstica:** **activa. 8.1 HECHA.** La base de IA ya no depende de un
+- **Fase 8 · IA agnóstica:** **activa. 8.1 y 8.2 HECHAS.** La base de IA ya no depende de un
   proveedor concreto: `ai_runs` está migrada, `src/server/ai` define `AIProvider`, el
   adaptador `openai-compatible` permite probar con Groq/Ollama/OpenRouter/etc., y
   `src/server/services/ai.ts` centraliza timeout, reintentos, salida estructurada con
   Zod/JSON Schema, coste estimado y degradación elegante si no hay `.env.local` de IA.
-  Ajustes muestra estado de configuración y ejecuciones recientes sin exponer secretos
-  ni prompts completos. **Siguiente: 8.2**, redacción y respuesta de correos asistida en
-  el tono del usuario.
+  Ajustes muestra estado de configuración y ejecuciones recientes sin exponer secretos ni
+  prompts completos. 8.2 añade borradores editables de email desde fichas y respuestas
+  asistidas desde `/inbox/[threadId]`, usando contexto owner-aware y muestras recientes
+  de tono; nunca envía automáticamente. **Siguiente: 8.3**, resumen del historial de
+  contacto/negocio.
 
 - **Bloque prioritario antes de continuar 6.5 (decisión de producto 2026-06-23):**
   **completo (6.4a–6.4d hechas).** Se puede retomar **6.5**. Resumen del bloque:
@@ -340,22 +342,20 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 8.2** — **redacción y respuesta de correos
-asistida (en tu tono)** sobre la capa agnóstica de 8.1. Debe usar `completeAI` y registrar
-`ai_runs`, degradar con claridad si no hay IA configurada, trabajar desde el contexto del
-hilo/contacto/negocio y generar borradores editables, nunca enviar automáticamente.
-Mantener la arquitectura independiente del proveedor: OpenAI-compatible queda operativo
-para pruebas gratis/locales; `gemini`/`anthropic` se añaden solo cuando el usuario elija
-proveedor concreto. Después siguen 8.3–8.7 (resúmenes, NL→secuencia/automatización, lead
-scoring, next best action y sentimiento). Pendiente futuro: `send_email`/`ai_summary` en
-automatizaciones (se apoyan en esta capa); conversión temporal real del embudo (6.4i) con
-historial de etapas.
+**Siguiente tarea de desarrollo:** **Fase 8.3** — **resumen del historial de
+contacto/negocio** sobre la capa agnóstica de IA. Debe usar `completeAI`, registrar
+`ai_runs`, degradar con claridad si no hay proveedor configurado y resumir actividad real
+del CRM: notas, tareas, hilos/email, negocio/etapa, formularios/leads cuando aplique. El
+resumen debe ser accionable, editable/actualizable bajo demanda y no inventar hechos.
+Después siguen 8.4–8.7 (NL→secuencia/automatización, lead scoring, next best action y
+sentimiento). Pendiente futuro: `send_email`/`ai_summary` en automatizaciones (se apoyan
+en esta capa); conversión temporal real del embudo (6.4i) con historial de etapas.
 
 > **Recomendación de modelos (resumen, detalle en `docs/07-IA-PROVEEDORES-Y-MODELOS.md`):**
 > empezar **gratis** con **Gemini 2.5 Flash** (mejor calidad gratis) o **Groq + Llama 3.3
 > 70B** (rápido); para coste cero/privado total, **Ollama + Qwen2.5** (datos locales). De
 > pago, cuando convenga: **Claude Sonnet 4.6** (calidad) + **Claude Haiku 4.5** (volumen
-> barato). **No hace falta confirmar ninguna clave para empezar 8.2**: la UI debe
+> barato). **No hace falta confirmar ninguna clave para empezar 8.3**: la UI debe
 > degradar si no hay proveedor configurado.
 
 **Nota de 7.4 (motor):** la automatización directa del formulario (`forms.automation_id`)
@@ -440,10 +440,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **6.4a–6.4d** (`campaign` nativo, filtros por prefijo, embudo de contactos no basado
 > en actividades y UX de muchos funnels en Negocios).
 >
-> **Hecho en la última sesión técnica:** **Fase 8.1** (capa de IA agnóstica de
-> proveedor) sobre la Fase 7 ya cerrada. Antes: Fase 6 completa (automatizaciones) y
-> Fase 5 completa (secuencias). **Siguiente: Fase 8.2** (redacción y respuesta de
-> correos asistida en el tono del usuario).
+> **Hecho en la última sesión técnica:** **Fase 8.2** (redacción y respuesta de correos
+> asistida en el tono del usuario) sobre la capa agnóstica de 8.1. Antes: Fase 7 cerrada,
+> Fase 6 completa (automatizaciones) y Fase 5 completa (secuencias). **Siguiente: Fase
+> 8.3** (resumen del historial de contacto/negocio).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -484,6 +484,24 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-25 (74) — Fase 8.2: redacción y respuesta de correos asistida
+- **Servicio IA de email:** `src/server/services/ai-email.ts` genera borradores con
+  `completeAI`, salida estructurada `subject/bodyText`, modelo rápido, coste estimado y
+  traza `ai_runs` (`email.draft` / `email.reply_draft`). El prompt usa contexto
+  owner-aware de contacto, empresa, negocio e hilo, más muestras recientes de emails
+  enviados y plantillas para imitar el tono sin copiar frases.
+- **Server Action:** `generateEmailDraft` valida con Zod, exige sesión y devuelve un
+  borrador editable; sin IA configurada degrada con `not_configured`.
+- **UI:** el compositor de email incorpora intención, tono y botón IA; rellena asunto y
+  cuerpo pero **no envía**. En respuestas de hilo preserva el asunto para no romper el
+  threading de Gmail. `/inbox/[threadId]` añade botón **Responder** con el mismo
+  compositor, `threadId`, plantillas, merge tags y estado Gmail/IA.
+- **Verificado:** prueba `tsx` con servidor OpenAI-compatible local fake y datos QA en BD
+  limpiados: respuesta preserva asunto, manda JSON Schema, usa `AI_MODEL_FAST`, calcula
+  coste, registra `ai_runs=completed`; prueba adicional confirma error `not_configured`
+  sin proveedor.
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-25 (73) — Fase 8.1: capa de IA agnóstica de proveedor
 - **Persistencia:** migración `0012_flat_namor` aplicada con tabla `ai_runs` owner-aware

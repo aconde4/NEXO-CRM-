@@ -8,22 +8,32 @@ import type { EmailTemplateItem } from "@/server/queries/email-templates";
 import { Button } from "@/components/ui/button";
 import {
   SendEmailDialog,
+  type EmailComposerAIStatus,
   type EmailComposerRecipient,
 } from "@/components/email/send-email-dialog";
+import type { EmailDraftMode } from "@/lib/validations/email";
 
 export function EmailComposerButton({
   recipients,
   catalog,
   templates,
   gmailReady,
+  aiStatus,
+  defaultSubject,
   label = "Enviar email",
+  mode = "new",
+  threadId,
   variant = "outline",
 }: {
   recipients: EmailComposerRecipient[];
   catalog: MergeTag[];
   templates: EmailTemplateItem[];
   gmailReady: boolean;
+  aiStatus: EmailComposerAIStatus;
+  defaultSubject?: string;
   label?: string;
+  mode?: EmailDraftMode;
+  threadId?: string;
   variant?: React.ComponentProps<typeof Button>["variant"];
 }) {
   const [open, setOpen] = React.useState(false);
@@ -48,6 +58,10 @@ export function EmailComposerButton({
           catalog={catalog}
           templates={templates}
           gmailReady={gmailReady}
+          aiStatus={aiStatus}
+          defaultSubject={defaultSubject}
+          mode={mode}
+          threadId={threadId}
         />
       ) : null}
     </>

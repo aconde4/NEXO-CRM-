@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/session";
-import { sendEmailSchema, type SendEmailValues } from "@/lib/validations/email";
+import {
+  generateEmailDraftSchema,
+  sendEmailSchema,
+  type GenerateEmailDraftValues,
+  type SendEmailValues,
+} from "@/lib/validations/email";
+import { generateAssistedEmailDraft } from "@/server/services/ai-email";
 import { sanitizeEmailHtml } from "@/server/services/email-html";
 import { sendGmailEmail } from "@/server/services/gmail";
 import { GmailServiceError } from "@/server/services/gmail-auth";
@@ -49,6 +55,12 @@ export async function sendEmail(raw: SendEmailValues) {
   const result = await sendGmailEmail(user.id, safeData);
   revalidateEmailSurfaces(safeData, result.threadId);
   return result;
+}
+
+export async function generateEmailDraft(raw: GenerateEmailDraftValues) {
+  const user = await requireUser();
+  const data = generateEmailDraftSchema.parse(raw);
+  return generateAssistedEmailDraft(user.id, data);
 }
 
 export async function syncGmailInboxNow() {

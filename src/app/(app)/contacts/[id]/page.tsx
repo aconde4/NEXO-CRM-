@@ -16,6 +16,7 @@ import { notFound } from "next/navigation";
 import { buildMergeCatalog, buildMergeContext } from "@/lib/email/merge-tags";
 import { fullName, formatDate, relativeDate } from "@/lib/format";
 import { getPerson, listOrganizationOptions } from "@/server/queries/contacts";
+import { getAISettingsStatus } from "@/server/queries/ai";
 import { listAllCustomFieldDefs } from "@/server/queries/custom-fields";
 import { listEntityThreads } from "@/server/queries/email-threads";
 import { listEmailTemplates } from "@/server/queries/email-templates";
@@ -62,6 +63,7 @@ export default async function ContactDetailPage({
     emailThreads,
     emailTemplates,
     gmailStatus,
+    aiStatus,
     sequenceOptions,
   ] = await Promise.all([
     getPerson(id),
@@ -72,6 +74,7 @@ export default async function ContactDetailPage({
     listEntityThreads({ personId: id }),
     listEmailTemplates(),
     getGmailConnectionStatus(),
+    getAISettingsStatus(),
     listSequenceEnrollmentOptions(),
   ]);
 
@@ -146,6 +149,7 @@ export default async function ContactDetailPage({
             catalog={mergeCatalog}
             templates={emailTemplates}
             gmailReady={gmailStatus.ready}
+            aiStatus={aiStatus}
           />
           <EditContactButton
             organizations={organizations}

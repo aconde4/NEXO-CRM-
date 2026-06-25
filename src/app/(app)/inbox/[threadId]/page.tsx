@@ -13,9 +13,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { buildMergeCatalog, buildMergeContext } from "@/lib/email/merge-tags";
 import { formatDateTime, fullName } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { getAISettingsStatus } from "@/server/queries/ai";
+import { listAllCustomFieldDefs } from "@/server/queries/custom-fields";
 import { getThreadWithMessages } from "@/server/queries/email-threads";
+import { listEmailTemplates } from "@/server/queries/email-templates";
+import { getGmailConnectionStatus } from "@/server/queries/gmail";
+import { EmailComposerButton } from "@/components/email/email-composer-button";
+import type { EmailComposerRecipient } from "@/components/email/send-email-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -49,14 +56,109 @@ function countLabel(count: number, singular: string, plural: string): string {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
+function fallbackContext(input: {
+  email: string;
+  name: string;
+  organizationName?: string | null;
+}): Record<string, string> {
+  const [firstName = "", ...rest] = input.name.split(/\s+/).filter(Boolean);
+  return {
+    apellidos: rest.join(" "),
+    campaign: "",
+    campana: "",
+    cargo: "",
+    email: input.email,
+    empresa: input.organizationName ?? "",
+    "empresa.nombre_comercial": "",
+    "empresa.sector": "",
+    "empresa.web": "",
+    nombre: firstName,
+    nombre_completo: input.name,
+    telefono: "",
+  };
+}
+
+function buildReplyRecipient({
+  customFieldDefs,
+  thread,
+}: {
+  customFieldDefs: Awaited<ReturnType<typeof listAllCustomFieldDefs>>;
+  thread: NonNullable<Awaited<ReturnType<typeof getThreadWithMessages>>>;
+}): EmailComposerRecipient[] {
+  const latestInbound = [...thread.messages]
+    .reverse()
+    .find((message) => message.direction === "inbound");
+  const latestOutbound = [...thread.messages]
+    .reverse()
+    .find((message) => message.direction === "outbound");
+  const address =
+    latestInbound?.replyToRecipients[0] ??
+    (latestInbound
+      ? { email: latestInbound.fromEmail, name: latestInbound.fromName }
+      : null) ??
+    latestOutbound?.toRecipients[0] ??
+    null;
+  if (!address?.email) return [];
+
+  const personName = thread.person
+    ? fullName(thread.person.firstName, thread.person.lastName)
+    : "";
+  const name = address.name || personName || address.email;
+  const context = thread.person
+    ? buildMergeContext(
+        {
+          campaign: thread.person.campaign,
+          customFields: thread.person.customFields,
+          email: thread.person.email ?? address.email,
+          firstName: thread.person.firstName,
+          lastName: thread.person.lastName,
+          phone: thread.person.phone,
+          title: thread.person.title,
+        },
+        thread.organization,
+        customFieldDefs.person,
+        customFieldDefs.organization,
+      )
+    : fallbackContext({
+        email: address.email,
+        name,
+        organizationName: thread.organization?.name,
+      });
+
+  return [
+    {
+      context,
+      dealId: thread.dealId ?? undefined,
+      email: address.email,
+      id: `${thread.id}:${address.email}`,
+      name,
+      orgId: thread.orgId ?? undefined,
+      personId: thread.personId ?? undefined,
+    },
+  ];
+}
+
 export default async function ThreadPage({
   params,
 }: {
   params: Promise<{ threadId: string }>;
 }) {
   const { threadId } = await params;
-  const thread = await getThreadWithMessages(threadId);
+  const [thread, customFieldDefs, emailTemplates, gmailStatus, aiStatus] =
+    await Promise.all([
+      getThreadWithMessages(threadId),
+      listAllCustomFieldDefs(),
+      listEmailTemplates(),
+      getGmailConnectionStatus(),
+      getAISettingsStatus(),
+    ]);
   if (!thread) notFound();
+  const mergeCatalog = buildMergeCatalog(
+    customFieldDefs.person,
+    customFieldDefs.organization,
+    Boolean(thread.organization),
+  );
+  const replyRecipients = buildReplyRecipient({ customFieldDefs, thread });
 
   return (
     <>
@@ -67,43 +169,57 @@ export default async function ThreadPage({
         <span className="text-muted-foreground text-sm">Bandeja</span>
       </div>
 
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">
-          {thread.subject || "(sin asunto)"}
-        </h2>
-        <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2 text-sm">
-          <span>
-            {thread.messageCount}{" "}
-            {thread.messageCount === 1 ? "mensaje" : "mensajes"}
-          </span>
-          {thread.person ? (
-            <Link
-              href={`/contacts/${thread.person.id}`}
-              className="hover:text-foreground inline-flex items-center gap-1 underline-offset-2 hover:underline"
-            >
-              <User className="size-3.5" />
-              {fullName(thread.person.firstName, thread.person.lastName)}
-            </Link>
-          ) : null}
-          {thread.organization ? (
-            <Link
-              href={`/organizations/${thread.organization.id}`}
-              className="hover:text-foreground inline-flex items-center gap-1 underline-offset-2 hover:underline"
-            >
-              <Building2 className="size-3.5" />
-              {thread.organization.name}
-            </Link>
-          ) : null}
-          {thread.deal ? (
-            <Link
-              href={`/deals/${thread.deal.id}`}
-              className="hover:text-foreground inline-flex items-center gap-1 underline-offset-2 hover:underline"
-            >
-              <Handshake className="size-3.5" />
-              {thread.deal.title}
-            </Link>
-          ) : null}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-semibold tracking-tight break-words">
+            {thread.subject || "(sin asunto)"}
+          </h2>
+          <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2 text-sm">
+            <span>
+              {thread.messageCount}{" "}
+              {thread.messageCount === 1 ? "mensaje" : "mensajes"}
+            </span>
+            {thread.person ? (
+              <Link
+                href={`/contacts/${thread.person.id}`}
+                className="hover:text-foreground inline-flex items-center gap-1 underline-offset-2 hover:underline"
+              >
+                <User className="size-3.5" />
+                {fullName(thread.person.firstName, thread.person.lastName)}
+              </Link>
+            ) : null}
+            {thread.organization ? (
+              <Link
+                href={`/organizations/${thread.organization.id}`}
+                className="hover:text-foreground inline-flex items-center gap-1 underline-offset-2 hover:underline"
+              >
+                <Building2 className="size-3.5" />
+                {thread.organization.name}
+              </Link>
+            ) : null}
+            {thread.deal ? (
+              <Link
+                href={`/deals/${thread.deal.id}`}
+                className="hover:text-foreground inline-flex items-center gap-1 underline-offset-2 hover:underline"
+              >
+                <Handshake className="size-3.5" />
+                {thread.deal.title}
+              </Link>
+            ) : null}
+          </div>
         </div>
+        <EmailComposerButton
+          aiStatus={aiStatus}
+          catalog={mergeCatalog}
+          defaultSubject={thread.subject ?? ""}
+          gmailReady={gmailStatus.ready}
+          label="Responder"
+          mode="reply"
+          recipients={replyRecipients}
+          templates={emailTemplates}
+          threadId={thread.id}
+          variant="default"
+        />
       </div>
 
       <ol className="space-y-3">

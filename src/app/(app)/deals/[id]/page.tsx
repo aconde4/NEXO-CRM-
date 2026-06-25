@@ -17,6 +17,7 @@ import { notFound } from "next/navigation";
 import { buildMergeCatalog, buildMergeContext } from "@/lib/email/merge-tags";
 import { formatDate, formatMoney, fullName, relativeDate } from "@/lib/format";
 import { requireUser } from "@/lib/session";
+import { getAISettingsStatus } from "@/server/queries/ai";
 import {
   listOrganizationOptions,
   listPersonOptions,
@@ -68,6 +69,7 @@ export default async function DealDetailPage({
     customFieldDefs,
     emailTemplates,
     gmailStatus,
+    aiStatus,
   ] = await Promise.all([
     getDeal(id),
     listPipelines(),
@@ -79,6 +81,7 @@ export default async function DealDetailPage({
     listAllCustomFieldDefs(),
     listEmailTemplates(),
     getGmailConnectionStatus(),
+    getAISettingsStatus(),
   ]);
 
   if (!deal) notFound();
@@ -148,6 +151,7 @@ export default async function DealDetailPage({
             catalog={mergeCatalog}
             templates={emailTemplates}
             gmailReady={gmailStatus.ready}
+            aiStatus={aiStatus}
           />
           <DealActions
             status={deal.status}

@@ -2,7 +2,14 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Eye, Mail, Pencil, Send } from "lucide-react";
+import {
+  AlertTriangle,
+  Eye,
+  Mail,
+  Pencil,
+  Send,
+  Sparkles,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -11,7 +18,8 @@ import {
   unknownMergeTags,
   type MergeTag,
 } from "@/lib/email/merge-tags";
-import { sendEmail } from "@/server/actions/emails";
+import type { EmailDraftMode, EmailDraftTone } from "@/lib/validations/email";
+import { generateEmailDraft, sendEmail } from "@/server/actions/emails";
 import type { EmailTemplateItem } from "@/server/queries/email-templates";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +39,7 @@ import {
   type RichEmailEditorHandle,
   type RichEmailEditorValue,
 } from "@/components/email/rich-email-editor";
+import { Textarea } from "@/components/ui/textarea";
 
 export type EmailComposerRecipient = {
   id: string;
@@ -40,6 +49,13 @@ export type EmailComposerRecipient = {
   orgId?: string;
   dealId?: string;
   context: Record<string, string>;
+};
+
+export type EmailComposerAIStatus = {
+  configured: boolean;
+  model: string | null;
+  provider: string | null;
+  reason: string | null;
 };
 
 const selectClass =
@@ -69,6 +85,10 @@ export function SendEmailDialog({
   catalog,
   templates,
   gmailReady,
+  aiStatus,
+  defaultSubject = "",
+  mode = "new",
+  threadId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -76,6 +96,10 @@ export function SendEmailDialog({
   catalog: MergeTag[];
   templates: EmailTemplateItem[];
   gmailReady: boolean;
+  aiStatus: EmailComposerAIStatus;
+  defaultSubject?: string;
+  mode?: EmailDraftMode;
+  threadId?: string;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -86,6 +110,10 @@ export function SendEmailDialog({
             catalog={catalog}
             templates={templates}
             gmailReady={gmailReady}
+            aiStatus={aiStatus}
+            defaultSubject={defaultSubject}
+            mode={mode}
+            threadId={threadId}
             onDone={() => onOpenChange(false)}
           />
         ) : null}
@@ -99,21 +127,33 @@ function SendEmailBody({
   catalog,
   templates,
   gmailReady,
+  aiStatus,
+  defaultSubject,
+  mode,
+  threadId,
   onDone,
 }: {
   recipients: EmailComposerRecipient[];
   catalog: MergeTag[];
   templates: EmailTemplateItem[];
   gmailReady: boolean;
+  aiStatus: EmailComposerAIStatus;
+  defaultSubject: string;
+  mode: EmailDraftMode;
+  threadId?: string;
   onDone: () => void;
 }) {
   const router = useRouter();
   const [recipientId, setRecipientId] = React.useState(recipients[0]?.id ?? "");
   const [templateId, setTemplateId] = React.useState("");
-  const [subject, setSubject] = React.useState("");
+  const [subject, setSubject] = React.useState(defaultSubject);
   const [bodyHtml, setBodyHtml] = React.useState("");
   const [bodyText, setBodyText] = React.useState("");
+  const [aiInstruction, setAiInstruction] = React.useState("");
+  const [aiTone, setAiTone] =
+    React.useState<EmailDraftTone>("professional");
   const [preview, setPreview] = React.useState(false);
+  const [drafting, setDrafting] = React.useState(false);
   const [sending, setSending] = React.useState(false);
   const subjectRef = React.useRef<HTMLInputElement>(null);
   const editorRef = React.useRef<RichEmailEditorHandle>(null);
@@ -126,6 +166,7 @@ function SendEmailBody({
     `${subject}\n${bodyHtml}\n${bodyText}`,
     context,
   );
+  const subjectLocked = mode === "reply" && Boolean(defaultSubject.trim());
   const resolvedSubject = renderMergeTags(subject, context);
   const resolvedBodyText = renderMergeTags(bodyText, context);
   const resolvedBodyHtml = renderMergeTags(bodyHtml, context, {
@@ -158,6 +199,52 @@ function SendEmailBody({
     setBodyText(value.text);
   }
 
+  async function draftWithAI() {
+    if (!recipient) {
+      toast.error("No hay destinatario con email.");
+      return;
+    }
+    if (!aiStatus.configured) {
+      toast.error(aiStatus.reason ?? "La IA no está configurada.");
+      return;
+    }
+
+    setDrafting(true);
+    try {
+      const draft = await generateEmailDraft({
+        bodyText,
+        dealId: recipient.dealId,
+        instruction: aiInstruction,
+        mode,
+        orgId: recipient.orgId,
+        personId: recipient.personId,
+        subject,
+        threadId,
+        to: [{ email: recipient.email, name: recipient.name || undefined }],
+        tone: aiTone,
+      });
+      setTemplateId("");
+      setSubject(draft.subject);
+      setBodyText(draft.bodyText);
+      setBodyHtml(draft.bodyHtml);
+      setPreview(false);
+      toast.success(
+        draft.estimatedCostUsd > 0
+          ? `Borrador generado (${draft.model}, ${draft.estimatedCostUsd.toFixed(4)} $)`
+          : `Borrador generado (${draft.model})`,
+      );
+      requestAnimationFrame(() => editorRef.current?.focus());
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No se pudo generar el borrador",
+      );
+    } finally {
+      setDrafting(false);
+    }
+  }
+
   async function send() {
     if (!recipient) {
       toast.error("No hay destinatario con email.");
@@ -182,6 +269,7 @@ function SendEmailBody({
         personId: recipient.personId,
         orgId: recipient.orgId,
         dealId: recipient.dealId,
+        threadId,
       });
       toast.success("Email enviado");
       onDone();
@@ -198,7 +286,9 @@ function SendEmailBody({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Enviar email</DialogTitle>
+        <DialogTitle>
+          {mode === "reply" ? "Responder email" : "Enviar email"}
+        </DialogTitle>
         <DialogDescription>
           {recipient
             ? `${recipient.name ? `${recipient.name} · ` : ""}${recipient.email}`
@@ -263,6 +353,60 @@ function SendEmailBody({
         </Button>
       </div>
 
+      <div className="bg-muted/20 grid gap-2 rounded-lg border p-3">
+        <div className="grid gap-2 md:grid-cols-[1fr_auto_auto] md:items-start">
+          <Textarea
+            value={aiInstruction}
+            onChange={(event) => setAiInstruction(event.target.value)}
+            aria-label="Objetivo para la IA"
+            placeholder={
+              mode === "reply"
+                ? "Objetivo de la respuesta..."
+                : "Objetivo del email..."
+            }
+            className="min-h-16 resize-y"
+            maxLength={2000}
+          />
+          <select
+            className={selectClass}
+            value={aiTone}
+            onChange={(event) => setAiTone(event.target.value as EmailDraftTone)}
+            aria-label="Tono"
+          >
+            <option value="professional">Profesional</option>
+            <option value="warm">Cercano</option>
+            <option value="brief">Breve</option>
+            <option value="direct">Directo</option>
+          </select>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={draftWithAI}
+            disabled={drafting || !recipient || !aiStatus.configured}
+          >
+            <Sparkles
+              className={drafting ? "size-4 animate-pulse" : "size-4"}
+            />
+            {drafting
+              ? "Redactando..."
+              : mode === "reply"
+                ? "Responder con IA"
+                : subject || hasBody
+                  ? "Mejorar con IA"
+                  : "Redactar con IA"}
+          </Button>
+        </div>
+        {!aiStatus.configured ? (
+          <p className="text-muted-foreground text-xs">
+            {aiStatus.reason ?? "IA no configurada."}
+          </p>
+        ) : aiStatus.provider && aiStatus.model ? (
+          <p className="text-muted-foreground text-xs">
+            IA: {aiStatus.provider} · {aiStatus.model}
+          </p>
+        ) : null}
+      </div>
+
       {missingVariables.length > 0 ? (
         <div className="border-destructive/30 bg-destructive/10 text-destructive flex gap-2 rounded-lg border px-3 py-2 text-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
@@ -299,6 +443,7 @@ function SendEmailBody({
               onFocus={() => (lastFocused.current = "subject")}
               onChange={(e) => setSubject(e.target.value)}
               placeholder="Hola {{nombre}}, sobre..."
+              readOnly={subjectLocked}
             />
           </div>
           <div className="grid gap-1.5">

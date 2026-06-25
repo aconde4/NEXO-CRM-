@@ -15,6 +15,7 @@ import { notFound } from "next/navigation";
 
 import { buildMergeCatalog, buildMergeContext } from "@/lib/email/merge-tags";
 import { fullName, formatDate, relativeDate } from "@/lib/format";
+import { getAISettingsStatus } from "@/server/queries/ai";
 import { getOrganization } from "@/server/queries/contacts";
 import { listAllCustomFieldDefs } from "@/server/queries/custom-fields";
 import { listEntityThreads } from "@/server/queries/email-threads";
@@ -48,6 +49,7 @@ export default async function OrganizationDetailPage({
     emailThreads,
     emailTemplates,
     gmailStatus,
+    aiStatus,
   ] = await Promise.all([
     getOrganization(id),
     listAllCustomFieldDefs(),
@@ -55,6 +57,7 @@ export default async function OrganizationDetailPage({
     listEntityThreads({ orgId: id }),
     listEmailTemplates(),
     getGmailConnectionStatus(),
+    getAISettingsStatus(),
   ]);
   if (!organization) notFound();
   const storageEnabled = isStorageConfigured();
@@ -123,6 +126,7 @@ export default async function OrganizationDetailPage({
             catalog={mergeCatalog}
             templates={emailTemplates}
             gmailReady={gmailStatus.ready}
+            aiStatus={aiStatus}
           />
           <EditOrganizationButton
             customFieldDefs={organizationCustomFieldDefs}

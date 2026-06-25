@@ -500,7 +500,14 @@ otro proveedor de pago editando solo variables de entorno. El gran diferenciador
       + `src/server/services/ai.ts` con `AIProvider`, adaptador OpenAI-compatible,
       timeout/reintentos, salida estructurada con Zod/JSON Schema, coste estimado por env
       y panel de estado en Ajustes. Verificado con servidor OpenAI-compatible local fake.
-- [ ] **8.2** Redacción y respuesta de correos asistida (en tu tono).
+- [x] **8.2** Redacción y respuesta de correos asistida (en tu tono).
+      **HECHA:** Server Action `generateEmailDraft` + servicio `ai-email` sobre
+      `completeAI`, con contexto owner-aware de contacto/empresa/negocio/hilo, muestras
+      recientes de tono desde emails enviados y plantillas, salida estructurada
+      `subject/bodyText`, asunto preservado en respuestas Gmail, registro en `ai_runs` y
+      degradación `not_configured`. UI integrada en el compositor de fichas y botón
+      **Responder** en `/inbox/[threadId]`; genera borradores editables y nunca envía
+      automáticamente.
 - [ ] **8.3** Resumen del historial de contacto/negocio.
 - [ ] **8.4** Crear secuencias/automatizaciones por lenguaje natural (salida estructurada
       validada con Zod contra los catálogos existentes).

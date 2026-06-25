@@ -306,8 +306,30 @@ export async function getThreadWithMessages(threadId: string) {
       isNull(emailThreads.deletedAt),
     ),
     with: {
-      person: { columns: { id: true, firstName: true, lastName: true } },
-      organization: { columns: { id: true, name: true } },
+      person: {
+        columns: {
+          campaign: true,
+          customFields: true,
+          email: true,
+          firstName: true,
+          id: true,
+          lastName: true,
+          orgId: true,
+          phone: true,
+          source: true,
+          title: true,
+        },
+      },
+      organization: {
+        columns: {
+          customFields: true,
+          id: true,
+          industry: true,
+          name: true,
+          tradeName: true,
+          website: true,
+        },
+      },
       deal: { columns: { id: true, title: true } },
       messages: {
         orderBy: [
