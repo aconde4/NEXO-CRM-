@@ -23,6 +23,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  BarChart3,
   Building2,
   Columns3,
   List,
@@ -164,6 +165,7 @@ export function DealsBoard({
     return `/deals${qs ? `?${qs}` : ""}`;
   }
   const listHref = dealsHref({ view: "list" });
+  const metricsHref = dealsHref({ view: "metrics" });
 
   // Vista guardada actual (6.4h): en Kanban guardamos embudo + condiciones (la etapa
   // son las columnas; la vista por defecto es el tablero). Usamos el param crudo para
@@ -372,6 +374,14 @@ export function DealsBoard({
           >
             <List />
             Lista
+          </Button>
+          <Button
+            variant="outline"
+            className="shrink-0"
+            render={<Link href={metricsHref} />}
+          >
+            <BarChart3 />
+            Métricas
           </Button>
           <Button
             variant="outline"

@@ -314,15 +314,20 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo (por prioridad del bloque 6.4):** **6.4i** **Métricas del
-embudo** (estilo panel de secuencia): nº y % de conversión entre etapas, estancados por
-etapa, por campaña. **Ojo:** la conversión "real" entre etapas necesita historial de
-cambios de etapa; hoy solo existe `deals.stageChangedAt` (último cambio), no un log
-histórico. Para una primera versión se pueden dar métricas de **estado actual** (nº de
-tarjetas y valor por etapa, estancados por etapa, reparto por `campaign`) y dejar la
-conversión temporal real para cuando haya historial. Después: **6.4j** (plantillas de
-automatización por cambio de etapa, se apoya en el evento `deal_stage_changed` que ya se
-emite; encaja mejor al cerrar 6.5–6.6).
+**Siguiente tarea de desarrollo:** cierra el bloque **6.4** con **6.4j** **Sincronía con
+automatizaciones**: plantillas de automatización "al entrar en etapa X → inscribir en
+secuencia / crear tarea", apoyándose en el evento `deal_stage_changed` que ya se emite.
+**Ojo:** encaja mejor **después** de 6.6 (condiciones if/else + esperas reales), porque
+hoy el ejecutor (`automation-executor.ts`) recorre el grafo lineal; una plantilla por
+cambio de etapa funcionaría ya (disparador `deal_stage_changed` + acción
+`enroll_sequence`/`create_task`, todas implementadas en 6.5), pero la propuesta completa
+de "plantillas" gana con las ramas/esperas de 6.6.
+
+Por eso, salvo preferencia distinta del usuario, la prioridad pasa a **6.6** (motor:
+if/else + esperas reales con `step.sleep` en un workflow Inngest duradero por run; añadir
+`branch` true/false en el editor 6.2) y luego **6.8** (dry-run) y **6.4j**. Pendiente
+menor de 6.5: `send_email` y `ai_summary` (Fase 8). **Métricas (6.4i): pendiente futuro**
+= conversión temporal real entre etapas cuando haya historial de cambios de etapa.
 
 Luego del bloque 6.4: **6.6** Condiciones if/else + esperas reales en el ejecutor. Hoy
 el ejecutor recorre el grafo lineal y **omite** los nodos `wait`/`condition` (deja traza
@@ -454,6 +459,29 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-25 (61) — 6.4i: métricas del embudo (v1, instantánea)
+- **Nueva vista `?view=metrics`** en `/deals`, con toggle **Kanban / Lista / Métricas**
+  añadido a las tres vistas (`DealsBoard`, `DealsListView`, `DealsMetrics`).
+- **Datos** (`src/server/queries/deals.ts`): `getFunnelMetrics(pipelineId, { personIds })`
+  owner-aware, que **respeta el filtro de contacto** (6.4b). La agregación se extrajo a una
+  función **pura** `computeFunnelMetrics` (separada del IO para poder verificarla). Devuelve:
+  resumen (`open`, `value`, `forecast`, `stalled`, `won`, `lost`), **embudo por etapa**
+  (`count`/`value`/`stalled`, `reached` = abiertos en la etapa o más adelante, y
+  `conversionFromPrev` = `reached`/`reached` anterior en %), y **reparto por campaña**
+  (top 8 + `hasMoreCampaigns`).
+- **UI** (`src/components/deals/deals-metrics.tsx`): tarjetas de resumen, embudo por etapa
+  con barras (ancho ∝ `reached`) y conversión/estancados, y barras por campaña. Reutiliza
+  `PipelineCombobox` y `ContactFiltersBar`.
+- **Limitación documentada:** la conversión es una **instantánea** del estado actual (no
+  temporal); para la conversión real entre etapas hace falta historial de cambios de etapa
+  (hoy solo `deals.stageChangedAt`).
+- **Verificado:** `tsx` con **22 aserciones** sobre `computeFunnelMetrics` (open/valor/
+  previsión, estancados con reloj fijo, `reached` acumulado, conversión 50%/33%, campañas
+  ordenadas y agrupadas, won/lost excluidos, caso `active=null`); y render real vía login
+  dev: `/deals?view=metrics` → HTTP 200, todas las secciones presentes, sin errores, y el
+  "En el embudo = 15" coincide con un conteo independiente en BD. `pnpm typecheck`,
+  `pnpm lint` (a cero) y `pnpm build` en verde.
 
 ### 2026-06-25 (60) — 6.4f: selector de embudo combobox con buscador + recordar el último
 - **`PipelineCombobox`** (`src/components/deals/pipeline-combobox.tsx`): combobox con

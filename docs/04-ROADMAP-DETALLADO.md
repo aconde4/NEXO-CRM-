@@ -353,8 +353,17 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       para `deal` (las condiciones del embudo filtran por contacto), preservándolas. El
       filtro por etapa se aplica en la vista Lista (el param `stage` ya existía en
       `listDeals`); en Kanban son las columnas.
-- [ ] **6.4i** **Métricas del embudo** (estilo panel de secuencia): nº y % de conversión
+- [x] **6.4i** **Métricas del embudo** (estilo panel de secuencia): nº y % de conversión
       entre etapas, estancados por etapa, por campaña. (Adelanta parte de Fase 9.)
+      **HECHA (v1, instantánea):** nueva vista `?view=metrics` en `/deals` con toggle
+      Kanban/Lista/Métricas. Query `getFunnelMetrics` (owner-aware, respeta el filtro de
+      contacto 6.4b) + función pura `computeFunnelMetrics`: resumen (en el embudo, valor,
+      previsión, estancados, ganados, perdidos), embudo por etapa (count/valor/estancados,
+      `reached` acumulado y % de conversión etapa→etapa) y reparto por campaña.
+      Componente `DealsMetrics` con barras. **Nota:** la conversión es una instantánea del
+      estado actual (negocios abiertos en cada etapa o más adelante), no temporal: falta
+      historial de cambios de etapa (hoy solo `deals.stageChangedAt`). Verificado con
+      `tsx` (22 aserciones de la agregación) + render real (HTTP 200, conteo coincide).
 - [ ] **6.4j** **Sincronía con automatizaciones**: plantillas de automatización "al
       entrar en etapa X → inscribir en secuencia / crear tarea" (se apoya en
       `deal_stage_changed`, ya emitido). Encaja al cerrar 6.5–6.6.

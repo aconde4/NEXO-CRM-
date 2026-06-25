@@ -400,6 +400,247 @@ export async function getBoard(
   };
 }
 
+// --- Métricas del embudo (6.4i) ---------------------------------------------
+export type FunnelStageMetric = {
+  id: string;
+  name: string;
+  probability: number;
+  rottingDays: number | null;
+  /** Negocios abiertos actualmente en esta etapa. */
+  count: number;
+  /** Suma del valor de los negocios abiertos en esta etapa. */
+  value: number;
+  /** Abiertos y estancados en esta etapa. */
+  stalled: number;
+  /** Abiertos en esta etapa o más adelante (embudo acumulado, instantánea). */
+  reached: number;
+  /** % de conversión desde la etapa anterior (`reached`/`reached` anterior). */
+  conversionFromPrev: number | null;
+};
+
+export type FunnelCampaignMetric = {
+  campaign: string | null;
+  count: number;
+  value: number;
+};
+
+export type FunnelMetrics = {
+  pipelines: PipelineOption[];
+  activePipelineId: string | null;
+  stages: FunnelStageMetric[];
+  totals: {
+    open: number;
+    value: number;
+    forecast: number;
+    stalled: number;
+    won: number;
+    lost: number;
+  };
+  byCampaign: FunnelCampaignMetric[];
+  hasMoreCampaigns: boolean;
+};
+
+const FUNNEL_CAMPAIGN_LIMIT = 8;
+
+/**
+ * Métricas del embudo (6.4i). Instantánea del estado actual: como aún no hay
+ * historial de cambios de etapa (solo `deals.stageChangedAt`), la "conversión"
+ * entre etapas se calcula sobre los negocios abiertos que están en cada etapa o
+ * más adelante (`reached`), no sobre un log temporal. Respeta el filtro de
+ * contacto (6.4b) vía `personIds`.
+ */
+export async function getFunnelMetrics(
+  pipelineId?: string,
+  opts: { personIds?: string[] } = {},
+): Promise<FunnelMetrics> {
+  const user = await requireUser();
+  await ensureDefaultPipeline(user.id);
+
+  const pipelineList = await db
+    .select({ id: pipelines.id, name: pipelines.name })
+    .from(pipelines)
+    .where(eq(pipelines.ownerId, user.id))
+    .orderBy(asc(pipelines.position), asc(pipelines.createdAt));
+
+  const active =
+    pipelineList.find((p) => p.id === pipelineId) ?? pipelineList[0] ?? null;
+
+  const empty: FunnelMetrics = {
+    pipelines: pipelineList,
+    activePipelineId: active?.id ?? null,
+    stages: [],
+    totals: { open: 0, value: 0, forecast: 0, stalled: 0, won: 0, lost: 0 },
+    byCampaign: [],
+    hasMoreCampaigns: false,
+  };
+  if (!active) return empty;
+
+  const stageRows = await db
+    .select({
+      id: stages.id,
+      name: stages.name,
+      probability: stages.probability,
+      rottingDays: stages.rottingDays,
+    })
+    .from(stages)
+    .where(and(eq(stages.pipelineId, active.id), eq(stages.ownerId, user.id)))
+    .orderBy(asc(stages.position), asc(stages.createdAt));
+
+  const dealRows = await db
+    .select({
+      stageId: deals.stageId,
+      value: deals.value,
+      status: deals.status,
+      stageChangedAt: deals.stageChangedAt,
+      campaign: persons.campaign,
+    })
+    .from(deals)
+    .leftJoin(persons, eq(deals.personId, persons.id))
+    .where(
+      and(
+        eq(deals.ownerId, user.id),
+        eq(deals.pipelineId, active.id),
+        isNull(deals.deletedAt),
+        personIdsFilter(opts.personIds),
+      ),
+    );
+
+  return computeFunnelMetrics(pipelineList, active, stageRows, dealRows);
+}
+
+type FunnelStageRow = {
+  id: string;
+  name: string;
+  probability: number;
+  rottingDays: number | null;
+};
+type FunnelDealRow = {
+  stageId: string;
+  value: number;
+  status: string;
+  stageChangedAt: Date;
+  campaign: string | null;
+};
+
+/**
+ * Agregación pura de las métricas del embudo (sin IO). Separada de la consulta
+ * para poder verificarla con datos sintéticos. `now` permite fijar el reloj en
+ * pruebas para el cálculo de estancamiento.
+ */
+export function computeFunnelMetrics(
+  pipelineList: PipelineOption[],
+  active: PipelineOption | null,
+  stageRows: FunnelStageRow[],
+  dealRows: FunnelDealRow[],
+  now: number = Date.now(),
+): FunnelMetrics {
+  const base: Omit<FunnelMetrics, "activePipelineId"> = {
+    pipelines: pipelineList,
+    stages: [],
+    totals: { open: 0, value: 0, forecast: 0, stalled: 0, won: 0, lost: 0 },
+    byCampaign: [],
+    hasMoreCampaigns: false,
+  };
+  if (!active) return { ...base, activePipelineId: null };
+
+  const perStage = new Map<
+    string,
+    { count: number; value: number; stalled: number }
+  >();
+  for (const s of stageRows) perStage.set(s.id, { count: 0, value: 0, stalled: 0 });
+  const rottingByStage = new Map(stageRows.map((s) => [s.id, s.rottingDays]));
+  const campaignMap = new Map<string | null, { count: number; value: number }>();
+
+  let won = 0;
+  let lost = 0;
+
+  for (const d of dealRows) {
+    if (d.status === "won") {
+      won += 1;
+      continue;
+    }
+    if (d.status === "lost") {
+      lost += 1;
+      continue;
+    }
+    // Abierto: cuenta por etapa, estancamiento y campaña.
+    const agg = perStage.get(d.stageId);
+    if (agg) {
+      agg.count += 1;
+      agg.value += d.value;
+      const rottingDays = rottingByStage.get(d.stageId) ?? null;
+      if (
+        rottingDays != null &&
+        (now - d.stageChangedAt.getTime()) / 86_400_000 > rottingDays
+      ) {
+        agg.stalled += 1;
+      }
+    }
+    const key = d.campaign?.trim() ? d.campaign.trim() : null;
+    const c = campaignMap.get(key) ?? { count: 0, value: 0 };
+    c.count += 1;
+    c.value += d.value;
+    campaignMap.set(key, c);
+  }
+
+  let open = 0;
+  let value = 0;
+  let forecast = 0;
+  let stalled = 0;
+  for (const s of stageRows) {
+    const agg = perStage.get(s.id)!;
+    open += agg.count;
+    value += agg.value;
+    forecast += agg.value * (s.probability / 100);
+    stalled += agg.stalled;
+  }
+
+  // `reached` = abiertos en la etapa o más adelante (acumulado de atrás a delante).
+  const reachedByStage = new Map<string, number>();
+  let acc = 0;
+  for (let i = stageRows.length - 1; i >= 0; i--) {
+    acc += perStage.get(stageRows[i]!.id)!.count;
+    reachedByStage.set(stageRows[i]!.id, acc);
+  }
+
+  const stagesOut: FunnelStageMetric[] = stageRows.map((s, i) => {
+    const agg = perStage.get(s.id)!;
+    const reached = reachedByStage.get(s.id)!;
+    const prevReached =
+      i === 0 ? null : reachedByStage.get(stageRows[i - 1]!.id)!;
+    const conversionFromPrev =
+      prevReached == null
+        ? null
+        : prevReached > 0
+          ? Math.round((reached / prevReached) * 100)
+          : 0;
+    return {
+      id: s.id,
+      name: s.name,
+      probability: s.probability,
+      rottingDays: s.rottingDays,
+      count: agg.count,
+      value: agg.value,
+      stalled: agg.stalled,
+      reached,
+      conversionFromPrev,
+    };
+  });
+
+  const allCampaigns = [...campaignMap.entries()]
+    .map(([campaign, v]) => ({ campaign, count: v.count, value: v.value }))
+    .sort((a, b) => b.count - a.count || b.value - a.value);
+
+  return {
+    pipelines: pipelineList,
+    activePipelineId: active.id,
+    stages: stagesOut,
+    totals: { open, value, forecast, stalled, won, lost },
+    byCampaign: allCampaigns.slice(0, FUNNEL_CAMPAIGN_LIMIT),
+    hasMoreCampaigns: allCampaigns.length > FUNNEL_CAMPAIGN_LIMIT,
+  };
+}
+
 /** Vista tabular de negocios, filtrable por embudo, etapa, estado y texto. */
 export async function listDeals(filters: DealListFilters = {}) {
   const user = await requireUser();

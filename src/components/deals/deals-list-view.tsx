@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  BarChart3,
   Building2,
   CalendarDays,
   Columns3,
@@ -146,6 +147,12 @@ export function DealsListView({
     const params = new URLSearchParams(searchParams.toString());
     params.delete("view");
     return `/deals${params.size ? `?${params}` : ""}`;
+  }, [searchParams]);
+
+  const metricsHref = React.useMemo(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("view", "metrics");
+    return `/deals?${params}`;
   }, [searchParams]);
 
   // Vista guardada actual (6.4h): en la lista guardamos embudo + etapa + vista +
@@ -300,6 +307,14 @@ export function DealsListView({
           <Button variant="secondary" className="shrink-0" aria-current="page">
             <List />
             Lista
+          </Button>
+          <Button
+            variant="outline"
+            className="shrink-0"
+            render={<Link href={metricsHref} />}
+          >
+            <BarChart3 />
+            Métricas
           </Button>
           <Button
             className="shrink-0"

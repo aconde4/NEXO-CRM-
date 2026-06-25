@@ -14,6 +14,7 @@ import { listSavedViews } from "@/server/queries/saved-views";
 import { listSequenceEnrollmentOptions } from "@/server/queries/sequences";
 import {
   getBoard,
+  getFunnelMetrics,
   listDeals,
   listPipelines,
   listStagesByPipeline,
@@ -22,6 +23,7 @@ import {
 } from "@/server/queries/deals";
 import { DealsBoard } from "@/components/deals/deals-board";
 import { DealsListView } from "@/components/deals/deals-list-view";
+import { DealsMetrics } from "@/components/deals/deals-metrics";
 import { PageHeader } from "@/components/page-header";
 
 export const metadata: Metadata = { title: "Negocios" };
@@ -63,7 +65,9 @@ export default async function DealsPage({
   searchParams: Promise<DealsSearchParams>;
 }) {
   const params = await searchParams;
-  const view = firstParam(params.view) === "list" ? "list" : "board";
+  const viewParam = firstParam(params.view);
+  const view =
+    viewParam === "list" ? "list" : viewParam === "metrics" ? "metrics" : "board";
   const pipelineParam = firstParam(params.pipeline);
   const stageParam = firstParam(params.stage);
   const query = firstParam(params.q) ?? "";
@@ -100,6 +104,25 @@ export default async function DealsPage({
     conditions.length > 0
       ? await listPersonIdsByFilters({ conditions })
       : undefined;
+
+  if (view === "metrics") {
+    const metrics = await getFunnelMetrics(activePipelineId || undefined, {
+      personIds,
+    });
+    return (
+      <>
+        <PageHeader
+          title="Negocios"
+          description="Métricas del embudo: estado por etapa, conversión y campañas."
+        />
+        <DealsMetrics
+          metrics={metrics}
+          conditions={conditions}
+          customFieldDefs={customFieldDefs}
+        />
+      </>
+    );
+  }
 
   if (view === "list") {
     const deals = await listDeals({
