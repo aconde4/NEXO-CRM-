@@ -448,7 +448,12 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       fija `converted_deal_id` + `status='converted'` y enlaza al negocio) y eliminar.
       Query `queries/leads.ts` (owner-aware, con conteos), acciones `actions/leads.ts`
       (Zod, ownership). "Leads" añadido a la navegación.
-- [ ] **7.6** Anti-spam (honeypot / rate limit) en el endpoint público.
+- [x] **7.6** Anti-spam (honeypot / rate limit) en el endpoint público. **Honeypot**
+      `_hp` (sembrado en `/f/[id]`, descartado en silencio en `submitForm`) + **rate
+      limit** por ventana (1 min) sobre envíos reales: máx. **5 por IP+formulario** y tope
+      global de **30 por formulario** (cuenta `form_submissions` recientes); al exceder, el
+      endpoint responde **429** (`Retry-After: 60`). Verificado con `tsx` (5 ok + el 6º
+      `rate_limited`; el honeypot no cuenta; otra IP sigue pasando).
 
 ### Criterios de aceptación
 - Embebes un formulario en una web de prueba, lo envías y aparece el lead en el CRM,

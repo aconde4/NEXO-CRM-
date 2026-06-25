@@ -31,6 +31,12 @@ export async function POST(
   const result = await submitForm({ formId: id, data, ip, userAgent });
 
   if (!result.ok) {
+    if (result.reason === "rate_limited") {
+      return new NextResponse(
+        "Demasiados envíos. Inténtalo de nuevo en un minuto.",
+        { status: 429, headers: { "Retry-After": "60" } },
+      );
+    }
     // Formulario inexistente o no publicado: a la página pública (mostrará el aviso).
     return NextResponse.redirect(new URL(`/f/${id}`, origin), { status: 303 });
   }

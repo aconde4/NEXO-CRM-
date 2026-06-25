@@ -331,15 +331,21 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 7.6** (cierra la Fase 7): anti-spam en el
-endpoint público de recepción. El **honeypot** `_hp` ya está sembrado en `/f/[id]` y se
-filtra en `submitForm`; falta un **rate limit** por IP+formulario en
-`POST /api/forms/[id]/submit` (p. ej. ventana corta en memoria/BD: contar
-`form_submissions` recientes por `form_id`+`ip` y rechazar con 429 si exceden un umbral).
-Considerar también un límite por formulario global. Tras 7.6, la **Fase 7 queda cerrada**;
-siguiente fase: **8 (IA)** o **9 (analítica)** según prioridad del usuario. Pendiente
-futuro: `send_email`/`ai_summary` en automatizaciones (Fase 8); conversión temporal real
-del embudo (6.4i) con historial de etapas.
+**Siguiente tarea de desarrollo:** **Fase 8.1** (la Fase 7 queda **cerrada**): integrar
+`@anthropic-ai/sdk` con un servicio de IA con control de coste y una tabla `ai_runs`
+(trazas: `feature`, `input`/`output` resumidos, `model`, `tokens`, `cost`). Patrón a
+seguir (como Resend en 4.x): **degradación elegante** si falta `ANTHROPIC_API_KEY` (la
+funcionalidad de IA aparece desactivada, no rompe), secreto solo en `.env.local`. Usar el
+**modelo Claude más capaz** por defecto (ver skill `claude-api` para ids/precios antes de
+fijar el modelo). La migración de `ai_runs` + el servicio se pueden construir ya; activar
+de verdad requiere que el usuario pegue la API key. Luego 8.2–8.7 (redacción de emails,
+resúmenes, secuencias por lenguaje natural, lead scoring, next best action, sentimiento).
+Pendiente futuro: `send_email`/`ai_summary` en automatizaciones (encajan en Fase 8);
+conversión temporal real del embudo (6.4i) con historial de etapas.
+
+> **Antes de 8.x:** confirmar con el usuario que tiene/quiere usar `ANTHROPIC_API_KEY`.
+> Si prefiere, se puede adelantar la **Fase 9 (analítica)**, que no depende de claves
+> externas. Por orden de roadmap, lo siguiente es 8.1.
 
 **Nota de 7.4 (motor):** la automatización directa del formulario (`forms.automation_id`)
 se ejecuta **en proceso** (esperas inmediatas, como el dry-run) solo si su disparador no
@@ -467,6 +473,22 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-25 (70) — Fase 7.6: anti-spam (honeypot + rate limit) · Fase 7 cerrada
+- **Honeypot** `_hp`: ya sembrado en `/f/[id]` (7.3) y descartado en silencio en
+  `submitForm` (7.4); no crea persona/lead ni cuenta para el rate limit.
+- **Rate limit** en `submitForm` (sobre envíos reales, ventana de 1 min): máx. **5 por
+  IP+formulario** y tope global de **30 por formulario** (cuenta `form_submissions`
+  recientes con `db.$count`). El route handler responde **429** con `Retry-After: 60` al
+  exceder.
+- **Verificado** con `tsx` (borrado): 6 envíos misma IP → `ok,ok,ok,ok,ok,rate_limited`;
+  el honeypot tras el tope sigue devolviendo `ok` sin contar; otra IP sigue pasando; la
+  limpieza confirma que solo los 5 permitidos crearon datos. `pnpm typecheck`,
+  `pnpm lint` (a cero) y `pnpm build` en verde.
+- **Fase 7 (Captación) COMPLETA:** 7.1 (migración) · 7.2 (constructor) · 7.3 (página
+  pública + insertar) · 7.4 (endpoint de recepción) · 7.5 (bandeja de leads) · 7.6
+  (anti-spam). Flujo end-to-end: formulario público → envío → persona/lead → automatización
+  → bandeja → convertir a negocio.
 
 ### 2026-06-25 (69) — Fase 7.5: bandeja de leads
 - **Página `/leads`** (`LeadsView`): pestañas por estado (Nuevos/Calificados/Convertidos/

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 
 import { db } from "@/server/db";
 import {
@@ -32,7 +32,12 @@ export type FormSubmitInput = {
 
 export type FormSubmitResult =
   | { ok: true; redirectTo: string; leadId: string | null }
-  | { ok: false; reason: "not_found" };
+  | { ok: false; reason: "not_found" | "rate_limited" };
+
+// Anti-spam (7.6): límites por ventana sobre envíos reales (el honeypot no cuenta).
+const RATE_WINDOW_MS = 60_000; // 1 minuto
+const MAX_PER_IP = 5; // por IP + formulario
+const MAX_PER_FORM = 30; // tope global del formulario (evita floods con IPs rotadas)
 
 const NATIVE_PERSON_KEYS = new Set([
   "firstName",
@@ -79,6 +84,32 @@ export async function submitForm(
   // silencio (respondemos "ok" para no dar pistas al bot).
   if (asText(input.data._hp)) {
     return { ok: true, redirectTo, leadId: null };
+  }
+
+  // Rate limit (7.6): sobre envíos reales recientes (el honeypot no llega aquí).
+  const windowStart = new Date(Date.now() - RATE_WINDOW_MS);
+  const recentForForm = await db.$count(
+    formSubmissions,
+    and(
+      eq(formSubmissions.formId, form.id),
+      gte(formSubmissions.createdAt, windowStart),
+    ),
+  );
+  if (recentForForm >= MAX_PER_FORM) {
+    return { ok: false, reason: "rate_limited" };
+  }
+  if (input.ip) {
+    const recentForIp = await db.$count(
+      formSubmissions,
+      and(
+        eq(formSubmissions.formId, form.id),
+        eq(formSubmissions.ip, input.ip),
+        gte(formSubmissions.createdAt, windowStart),
+      ),
+    );
+    if (recentForIp >= MAX_PER_IP) {
+      return { ok: false, reason: "rate_limited" };
+    }
   }
 
   // Datos a guardar (sin el honeypot).
