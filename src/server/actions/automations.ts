@@ -1,6 +1,7 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import {
@@ -10,10 +11,18 @@ import {
 import { requireUser } from "@/lib/session";
 import { db } from "@/server/db";
 import {
+  type AutomationGraph,
+  type AutomationRunLogEntry,
   type AutomationStatus,
+  type AutomationTrigger,
   type AutomationTriggerType,
+  automationRuns,
   automations,
+  deals,
+  organizations,
+  persons,
 } from "@/server/db/schema";
+import { executeAutomationRun } from "@/server/services/automation-executor";
 
 function revalidateAutomations(id?: string) {
   revalidatePath("/automations");
@@ -28,6 +37,96 @@ async function assertOwned(ownerId: string, id: string) {
     .limit(1);
   if (!row) throw new Error("Automatización no encontrada");
   return row;
+}
+
+type DryRunEntityType = "person" | "organization" | "deal";
+
+function asDryRunEntityType(value: unknown): DryRunEntityType | null {
+  return value === "person" || value === "organization" || value === "deal"
+    ? value
+    : null;
+}
+
+function inferDryRunEntityType(
+  trigger: AutomationTrigger | null,
+): DryRunEntityType | null {
+  if (!trigger) return null;
+  if (trigger.type === "deal_stage_changed") return "deal";
+  if (trigger.type === "email_opened" || trigger.type === "email_replied") {
+    return "person";
+  }
+  if (
+    trigger.type === "form_submitted" ||
+    trigger.type === "sequence_enrolled"
+  ) {
+    return "person";
+  }
+  if (
+    trigger.type === "record_created" ||
+    trigger.type === "record_updated" ||
+    trigger.type === "record_deleted" ||
+    trigger.type === "field_changed"
+  ) {
+    return asDryRunEntityType(trigger.config?.entity) ?? "person";
+  }
+  return null;
+}
+
+async function findDryRunEntity(ownerId: string, entityType: DryRunEntityType) {
+  if (entityType === "person") {
+    const [row] = await db
+      .select({ id: persons.id })
+      .from(persons)
+      .where(and(eq(persons.ownerId, ownerId), isNull(persons.deletedAt)))
+      .orderBy(desc(persons.updatedAt))
+      .limit(1);
+    return row ?? null;
+  }
+  if (entityType === "organization") {
+    const [row] = await db
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(
+        and(eq(organizations.ownerId, ownerId), isNull(organizations.deletedAt)),
+      )
+      .orderBy(desc(organizations.updatedAt))
+      .limit(1);
+    return row ?? null;
+  }
+  const [row] = await db
+    .select({ id: deals.id })
+    .from(deals)
+    .where(and(eq(deals.ownerId, ownerId), isNull(deals.deletedAt)))
+    .orderBy(desc(deals.updatedAt))
+    .limit(1);
+  return row ?? null;
+}
+
+function dryRunTriggerEvent(input: {
+  entityId: string | null;
+  entityType: DryRunEntityType | null;
+  ownerId: string;
+  trigger: AutomationTrigger | null;
+  triggerType: AutomationTriggerType | null;
+}) {
+  const payload: Record<string, unknown> = {};
+  if (input.trigger?.type === "deal_stage_changed") {
+    payload.toStageId = input.trigger.config?.stageId ?? null;
+  }
+  if (input.trigger?.type === "field_changed") {
+    payload.field = input.trigger.config?.field ?? null;
+  }
+
+  return {
+    dryRun: true,
+    entityId: input.entityId,
+    entityType: input.entityType,
+    eventId: `dry-run-${randomUUID()}`,
+    occurredAt: new Date().toISOString(),
+    ownerId: input.ownerId,
+    payload,
+    type: input.triggerType ?? "dry_run",
+  };
 }
 
 /** Crea una automatización en borrador y devuelve su id (para abrir el editor). */
@@ -102,6 +201,84 @@ export async function setAutomationStatus(
     .set({ status })
     .where(and(eq(automations.id, id), eq(automations.ownerId, user.id)));
   revalidateAutomations(id);
+}
+
+export async function dryRunAutomation(id: string) {
+  const user = await requireUser();
+  const [automation] = await db
+    .select({
+      graph: automations.graph,
+      id: automations.id,
+      name: automations.name,
+      trigger: automations.trigger,
+      triggerType: automations.triggerType,
+      version: automations.version,
+    })
+    .from(automations)
+    .where(and(eq(automations.id, id), eq(automations.ownerId, user.id)))
+    .limit(1);
+  if (!automation) throw new Error("Automatización no encontrada");
+
+  const entityType = inferDryRunEntityType(automation.trigger);
+  const sample = entityType
+    ? await findDryRunEntity(user.id, entityType)
+    : null;
+  const entityId = sample?.id ?? null;
+  const graph: AutomationGraph = automation.graph ?? { edges: [], nodes: [] };
+  const now = new Date();
+  const log: AutomationRunLogEntry[] = [
+    {
+      at: now.toISOString(),
+      detail: { dryRun: true, entityId, entityType },
+      kind: "dry_run",
+      message:
+        entityType && !entityId
+          ? `Prueba en seco iniciada sin ${entityType} de muestra.`
+          : "Prueba en seco iniciada.",
+      nodeId: "trigger",
+      status: "ok",
+    },
+  ];
+
+  const [run] = await db
+    .insert(automationRuns)
+    .values({
+      automationId: automation.id,
+      automationVersion: automation.version,
+      context: {
+        automationName: automation.name,
+        dryRun: true,
+        graph,
+        state: "dry_run",
+      },
+      entityId,
+      entityType,
+      log,
+      ownerId: user.id,
+      startedAt: now,
+      status: "waiting",
+      triggerEvent: dryRunTriggerEvent({
+        entityId,
+        entityType,
+        ownerId: user.id,
+        trigger: automation.trigger,
+        triggerType: automation.triggerType,
+      }),
+      triggerType: automation.triggerType,
+    })
+    .returning({ id: automationRuns.id });
+  if (!run) throw new Error("No se pudo preparar la prueba en seco");
+
+  const result = await executeAutomationRun(run.id, { dryRun: true });
+  revalidateAutomations(id);
+  return {
+    entityId,
+    entityType,
+    executed: result.executed ?? 0,
+    failed: result.failed ?? 0,
+    runId: run.id,
+    status: result.status,
+  };
 }
 
 export async function deleteAutomation(id: string) {

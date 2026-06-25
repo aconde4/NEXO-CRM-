@@ -164,6 +164,7 @@ export type AutomationRunItem = {
   triggerType: AutomationTriggerType | null;
   entityType: string | null;
   entityId: string | null;
+  dryRun: boolean;
   error: string | null;
   log: AutomationRunLogEntry[];
   startedAt: string;
@@ -183,6 +184,7 @@ export async function listAutomationRuns(
       triggerType: automationRuns.triggerType,
       entityType: automationRuns.entityType,
       entityId: automationRuns.entityId,
+      context: automationRuns.context,
       error: automationRuns.error,
       log: automationRuns.log,
       startedAt: automationRuns.startedAt,
@@ -199,6 +201,7 @@ export async function listAutomationRuns(
     .limit(limit);
 
   return rows.map((row) => ({
+    dryRun: row.context?.dryRun === true,
     entityId: row.entityId,
     entityType: row.entityType,
     error: row.error,

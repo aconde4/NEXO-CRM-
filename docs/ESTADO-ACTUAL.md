@@ -45,7 +45,7 @@
     Pendiente menor opcional: selector tipo combobox con buscador si crecen mucho los
     embudos.
 
-- **Fase 6 · Motor de automatizaciones:** **6.5 + 6.6 + 6.7 hechas.**
+- **Fase 6 · Motor de automatizaciones:** **6.5 + 6.6 + 6.7 + 6.8 hechas.**
   - **6.7** registro de ejecuciones: query `listAutomationRuns` (owner-aware) y panel
     `AutomationRuns` ("Ejecuciones recientes") bajo el editor en `/automations/[id]`:
     estado del run, disparador, fechas, error y **log por nodo** (ok/skipped/failed con
@@ -56,6 +56,12 @@
     mediante `step.sleep` cuando viene desde Inngest. El builder guarda para cada
     condicion si la rama cumplida/no cumplida continua o detiene el flujo. Verificado con
     `tsx` contra BD real y limpieza QA: rama true condicion+espera+tarea, rama false stop.
+  - **6.8** dry-run y activacion: activar/pausar ya esta en lista/editor y el editor
+    añade **Guardar y probar en seco**. La prueba guarda la version actual, crea un
+    `automation_run` visible con `context.dryRun`, evalua condiciones, simula esperas sin
+    dormir y valida acciones sin efectos reales (sin tareas, etiquetas, movimientos,
+    inscripciones ni webhooks). Verificado con `tsx`: dry-run con condicion+espera+tarea
+    completo, `sleep` no llamado y 0 tareas creadas.
   - **6.5** ejecución de acciones: `src/server/services/automation-executor.ts`
     (`executeAutomationRun`) procesa cada `automation_runs` en `waiting`, recorre el
     grafo y ejecuta los nodos de acción sobre la entidad disparadora, con log por nodo y
@@ -320,14 +326,10 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **6.8** Activar/pausar automatizaciones y pruebas en
-seco (**dry-run**). Activar/pausar ya existe en la UI, pero falta una prueba segura que
-simule el grafo completo sin crear tareas, etiquetas, movimientos, inscripciones ni
-webhooks reales. Debe quedar visible desde el editor de automatizaciones y registrar un
-resultado claro para revisar condiciones, esperas y acciones antes de activar.
-
-Después, cerrar **6.4j**: plantillas de automatización "al entrar en etapa X → inscribir
-en secuencia / crear tarea", apoyándose en `deal_stage_changed` y en el executor 6.5/6.6.
+**Siguiente tarea de desarrollo:** cerrar **6.4j**: plantillas de automatización "al
+entrar en etapa X → inscribir en secuencia / crear tarea", apoyándose en
+`deal_stage_changed` y en el executor 6.5/6.6. Debe ser una ayuda rápida desde
+Automatizaciones para crear flujos del embudo sin montar el grafo a mano.
 Pendiente menor de 6.5: `send_email` y `ai_summary` (Fase 8). **Métricas (6.4i):
 pendiente futuro** = conversión temporal real entre etapas cuando haya historial de
 cambios de etapa.
@@ -410,10 +412,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > en actividades y UX de muchos funnels en Negocios).
 >
 > **Hecho en la última sesión técnica:** **6.5** (acciones reales), **6.6** (condiciones
-> if/else + esperas reales) y **6.7** (panel de ejecuciones) del motor de
+> if/else + esperas reales), **6.7** (panel de ejecuciones) y **6.8** (dry-run) del motor de
 > automatizaciones, más el bloque **6.4** casi completo (embudo de contactos + filtros +
 > layout + métricas). Antes: 6.3/6.2/6.1 y cierre de la **Fase 5**.
-> **Siguiente: 6.8** (dry-run) y después 6.4j (plantillas de automatización del embudo).
+> **Siguiente: 6.4j** (plantillas de automatización del embudo).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -454,6 +456,22 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-25 (63) — 6.8: dry-run de automatizaciones
+- **Server Action `dryRunAutomation`:** guarda una ejecución visible como
+  `automation_run`, con `context.dryRun=true`, snapshot del grafo y entidad de muestra
+  owner-aware cuando el disparador la necesita.
+- **Executor en modo simulación:** `executeAutomationRun(..., { dryRun: true })` evalúa
+  condiciones igual que producción, convierte esperas en log `skipped` sin llamar a
+  `step.sleep` y simula acciones sin efectos reales. Valida configuración de etiquetas,
+  etapas y secuencias sin crear tareas, mover negocios, inscribir contactos ni llamar
+  webhooks.
+- **UI:** el editor añade **Guardar y probar en seco**; primero persiste la versión que
+  se ve en pantalla y luego lanza la simulación. El panel de ejecuciones marca esos runs
+  con badge **Prueba en seco**.
+- **Verificado:** `tsx` contra BD real con limpieza QA: condición true + espera de 1 día
+  + `create_task` completan en dry-run, `sleep` no se llama, log contiene la simulación y
+  el conteo de tareas reales queda en 0.
 
 ### 2026-06-25 (62) — 6.6: condiciones if/else y esperas reales
 - **Executor por grafo:** `executeAutomationRun` ya no omite `wait`/`condition`; recorre

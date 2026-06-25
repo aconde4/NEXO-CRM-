@@ -43,7 +43,8 @@ export function AutomationRuns({ runs }: { runs: AutomationRunItem[] }) {
       <CardHeader>
         <CardTitle className="text-base">Ejecuciones recientes</CardTitle>
         <CardDescription>
-          Cada vez que el disparador ocurre, se registra aquí lo que hizo el flujo.
+          Cada vez que el disparador ocurre, o lanzas una prueba en seco, se registra
+          aquí lo que hizo el flujo.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -63,6 +64,9 @@ export function AutomationRuns({ runs }: { runs: AutomationRunItem[] }) {
                     <Badge variant={status.variant} className={status.className}>
                       {status.label}
                     </Badge>
+                    {run.dryRun ? (
+                      <Badge variant="outline">Prueba en seco</Badge>
+                    ) : null}
                     <span className="text-sm font-medium">
                       {trigger?.label ?? run.triggerType ?? "Disparador"}
                     </span>

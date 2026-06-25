@@ -53,6 +53,7 @@ export type AutomationSleep = (input: {
 }) => Promise<void>;
 
 export type ExecuteAutomationRunOptions = {
+  dryRun?: boolean;
   sleep?: AutomationSleep;
 };
 
@@ -550,6 +551,125 @@ async function callWebhook(
   return { message: `Webhook llamado (${response.status}).`, skipped: false };
 }
 
+async function simulateAction(
+  ownerId: string,
+  node: AutomationNode,
+  ctx: EntityContext,
+): Promise<ActionResult> {
+  const config = node.config ?? {};
+  switch (node.kind) {
+    case "create_task": {
+      const subject = clean(config.subject) ?? "Tarea de automatización";
+      return {
+        message: `Simulación: se crearía una tarea "${subject}".`,
+        skipped: false,
+      };
+    }
+    case "add_label": {
+      const labelId = clean(config.labelId);
+      if (!labelId) return { message: "Sin etiqueta configurada.", skipped: true };
+      const [label] = await db
+        .select({ id: labels.id, name: labels.name })
+        .from(labels)
+        .where(and(eq(labels.id, labelId), eq(labels.ownerId, ownerId)))
+        .limit(1);
+      if (!label) return { message: "Etiqueta no encontrada.", skipped: true };
+      return {
+        message: `Simulación: se añadiría la etiqueta "${label.name}".`,
+        skipped: false,
+      };
+    }
+    case "move_stage": {
+      const stageId = clean(config.stageId);
+      if (!stageId) return { message: "Sin etapa configurada.", skipped: true };
+      if (!ctx.dealId) {
+        return { message: "Mover de etapa solo aplica a negocios.", skipped: true };
+      }
+      const [stage] = await db
+        .select({ id: stages.id, name: stages.name })
+        .from(stages)
+        .where(and(eq(stages.id, stageId), eq(stages.ownerId, ownerId)))
+        .limit(1);
+      if (!stage) return { message: "Etapa destino no encontrada.", skipped: true };
+      return {
+        message: `Simulación: se movería el negocio a "${stage.name}".`,
+        skipped: false,
+      };
+    }
+    case "update_field": {
+      const field = clean(config.field);
+      if (!field) return { message: "Sin campo configurado.", skipped: true };
+      if (!ctx.personId && !ctx.orgId && !ctx.dealId) {
+        return {
+          message: "Sin entidad sobre la que actualizar el campo.",
+          skipped: true,
+        };
+      }
+      return {
+        message: `Simulación: se actualizaría el campo "${field}".`,
+        skipped: false,
+      };
+    }
+    case "enroll_sequence": {
+      const sequenceId = clean(config.sequenceId);
+      if (!sequenceId)
+        return { message: "Sin secuencia configurada.", skipped: true };
+      if (!ctx.personId) {
+        return { message: "Inscribir requiere un contacto.", skipped: true };
+      }
+      const [sequence] = await db
+        .select({ name: sequences.name, status: sequences.status })
+        .from(sequences)
+        .where(and(eq(sequences.id, sequenceId), eq(sequences.ownerId, ownerId)))
+        .limit(1);
+      if (!sequence) return { message: "Secuencia no encontrada.", skipped: true };
+      if (sequence.status !== "active") {
+        return { message: "La secuencia no está activa.", skipped: true };
+      }
+      const stepCount = await db.$count(
+        sequenceSteps,
+        and(
+          eq(sequenceSteps.sequenceId, sequenceId),
+          eq(sequenceSteps.ownerId, ownerId),
+        ),
+      );
+      if (stepCount === 0) {
+        return { message: "La secuencia no tiene pasos.", skipped: true };
+      }
+      return {
+        message: `Simulación: se inscribiría en "${sequence.name}".`,
+        skipped: false,
+      };
+    }
+    case "webhook": {
+      const url = clean(config.url);
+      if (!url || !/^https?:\/\//i.test(url)) {
+        return { message: "URL de webhook no válida.", skipped: true };
+      }
+      return {
+        message: `Simulación: se llamaría el webhook ${url}.`,
+        skipped: false,
+      };
+    }
+    case "notify": {
+      const message = clean(config.message) ?? "Notificación de automatización";
+      return {
+        message: `Simulación: se registraría la notificación "${message}".`,
+        skipped: false,
+      };
+    }
+    case "send_email":
+      return {
+        message: "Envío de email desde automatización: pendiente.",
+        skipped: true,
+      };
+    case "ai_summary":
+      return { message: "Resumen con IA: pendiente (Fase 8).", skipped: true };
+    default:
+      return { message: `Accion no soportada: ${node.kind}`, skipped: true };
+  }
+}
+
 function nodeLabel(node: AutomationNode, index: number): string {
   if (node.type === "action") return `${index + 1}. Acción ${node.kind ?? ""}`;
   if (node.type === "wait") return `${index + 1}. Espera`;
@@ -596,17 +716,27 @@ function nextNodeForBranch(input: {
 async function executeWait(
   node: AutomationNode,
   log: AutomationRunLogEntry[],
-  sleep?: AutomationSleep,
+  options: ExecuteAutomationRunOptions,
 ) {
   const duration = waitDuration(node);
+  if (options.dryRun) {
+    log.push(
+    logEntry(node, "skipped", `Simulación: espera de ${duration} omitida.`, {
+        dryRun: true,
+        duration,
+      }),
+    );
+    return;
+  }
+
   log.push(
     logEntry(node, "waiting", `Esperando ${duration}.`, {
       duration,
       phase: "wait_started",
     }),
   );
-  if (sleep) {
-    await sleep({ duration, node });
+  if (options.sleep) {
+    await options.sleep({ duration, node });
   }
   log.push(
     logEntry(node, "ok", `Espera completada (${duration}).`, {
@@ -621,7 +751,12 @@ async function executeAction(
   node: AutomationNode,
   ctx: EntityContext,
   run: RunRef,
+  options: ExecuteAutomationRunOptions,
 ): Promise<ActionResult> {
+  if (options.dryRun) {
+    return simulateAction(ownerId, node, ctx);
+  }
+
   const config = node.config ?? {};
   switch (node.kind) {
     case "create_task": {
@@ -737,6 +872,16 @@ export async function executeAutomationRun(
   };
 
   const log: AutomationRunLogEntry[] = [...(run.log ?? [])];
+  if (options.dryRun) {
+    log.push({
+      at: new Date().toISOString(),
+      detail: { dryRun: true },
+      kind: "dry_run",
+      message: "Prueba en seco: no se ejecutarán efectos reales.",
+      nodeId: "dry-run",
+      status: "ok",
+    });
+  }
   let executed = 0;
   let failed = 0;
 
@@ -758,7 +903,7 @@ export async function executeAutomationRun(
     }
 
     if (node.type === "wait") {
-      await executeWait(node, log, options.sleep);
+      await executeWait(node, log, options);
       node = nextNodeForBranch({ graph, node });
       continue;
     }
@@ -792,7 +937,13 @@ export async function executeAutomationRun(
 
     if (node.type === "action") {
       try {
-        const result = await executeAction(run.ownerId, node, ctx, runRef);
+        const result = await executeAction(
+          run.ownerId,
+          node,
+          ctx,
+          runRef,
+          options,
+        );
         log.push(
           logEntry(node, result.skipped ? "skipped" : "ok", result.message),
         );

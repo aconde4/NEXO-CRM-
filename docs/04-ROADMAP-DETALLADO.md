@@ -382,7 +382,11 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
 - [x] **6.7** Registro de ejecuciones: `listAutomationRuns` + panel "Ejecuciones
       recientes" en `/automations/[id]` (estado, disparador, fechas, error y **log por
       nodo** con su resultado ok/skipped/failed).
-- [ ] **6.8** Activar/pausar automatizaciones y pruebas en seco (dry-run).
+- [x] **6.8** Activar/pausar automatizaciones y pruebas en seco (dry-run).
+      **HECHA:** activar/pausar queda en lista/editor y el editor añade "Guardar y
+      probar en seco". La prueba crea un `automation_run` visible, marca `context.dryRun`,
+      evalua condiciones, simula esperas sin dormir y valida acciones sin crear tareas,
+      etiquetas, movimientos, inscripciones ni webhooks reales.
 
 ### Criterios de aceptación
 - Construyes: "negocio pasa a etapa X → enviar email → esperar 3 días → si no hay

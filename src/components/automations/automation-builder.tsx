@@ -11,6 +11,7 @@ import {
   ArrowUp,
   Bolt,
   Clock,
+  FlaskConical,
   GitBranch,
   Plus,
   Save,
@@ -44,7 +45,10 @@ import type {
   AutomationDetail,
   AutomationOption,
 } from "@/server/queries/automations";
-import { updateAutomation } from "@/server/actions/automations";
+import {
+  dryRunAutomation,
+  updateAutomation,
+} from "@/server/actions/automations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -87,6 +91,7 @@ export function AutomationBuilder({
   const [nodes, setNodes] = React.useState<AutomationNode[]>(
     automation.graph.nodes ?? [],
   );
+  const [dryRunning, setDryRunning] = React.useState(false);
 
   function setTriggerType(type: string) {
     if (!type) return setTrigger(null);
@@ -119,7 +124,7 @@ export function AutomationBuilder({
     setNodes(next);
   }
 
-  async function onSubmit(values: AutomationFormValues) {
+  function buildAutomationInput(values: AutomationFormValues) {
     const edges = nodes.flatMap((node, index) => {
       const next = nodes[index + 1];
       if (!next) return [];
@@ -162,18 +167,49 @@ export function AutomationBuilder({
     const payloadTrigger = trigger
       ? { config: trigger.config ?? {}, type: trigger.type }
       : null;
+    return {
+      description: values.description,
+      graph: { edges, nodes: graphNodes },
+      name: values.name,
+      status: values.status,
+      trigger: payloadTrigger,
+    };
+  }
+
+  async function onSubmit(values: AutomationFormValues) {
     try {
-      await updateAutomation(automation.id, {
-        name: values.name,
-        description: values.description,
-        status: values.status,
-        trigger: payloadTrigger,
-        graph: { edges, nodes: graphNodes },
-      });
+      await updateAutomation(automation.id, buildAutomationInput(values));
       toast.success("Automatización guardada");
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo guardar");
+    }
+  }
+
+  async function runDryRun(values: AutomationFormValues) {
+    if (dryRunning) return;
+    setDryRunning(true);
+    try {
+      await updateAutomation(automation.id, buildAutomationInput(values));
+      const result = await dryRunAutomation(automation.id);
+      const actionText =
+        result.executed === 1
+          ? "1 acción simulada"
+          : `${result.executed} acciones simuladas`;
+      if (result.status === "completed" && result.failed === 0) {
+        toast.success(`Prueba en seco completada: ${actionText}`);
+      } else {
+        toast.error(
+          `Prueba en seco con incidencias: ${result.failed} fallo(s). Revisa el registro.`,
+        );
+      }
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo ejecutar la prueba",
+      );
+    } finally {
+      setDryRunning(false);
     }
   }
 
@@ -368,9 +404,18 @@ export function AutomationBuilder({
         </div>
       </div>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
         <Button type="button" variant="outline" render={<Link href="/automations" />}>
           Cancelar
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isSubmitting || dryRunning}
+          onClick={() => void handleSubmit(runDryRun)()}
+        >
+          <FlaskConical />
+          {dryRunning ? "Probando…" : "Guardar y probar en seco"}
         </Button>
         <Button type="submit" disabled={isSubmitting}>
           <Save />
