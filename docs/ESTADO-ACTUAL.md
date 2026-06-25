@@ -331,21 +331,25 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 8.1** (la Fase 7 queda **cerrada**): integrar
-`@anthropic-ai/sdk` con un servicio de IA con control de coste y una tabla `ai_runs`
-(trazas: `feature`, `input`/`output` resumidos, `model`, `tokens`, `cost`). Patrón a
-seguir (como Resend en 4.x): **degradación elegante** si falta `ANTHROPIC_API_KEY` (la
-funcionalidad de IA aparece desactivada, no rompe), secreto solo en `.env.local`. Usar el
-**modelo Claude más capaz** por defecto (ver skill `claude-api` para ids/precios antes de
-fijar el modelo). La migración de `ai_runs` + el servicio se pueden construir ya; activar
-de verdad requiere que el usuario pegue la API key. Luego 8.2–8.7 (redacción de emails,
-resúmenes, secuencias por lenguaje natural, lead scoring, next best action, sentimiento).
-Pendiente futuro: `send_email`/`ai_summary` en automatizaciones (encajan en Fase 8);
-conversión temporal real del embudo (6.4i) con historial de etapas.
+**Siguiente tarea de desarrollo:** **Fase 8.1** (la Fase 7 queda **cerrada**) — **capa de
+IA AGNÓSTICA de proveedor** (decisión del usuario 2026-06-25, ver
+`docs/07-IA-PROVEEDORES-Y-MODELOS.md`). NO se ata a Anthropic: se construye una interfaz
+`AIProvider` + adaptador `openai-compatible` (cubre los gratuitos y casi todos los de
+pago), tabla **`ai_runs`** (con `provider`), y un `ai-service` con control de coste,
+salida estructurada (Zod) y **degradación elegante** sin configuración (como Resend en
+4.x). Config solo por `.env.local` (`AI_PROVIDER`/`AI_BASE_URL`/`AI_API_KEY`/`AI_MODEL`
+[+`AI_MODEL_FAST`]). **Se puede probar todo GRATIS** ya (Groq, Gemini free tier u Ollama
+local) sin claves de pago; cambiar a Claude luego es solo editar el `.env.local`. Los
+adaptadores `gemini`/`anthropic` se añaden cuando el usuario elija. Luego 8.2–8.7
+(redacción de emails, resúmenes, NL→secuencia, lead scoring, next best action,
+sentimiento). Pendiente futuro: `send_email`/`ai_summary` en automatizaciones (se apoyan
+en esta capa); conversión temporal real del embudo (6.4i) con historial de etapas.
 
-> **Antes de 8.x:** confirmar con el usuario que tiene/quiere usar `ANTHROPIC_API_KEY`.
-> Si prefiere, se puede adelantar la **Fase 9 (analítica)**, que no depende de claves
-> externas. Por orden de roadmap, lo siguiente es 8.1.
+> **Recomendación de modelos (resumen, detalle en `docs/07-IA-PROVEEDORES-Y-MODELOS.md`):**
+> empezar **gratis** con **Gemini 2.5 Flash** (mejor calidad gratis) o **Groq + Llama 3.3
+> 70B** (rápido); para coste cero/privado total, **Ollama + Qwen2.5** (datos locales). De
+> pago, cuando convenga: **Claude Sonnet 4.6** (calidad) + **Claude Haiku 4.5** (volumen
+> barato). **No hace falta confirmar ninguna clave para empezar 8.1.**
 
 **Nota de 7.4 (motor):** la automatización directa del formulario (`forms.automation_id`)
 se ejecuta **en proceso** (esperas inmediatas, como el dry-run) solo si su disparador no
@@ -473,6 +477,23 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-25 (72) — Plan: Fase 8 (IA) reescrita como AGNÓSTICA de proveedor
+- **Decisión de producto del usuario:** la IA no se ata a Claude; se prepara para
+  **cualquier proveedor, incluidos gratuitos**, y se decide después. Se construirá una
+  interfaz `AIProvider` + adaptadores; un único adaptador `openai-compatible` cubre la
+  mayoría (OpenAI, Groq, OpenRouter, Together, Mistral, DeepSeek, **Ollama/LM Studio
+  local**…), más `gemini` y `anthropic`. Selección y claves **solo por `.env.local`**;
+  cambiar de proveedor no toca código.
+- **Docs reescritos:** Fase 8 en `04-ROADMAP-DETALLADO.md` (objetivo, arquitectura, 8.1
+  redefinida), sección 9 de `02-MODELO-DE-DATOS.md` (`ai_runs` con `provider`,
+  agnóstica), y **nuevo `docs/07-IA-PROVEEDORES-Y-MODELOS.md`** con la recomendación de
+  modelos (gratis + de pago) y ejemplos de `.env.local`.
+- **Recomendación de modelos (consultados precios actuales de Claude vía skill `claude-api`):**
+  empezar gratis con **Gemini 2.5 Flash** o **Groq + Llama 3.3 70B** (o **Ollama + Qwen2.5**
+  local para privacidad/coste cero); de pago, **Claude Sonnet 4.6** (calidad) + **Claude
+  Haiku 4.5** (volumen). Tabla por caso de uso en el nuevo doc.
+- Solo documentación (sin código); gates no aplican.
 
 ### 2026-06-25 (71) — Pulido: panel de envíos en el editor de formularios
 - **Observabilidad de la captación:** los envíos de un formulario ya se pueden ver en la

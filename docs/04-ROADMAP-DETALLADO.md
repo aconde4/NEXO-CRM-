@@ -461,23 +461,53 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
 
 ---
 
-## FASE 8 · IA integrada (Claude)
+## FASE 8 · IA integrada (agnóstica de proveedor)
 
-**Objetivo:** IA útil en todo el flujo con la Claude API. El gran diferenciador.
+**Objetivo:** IA útil en todo el flujo, **sin atarse a un proveedor concreto**. La capa
+de IA es una **abstracción con adaptadores** para poder empezar **gratis** (Google Gemini
+free tier, Groq, o un modelo local con Ollama) y, sin tocar código, cambiar a Claude u
+otro proveedor de pago editando solo variables de entorno. El gran diferenciador.
+
+> **Decisión de producto (2026-06-25):** la Fase 8 NO se construye contra el SDK de
+> Anthropic directamente. Se diseña una interfaz `AIProvider` interna y adaptadores; la
+> mayoría de proveedores (OpenAI, Groq, OpenRouter, Together, Mistral, Ollama/LM Studio
+> local…) hablan el **mismo formato "OpenAI-compatible"**, así que **un solo adaptador**
+> cubre casi todos, incluidos los gratuitos. Gemini y Anthropic/Claude tienen su propio
+> adaptador (Gemini además ofrece endpoint OpenAI-compatible). Recomendación de modelos en
+> `docs/07-IA-PROVEEDORES-Y-MODELOS.md`.
+
+### Arquitectura (agnóstica)
+- **`AIProvider`** (interfaz): `complete({ system, messages, schema?, maxTokens, temperature? }) → { text, usage, raw }` (+ `stream` opcional). Salida estructurada (JSON-schema)
+  cuando el caso lo pida (scoring, sentimiento, generar secuencia).
+- **Adaptadores:** (1) `openai-compatible` (base URL + key + modelo por env → cubre OpenAI,
+  Groq, OpenRouter, Together, DeepInfra, Ollama/LM Studio local…); (2) `gemini` (Google,
+  free tier); (3) `anthropic` (Claude). Se elige con `AI_PROVIDER`.
+- **Configuración por entorno** (solo en `.env.local`): `AI_PROVIDER`,
+  `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL` (+ opcional `AI_MODEL_FAST` para tareas
+  baratas/volumen). **Degradación elegante** si no hay configuración (como Resend en 4.x):
+  las funciones de IA aparecen desactivadas, no rompen.
+- **`ai-service`** envuelve al proveedor activo: timeouts, reintentos, parseo de salida
+  estructurada, y **traza cada llamada en `ai_runs`** (proveedor + modelo + tokens + coste
+  estimado, 0 para local/gratis).
 
 ### Tareas
-- [ ] **8.1** Integrar `@anthropic-ai/sdk`; servicio de IA con control de coste y
-      `ai_runs`.
+- [ ] **8.1** Capa de IA agnóstica: interfaz `AIProvider` + adaptador
+      `openai-compatible` (cubre los gratuitos y la mayoría de pago) + tabla **`ai_runs`**
+      (incluye `provider`) + servicio con control de coste y degradación elegante. *(Los
+      adaptadores `gemini` y `anthropic` se añaden cuando el usuario elija proveedor; el
+      `openai-compatible` con Groq/Ollama ya permite probar todo gratis.)*
 - [ ] **8.2** Redacción y respuesta de correos asistida (en tu tono).
 - [ ] **8.3** Resumen del historial de contacto/negocio.
-- [ ] **8.4** Crear secuencias/automatizaciones por lenguaje natural.
+- [ ] **8.4** Crear secuencias/automatizaciones por lenguaje natural (salida estructurada
+      validada con Zod contra los catálogos existentes).
 - [ ] **8.5** Lead scoring automático (`persons.score`/`leads.score`).
 - [ ] **8.6** Siguiente mejor acción por negocio (`deals.next_best_action`).
 - [ ] **8.7** Análisis de sentimiento de respuestas entrantes.
 
 ### Criterios de aceptación
-- En una ficha, la IA redacta un email y resume el historial; describes una secuencia
-  en una frase y se genera. Coste registrado en `ai_runs`. Desplegado.
+- En una ficha, la IA redacta un email y resume el historial; describes una secuencia en
+  una frase y se genera. Coste registrado en `ai_runs`. **Cambiar de proveedor (p. ej.
+  Gemini gratis → Claude) es solo editar `.env.local`, sin tocar código.** Desplegado.
 
 ---
 

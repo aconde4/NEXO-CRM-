@@ -240,12 +240,19 @@ Bandeja previa a negocio: `person_id`, `source`, `status`
 
 ---
 
-## 9. IA (Fase 8)
+## 9. IA (Fase 8) — agnóstica de proveedor
+
+La IA se diseña con una abstracción `AIProvider` + adaptadores (no atada a Claude). Se
+puede empezar **gratis** (Gemini free tier, Groq, Ollama local) y cambiar a un proveedor
+de pago solo editando `.env.local`. Ver `docs/07-IA-PROVEEDORES-Y-MODELOS.md`.
 
 ### `ai_runs`
-Trazas de uso de Claude: `feature` (`draft`/`summary`/`score`/`nl_automation`...),
-`input` (resumen), `output`, `model`, `tokens`, `cost`, `created_at`. Para control
-de gasto y depuración.
+Trazas de **cada llamada al modelo** (de cualquier proveedor): `feature`
+(`draft`/`summary`/`score`/`nl_automation`/`sentiment`...), `provider`
+(`openai-compatible`/`gemini`/`anthropic`/`ollama`...), `model`, `input` (resumen),
+`output` (resumen), `tokens` (in/out), `cost` (estimado; **0** para local/gratis),
+`status`/`error`, `created_at`. Para control de gasto, depuración y auditoría —
+independiente del proveedor activo.
 
 ### Campos derivados de IA
 - `persons.score` / `leads.score` (lead scoring).
