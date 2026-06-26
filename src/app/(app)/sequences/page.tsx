@@ -6,6 +6,7 @@ import { SequencesView } from "@/components/sequences/sequences-view";
 import { listAllCustomFieldDefs } from "@/server/queries/custom-fields";
 import { listEmailTemplates } from "@/server/queries/email-templates";
 import { listSegmentOptions } from "@/server/queries/segments";
+import { getAISettingsStatus } from "@/server/queries/ai";
 import {
   listSequencePersonOptions,
   listSequences,
@@ -14,13 +15,14 @@ import {
 export const metadata: Metadata = { title: "Secuencias" };
 
 export default async function SequencesPage() {
-  const [sequences, templates, defs, personOptions, segmentOptions] =
+  const [sequences, templates, defs, personOptions, segmentOptions, aiStatus] =
     await Promise.all([
       listSequences(),
       listEmailTemplates(),
       listAllCustomFieldDefs(),
       listSequencePersonOptions(),
       listSegmentOptions(),
+      getAISettingsStatus(),
     ]);
 
   return (
@@ -35,6 +37,7 @@ export default async function SequencesPage() {
         catalog={buildMergeCatalog(defs.person, defs.organization, true)}
         personOptions={personOptions}
         segmentOptions={segmentOptions}
+        aiStatus={aiStatus}
       />
     </>
   );

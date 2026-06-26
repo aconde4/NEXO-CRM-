@@ -160,6 +160,30 @@ export async function createAutomation(input: { name: string }) {
   return row;
 }
 
+/** Crea una automatizacion completa como borrador revisable desde el builder. */
+export async function createAutomationDraft(input: AutomationInputValues) {
+  const user = await requireUser();
+  const data = automationInputSchema.parse({ ...input, status: "draft" });
+  const triggerType: AutomationTriggerType | null = data.trigger?.type ?? null;
+
+  const [row] = await db
+    .insert(automations)
+    .values({
+      description: data.description ?? null,
+      graph: data.graph,
+      name: data.name,
+      ownerId: user.id,
+      status: "draft",
+      trigger: data.trigger ?? null,
+      triggerType,
+    })
+    .returning({ id: automations.id });
+  if (!row) throw new Error("No se pudo crear la automatizaciÃ³n");
+
+  revalidateAutomations(row.id);
+  return row;
+}
+
 export async function createPipelineAutomationTemplate(input: unknown) {
   const user = await requireUser();
   const data = pipelineAutomationTemplateSchema.parse(input);

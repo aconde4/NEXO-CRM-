@@ -8,7 +8,7 @@
 
 ## 📍 Dónde estamos
 
-- **Fase 8 · IA agnóstica:** **activa. 8.1–8.3 HECHAS.** La base de IA ya no depende de un
+- **Fase 8 · IA agnóstica:** **activa. 8.1–8.4 HECHAS.** La base de IA ya no depende de un
   proveedor concreto: `ai_runs` está migrada, `src/server/ai` define `AIProvider`, el
   adaptador `openai-compatible` permite probar con Groq/Ollama/OpenRouter/etc., y
   `src/server/services/ai.ts` centraliza timeout, reintentos, salida estructurada con
@@ -18,8 +18,10 @@
   asistidas desde `/inbox/[threadId]`, usando contexto owner-aware y muestras recientes
   de tono; nunca envía automáticamente. 8.3 añade resúmenes bajo demanda del historial de
   contacto/negocio en fichas, con notas, tareas, emails, leads/formularios y datos del
-  embudo como contexto, salida estructurada y traza en `ai_runs`. **Siguiente: 8.4**,
-  crear secuencias/automatizaciones por lenguaje natural.
+  embudo como contexto, salida estructurada y traza en `ai_runs`. 8.4 añade creación de
+  secuencias y automatizaciones por lenguaje natural, siempre como borradores revisables,
+  con catálogos owner-aware y validación final Zod. **Siguiente: 8.5**, lead scoring
+  automático (`persons.score`/`leads.score`).
 
 - **Bloque prioritario antes de continuar 6.5 (decisión de producto 2026-06-23):**
   **completo (6.4a–6.4d hechas).** Se puede retomar **6.5**. Resumen del bloque:
@@ -344,13 +346,13 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 8.4** — **crear secuencias/automatizaciones por
-lenguaje natural** sobre la capa agnóstica de IA. Debe generar salida estructurada validada
-con Zod contra los catálogos existentes (`src/lib/automations.ts`, secuencias y acciones
-ya disponibles), previsualizar antes de guardar/activar y registrar coste en `ai_runs`.
-Después siguen 8.5–8.7 (lead scoring, next best action y sentimiento). Pendiente futuro:
-`send_email`/`ai_summary` en automatizaciones (se apoyan en esta capa); conversión temporal
-real del embudo (6.4i) con historial de etapas.
+**Siguiente tarea de desarrollo:** **Fase 8.5** — **lead scoring automático**
+(`persons.score`/`leads.score`) sobre la capa agnóstica de IA. Debe usar contexto
+owner-aware, salida estructurada validada con Zod, trazabilidad en `ai_runs`, degradación
+si no hay proveedor configurado y UI/acciones que no sobrescriban criterios humanos sin
+revisión. Después siguen 8.6–8.7 (next best action y sentimiento). Pendiente futuro:
+`send_email`/`ai_summary` en automatizaciones; conversión temporal real del embudo (6.4i)
+con historial de etapas.
 
 > **Recomendación de modelos (resumen, detalle en `docs/07-IA-PROVEEDORES-Y-MODELOS.md`):**
 > empezar **gratis** con **Gemini 2.5 Flash** (mejor calidad gratis) o **Groq + Llama 3.3
@@ -441,10 +443,11 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **6.4a–6.4d** (`campaign` nativo, filtros por prefijo, embudo de contactos no basado
 > en actividades y UX de muchos funnels en Negocios).
 >
-> **Hecho en la última sesión técnica:** **Fase 8.3** (resumen del historial de
-> contacto/negocio) sobre la capa agnóstica de 8.1 y los borradores de 8.2. Antes: Fase 7
+> **Hecho en la última sesión técnica:** **Fase 8.4** (crear secuencias y
+> automatizaciones por lenguaje natural) sobre la capa agnóstica de 8.1, los borradores
+> de email de 8.2 y los resúmenes de 8.3. Antes: Fase 7
 > cerrada, Fase 6 completa (automatizaciones) y Fase 5 completa (secuencias).
-> **Siguiente: Fase 8.4** (crear secuencias/automatizaciones por lenguaje natural).
+> **Siguiente: Fase 8.5** (lead scoring automático).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -485,6 +488,30 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-26 (76) — Fase 8.4: secuencias y automatizaciones por lenguaje natural
+- **Contrato IA:** nuevo `src/lib/validations/ai-workflow.ts` con entrada
+  `sequence|automation` + instrucción y salidas estructuradas separadas para secuencias y
+  automatizaciones. La IA devuelve nombres humanos; el servidor traduce a IDs reales y
+  valida el resultado final con `sequenceBuilderSchema` / `automationInputSchema`.
+- **Servicio:** `src/server/services/ai-workflow-draft.ts` usa `completeAI` con
+  `workflow.sequence_draft` / `workflow.automation_draft`, `AI_MODEL_FAST`, coste y traza
+  en `ai_runs`. Carga catálogos owner-aware de etapas, etiquetas, secuencias, plantillas
+  y campos personalizados; resuelve referencias por nombre y añade advertencias cuando
+  falta una referencia. Las automatizaciones se limitan a acciones ejecutables hoy
+  (`create_task`, `enroll_sequence`, `add_label`, `move_stage`, `update_field`,
+  `webhook`, `notify`).
+- **Server Actions:** `generateWorkflowDraft` valida sesión + Zod y devuelve un borrador
+  revisable. `createAutomationDraft` persiste automatizaciones IA siempre como `draft`
+  y abre el builder para revisar, probar en seco y activar manualmente.
+- **UI:** `/sequences` y `/automations` tienen botón **Crear con IA**. En secuencias el
+  resultado se abre en el editor existente sin guardar directamente; en automatizaciones
+  se guarda como borrador y redirige a `/automations/[id]`. La UI muestra preview,
+  advertencias, modelo, coste y degradación si falta proveedor.
+- **Verificado:** prueba `tsx` contra BD real con servidor OpenAI-compatible local fake
+  (datos QA borrados): genera secuencia válida, genera automatización válida, resuelve
+  etapa/etiqueta/secuencia/campo personalizado y registra dos `ai_runs=completed`.
+  `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-26 (75) — Fase 8.3: resumen del historial de contacto/negocio
 - **Contrato y acción:** `src/lib/validations/ai-history.ts` define entrada

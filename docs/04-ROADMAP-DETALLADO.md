@@ -518,8 +518,18 @@ otro proveedor de pago editando solo variables de entorno. El gran diferenciador
       riesgos, próximos pasos, preguntas abiertas, confianza, coste/modelo y degrada si
       no hay IA configurada. Verificado con `tsx` + servidor OpenAI-compatible local fake
       y `ai_runs` completadas.
-- [ ] **8.4** Crear secuencias/automatizaciones por lenguaje natural (salida estructurada
+- [x] **8.4** Crear secuencias/automatizaciones por lenguaje natural (salida estructurada
       validada con Zod contra los catálogos existentes).
+      **HECHA:** contrato `ai-workflow` para entrada de usuario y salidas estructuradas
+      de secuencia/automatización; servicio `ai-workflow-draft` sobre `completeAI`, con
+      catálogos owner-aware de etapas, etiquetas, secuencias, plantillas y campos
+      personalizados, normalización de nombres a IDs reales y validación final con
+      `sequenceBuilderSchema` / `automationInputSchema`. UI integrada en `/sequences` y
+      `/automations` con botón **Crear con IA**: las secuencias se abren en el editor
+      existente como borrador editable; las automatizaciones se guardan como borrador y
+      se abren en el builder para revisar/probar/activar. Verificado con `tsx` + servidor
+      OpenAI-compatible local fake y BD real: resolución de etapa/etiqueta/secuencia/
+      campo personalizado y `ai_runs` completadas.
 - [ ] **8.5** Lead scoring automático (`persons.score`/`leads.score`).
 - [ ] **8.6** Siguiente mejor acción por negocio (`deals.next_best_action`).
 - [ ] **8.7** Análisis de sentimiento de respuestas entrantes.

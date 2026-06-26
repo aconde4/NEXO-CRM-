@@ -88,10 +88,17 @@ import {
   SequenceEnrollmentButton,
   SequenceEnrollmentDialog,
 } from "@/components/sequences/sequence-enrollment-dialog";
+import { AISequenceDraftButton } from "@/components/ai/ai-workflow-draft-dialog";
 
 type DialogState =
-  | { mode: "create"; sequence: null }
+  | { initial?: SequenceBuilderValues; mode: "create"; sequence: null }
   | { mode: "edit"; sequence: SequenceListItem };
+type AIStatus = {
+  configured: boolean;
+  model: string | null;
+  provider: string | null;
+  reason: string | null;
+};
 
 type StepType = SequenceBuilderStepValues["type"];
 type ConditionKind = Extract<
@@ -294,6 +301,7 @@ function stepFromRow(step: SequenceStepListItem): SequenceBuilderStepValues {
 
 function defaultValues(
   sequence: SequenceListItem | null,
+  initial?: SequenceBuilderValues,
 ): SequenceBuilderValues {
   if (sequence) {
     return {
@@ -310,6 +318,7 @@ function defaultValues(
       windowStart: sequence.windowStart,
     };
   }
+  if (initial) return initial;
   return {
     channel: "gmail_1to1",
     dailyLimit: 50,
@@ -398,12 +407,14 @@ function createVariant(): SequenceVariantValues {
 }
 
 export function SequencesView({
+  aiStatus,
   sequences,
   templates,
   catalog,
   personOptions,
   segmentOptions,
 }: {
+  aiStatus: AIStatus;
   sequences: SequenceListItem[];
   templates: EmailTemplateItem[];
   catalog: MergeTag[];
@@ -437,6 +448,12 @@ export function SequencesView({
           personOptions={personOptions}
           segmentOptions={segmentOptions}
         />
+        <AISequenceDraftButton
+          aiStatus={aiStatus}
+          onDraft={(initial) =>
+            setDialog({ initial, mode: "create", sequence: null })
+          }
+        />
         <Button onClick={() => setDialog({ mode: "create", sequence: null })}>
           <Plus />
           Nueva secuencia
@@ -461,6 +478,12 @@ export function SequencesView({
               <Plus />
               Nueva secuencia
             </Button>
+            <AISequenceDraftButton
+              aiStatus={aiStatus}
+              onDraft={(initial) =>
+                setDialog({ initial, mode: "create", sequence: null })
+              }
+            />
           </CardContent>
         </Card>
       ) : (
@@ -671,7 +694,10 @@ function SequenceEditorDialog({
     register,
     setValue,
   } = useForm<SequenceBuilderValues>({
-    defaultValues: defaultValues(sequence),
+    defaultValues: defaultValues(
+      sequence,
+      state.mode === "create" ? state.initial : undefined,
+    ),
     resolver: zodResolver(
       sequenceBuilderSchema,
     ) as Resolver<SequenceBuilderValues>,

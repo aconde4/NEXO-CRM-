@@ -52,9 +52,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AIAutomationDraftButton } from "@/components/ai/ai-workflow-draft-dialog";
 
 type BadgeVariant = React.ComponentProps<typeof Badge>["variant"];
 type PipelineTemplateKind = "stage_task" | "stage_sequence";
+type AIStatus = {
+  configured: boolean;
+  model: string | null;
+  provider: string | null;
+  reason: string | null;
+};
 
 const selectClass =
   "border-input dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none transition focus-visible:ring-[3px]";
@@ -74,9 +81,11 @@ const statusMeta: Record<
 };
 
 export function AutomationsView({
+  aiStatus,
   automations,
   options,
 }: {
+  aiStatus: AIStatus;
   automations: AutomationListItem[];
   options: AutomationBuilderOptions;
 }) {
@@ -86,6 +95,7 @@ export function AutomationsView({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap justify-end gap-2">
+        <AIAutomationDraftButton aiStatus={aiStatus} />
         <Button variant="outline" onClick={() => setTemplating(true)}>
           <GitBranch />
           Plantilla de embudo
@@ -112,6 +122,7 @@ export function AutomationsView({
               <Plus />
               Nueva automatización
             </Button>
+            <AIAutomationDraftButton aiStatus={aiStatus} />
           </CardContent>
         </Card>
       ) : (
