@@ -32,6 +32,7 @@ import { listEntityThreads } from "@/server/queries/email-threads";
 import { listEmailTemplates } from "@/server/queries/email-templates";
 import { getGmailConnectionStatus } from "@/server/queries/gmail";
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
+import { AIHistorySummaryPanel } from "@/components/ai/ai-history-summary-panel";
 import { DealActions } from "@/components/deals/deal-actions";
 import { DealParticipants } from "@/components/deals/deal-participants";
 import { EmailComposerButton } from "@/components/email/email-composer-button";
@@ -242,6 +243,12 @@ export default async function DealDetailPage({
         </Card>
 
         <div className="space-y-4 lg:col-span-2">
+          <AIHistorySummaryPanel
+            aiStatus={aiStatus}
+            entityId={deal.id}
+            entityType="deal"
+          />
+
           <DealParticipants
             dealId={deal.id}
             participants={deal.contacts}

@@ -8,7 +8,7 @@
 
 ## 📍 Dónde estamos
 
-- **Fase 8 · IA agnóstica:** **activa. 8.1 y 8.2 HECHAS.** La base de IA ya no depende de un
+- **Fase 8 · IA agnóstica:** **activa. 8.1–8.3 HECHAS.** La base de IA ya no depende de un
   proveedor concreto: `ai_runs` está migrada, `src/server/ai` define `AIProvider`, el
   adaptador `openai-compatible` permite probar con Groq/Ollama/OpenRouter/etc., y
   `src/server/services/ai.ts` centraliza timeout, reintentos, salida estructurada con
@@ -16,8 +16,10 @@
   Ajustes muestra estado de configuración y ejecuciones recientes sin exponer secretos ni
   prompts completos. 8.2 añade borradores editables de email desde fichas y respuestas
   asistidas desde `/inbox/[threadId]`, usando contexto owner-aware y muestras recientes
-  de tono; nunca envía automáticamente. **Siguiente: 8.3**, resumen del historial de
-  contacto/negocio.
+  de tono; nunca envía automáticamente. 8.3 añade resúmenes bajo demanda del historial de
+  contacto/negocio en fichas, con notas, tareas, emails, leads/formularios y datos del
+  embudo como contexto, salida estructurada y traza en `ai_runs`. **Siguiente: 8.4**,
+  crear secuencias/automatizaciones por lenguaje natural.
 
 - **Bloque prioritario antes de continuar 6.5 (decisión de producto 2026-06-23):**
   **completo (6.4a–6.4d hechas).** Se puede retomar **6.5**. Resumen del bloque:
@@ -342,20 +344,19 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 8.3** — **resumen del historial de
-contacto/negocio** sobre la capa agnóstica de IA. Debe usar `completeAI`, registrar
-`ai_runs`, degradar con claridad si no hay proveedor configurado y resumir actividad real
-del CRM: notas, tareas, hilos/email, negocio/etapa, formularios/leads cuando aplique. El
-resumen debe ser accionable, editable/actualizable bajo demanda y no inventar hechos.
-Después siguen 8.4–8.7 (NL→secuencia/automatización, lead scoring, next best action y
-sentimiento). Pendiente futuro: `send_email`/`ai_summary` en automatizaciones (se apoyan
-en esta capa); conversión temporal real del embudo (6.4i) con historial de etapas.
+**Siguiente tarea de desarrollo:** **Fase 8.4** — **crear secuencias/automatizaciones por
+lenguaje natural** sobre la capa agnóstica de IA. Debe generar salida estructurada validada
+con Zod contra los catálogos existentes (`src/lib/automations.ts`, secuencias y acciones
+ya disponibles), previsualizar antes de guardar/activar y registrar coste en `ai_runs`.
+Después siguen 8.5–8.7 (lead scoring, next best action y sentimiento). Pendiente futuro:
+`send_email`/`ai_summary` en automatizaciones (se apoyan en esta capa); conversión temporal
+real del embudo (6.4i) con historial de etapas.
 
 > **Recomendación de modelos (resumen, detalle en `docs/07-IA-PROVEEDORES-Y-MODELOS.md`):**
 > empezar **gratis** con **Gemini 2.5 Flash** (mejor calidad gratis) o **Groq + Llama 3.3
 > 70B** (rápido); para coste cero/privado total, **Ollama + Qwen2.5** (datos locales). De
 > pago, cuando convenga: **Claude Sonnet 4.6** (calidad) + **Claude Haiku 4.5** (volumen
-> barato). **No hace falta confirmar ninguna clave para empezar 8.3**: la UI debe
+> barato). **No hace falta confirmar ninguna clave para seguir con 8.4**: la UI debe
 > degradar si no hay proveedor configurado.
 
 **Nota de 7.4 (motor):** la automatización directa del formulario (`forms.automation_id`)
@@ -440,10 +441,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **6.4a–6.4d** (`campaign` nativo, filtros por prefijo, embudo de contactos no basado
 > en actividades y UX de muchos funnels en Negocios).
 >
-> **Hecho en la última sesión técnica:** **Fase 8.2** (redacción y respuesta de correos
-> asistida en el tono del usuario) sobre la capa agnóstica de 8.1. Antes: Fase 7 cerrada,
-> Fase 6 completa (automatizaciones) y Fase 5 completa (secuencias). **Siguiente: Fase
-> 8.3** (resumen del historial de contacto/negocio).
+> **Hecho en la última sesión técnica:** **Fase 8.3** (resumen del historial de
+> contacto/negocio) sobre la capa agnóstica de 8.1 y los borradores de 8.2. Antes: Fase 7
+> cerrada, Fase 6 completa (automatizaciones) y Fase 5 completa (secuencias).
+> **Siguiente: Fase 8.4** (crear secuencias/automatizaciones por lenguaje natural).
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -484,6 +485,25 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-26 (75) — Fase 8.3: resumen del historial de contacto/negocio
+- **Contrato y acción:** `src/lib/validations/ai-history.ts` define entrada
+  `person|deal` + enfoque opcional y salida estructurada (`headline`, `summary`,
+  hechos, riesgos, próximos pasos, preguntas abiertas, confianza y última interacción).
+  `src/server/actions/ai.ts` valida con Zod, exige sesión y delega en el servicio.
+- **Servicio IA:** `src/server/services/ai-history-summary.ts` usa `completeAI` con
+  `modelPreference="fast"`, `history.person_summary`/`history.deal_summary`, coste y
+  traza en `ai_runs`. Carga contexto owner-aware y acotado: datos base, empresa,
+  etapa/embudo/valor, notas, actividades, hilos/mensajes de email, leads y envíos de
+  formularios cuando aplican. El prompt pide no inventar hechos y devolver JSON válido.
+- **UI:** nuevo `AIHistorySummaryPanel` en las fichas de contacto y negocio. Genera bajo
+  demanda (no al abrir la ficha), permite añadir enfoque, muestra resumen editable,
+  hechos clave, riesgos, próximos pasos, preguntas abiertas, confianza, coste/modelo y
+  contexto usado. Si falta IA configurada, degrada con el motivo sin romper la ficha.
+- **Verificado:** prueba `tsx` contra BD real con servidor OpenAI-compatible local fake
+  (datos QA borrados): resumen de contacto y negocio, contexto con leads/formulario/deal/
+  email, y dos `ai_runs` completadas. `pnpm typecheck`, `pnpm lint` (cero avisos) y
+  `pnpm build` en verde.
 
 ### 2026-06-25 (74) — Fase 8.2: redacción y respuesta de correos asistida
 - **Servicio IA de email:** `src/server/services/ai-email.ts` genera borradores con

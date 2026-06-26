@@ -26,6 +26,7 @@ import { getLabelsForPerson, listLabels } from "@/server/queries/labels";
 import { listSequenceEnrollmentOptions } from "@/server/queries/sequences";
 import { isStorageConfigured } from "@/server/storage";
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
+import { AIHistorySummaryPanel } from "@/components/ai/ai-history-summary-panel";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { EmailThreadsPanel } from "@/components/email/email-threads-panel";
 import { EmailComposerButton } from "@/components/email/email-composer-button";
@@ -237,6 +238,12 @@ export default async function ContactDetailPage({
         </Card>
 
         <div className="space-y-4 lg:col-span-2">
+          <AIHistorySummaryPanel
+            aiStatus={aiStatus}
+            entityId={person.id}
+            entityType="person"
+          />
+
           <ActivitiesPanel
             activities={person.activities}
             lockedPersonId={person.id}

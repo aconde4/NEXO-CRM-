@@ -508,7 +508,16 @@ otro proveedor de pago editando solo variables de entorno. El gran diferenciador
       degradación `not_configured`. UI integrada en el compositor de fichas y botón
       **Responder** en `/inbox/[threadId]`; genera borradores editables y nunca envía
       automáticamente.
-- [ ] **8.3** Resumen del historial de contacto/negocio.
+- [x] **8.3** Resumen del historial de contacto/negocio.
+      **HECHA:** contrato Zod `generatedHistorySummarySchema`, Server Action
+      `generateHistorySummary` y servicio `ai-history-summary` sobre `completeAI`, con
+      contexto owner-aware de contacto/negocio: datos base, empresa, etapa/embudo,
+      notas, tareas, hilos/mensajes de email, leads y formularios cuando aplican. UI
+      `AIHistorySummaryPanel` integrada en fichas de contacto y negocio; genera bajo
+      demanda, permite enfocar la petición, muestra resumen editable, hechos clave,
+      riesgos, próximos pasos, preguntas abiertas, confianza, coste/modelo y degrada si
+      no hay IA configurada. Verificado con `tsx` + servidor OpenAI-compatible local fake
+      y `ai_runs` completadas.
 - [ ] **8.4** Crear secuencias/automatizaciones por lenguaje natural (salida estructurada
       validada con Zod contra los catálogos existentes).
 - [ ] **8.5** Lead scoring automático (`persons.score`/`leads.score`).
