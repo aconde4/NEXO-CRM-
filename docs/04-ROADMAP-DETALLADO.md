@@ -550,7 +550,16 @@ otro proveedor de pago editando solo variables de entorno. El gran diferenciador
       `suggestNextBestAction` (Zod, owner). UI: panel **"Siguiente mejor acción"** en la
       ficha de negocio (`/deals/[id]`), estilo el panel de Resumen IA, que carga la acción
       persistida y permite regenerarla, con **degradación elegante** si no hay IA.
-- [ ] **8.7** Análisis de sentimiento de respuestas entrantes.
+- [x] **8.7** Análisis de sentimiento de respuestas entrantes. Servicio
+      `ai-sentiment.ts` (`analyzeThreadSentiment`) clasifica los emails **entrantes** de un
+      hilo (positive/neutral/negative + intención) con salida estructurada Zod
+      (`messageSentimentSchema`), `modelPreference:"fast"` y traza en `ai_runs`; persiste
+      en `email_messages.sentiment` + `sentiment_at` (migración `0015`). Por defecto solo
+      analiza los **no clasificados** (acotado a 10); `reanalyze` rehace todos. Acción
+      `analyzeSentiment` (Zod, owner). UI en la conversación (`/inbox/[threadId]`): botón
+      **"Analizar/Reanalizar sentimiento"** y **badge de sentimiento** por mensaje
+      entrante, con **degradación elegante** si no hay IA. *(On-demand para controlar
+      coste; el automático al sync queda como opción futura.)*
 
 ### Criterios de aceptación
 - En una ficha, la IA redacta un email y resume el historial; describes una secuencia en

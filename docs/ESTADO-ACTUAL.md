@@ -346,19 +346,17 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 8.7** (cierra la Fase 8) — **análisis de
-sentimiento de respuestas entrantes** (`email_messages.sentiment`) sobre la capa agnóstica.
-Patrón ya rodado (8.5/8.6): al sincronizar/recibir un email **entrante** (dirección
-`inbound`), clasificar el sentimiento (p. ej. `positive`/`neutral`/`negative` + opcional
-`intent` como interés/objeción/baja) con salida estructurada Zod, `modelPreference:"fast"`,
-traza en `ai_runs` y **degradación elegante** si no hay IA. Persistir en una columna nueva
-`email_messages.sentiment` (migración). Decisión a tomar: clasificar **bajo demanda** (un
-botón/acción por hilo, como el resumen) o **automático al sincronizar** (en `gmail-sync`,
-best-effort y solo si hay IA configurada, para no encarecer). Recomendado: empezar
-on-demand/por hilo (control de coste) y dejar el automático como opción. Mostrar el
-sentimiento en la vista de conversación (`/inbox/[threadId]`) y/o en el panel de hilos.
-Con 8.7 la **Fase 8 (IA) queda completa**. Pendiente futuro: `send_email`/`ai_summary` en
-automatizaciones (se apoyan en esta capa); conversión temporal real del embudo (6.4i).
+**Siguiente tarea de desarrollo:** la **Fase 8 (IA) queda COMPLETA** (8.1–8.7). Lo
+siguiente por roadmap es la **Fase 9 · Analítica y reporting** (9.1 dashboard principal
+con pipeline/previsión/actividad; 9.2 embudo de conversión y tasa de victoria; 9.3
+rendimiento de email; 9.4 métricas de secuencias/campañas; 9.5 objetivos; 9.6 informes
+personalizados). No depende de claves externas; se construye y verifica entero. Antes de
+empezar, valorar reusar/ampliar lo ya hecho: métricas del embudo (6.4i `getFunnelMetrics`),
+paneles de secuencia/campaña existentes y `ai_runs`. **Decisión abierta para el usuario:**
+empezar la Fase 9, o cerrar primero pendientes transversales —`send_email`/`ai_summary`
+en automatizaciones (6.5, ahora apoyables en la capa de IA + transporte de email) y la
+conversión temporal real del embudo (6.4i, requiere historial de cambios de etapa)—.
+Recomendado: **9 (analítica)** por orden de roadmap.
 
 > **Recomendación de modelos (resumen, detalle en `docs/07-IA-PROVEEDORES-Y-MODELOS.md`):**
 > empezar **gratis** con **Gemini 2.5 Flash** (mejor calidad gratis) o **Groq + Llama 3.3
@@ -494,6 +492,29 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-26 (79) — Fase 8.7: sentimiento de respuestas entrantes · Fase 8 COMPLETA
+- **Modelo:** migración `0015_gray_skullbuster` añade `email_messages.sentiment`
+  (`EmailSentiment`) y `email_messages.sentiment_at`.
+- **Servicio** `src/server/services/ai-sentiment.ts` (`analyzeThreadSentiment`): clasifica
+  los emails **entrantes** (`inbound`) de un hilo con `completeAI` (`modelPreference:"fast"`,
+  temperatura 0) y salida estructurada Zod (`messageSentimentSchema`:
+  `sentiment` positive/neutral/negative + `intent`); persiste `sentiment`/`sentiment_at` y
+  traza en `ai_runs`. Por defecto solo los **no clasificados** (filtro `isNull`, acotado a
+  10); `reanalyze` rehace todos. Owner-aware.
+- **Validación** `src/lib/validations/ai-sentiment.ts`; **acción** `analyzeSentiment` en
+  `actions/ai.ts` (Zod, owner, revalida el hilo).
+- **UI** `/inbox/[threadId]`: botón **`AISentimentButton`** ("Analizar/Reanalizar
+  sentimiento", con resumen de conteos en el toast) y **badge de sentimiento** por mensaje
+  entrante (verde/gris/rojo); **degradación elegante** si no hay proveedor de IA.
+- **Verificado:** `tsx` (borrado) con **mock OpenAI-compatible** y un hilo de 2 entrantes:
+  `analyzeThreadSentiment` → 2 analizados (1 positive, 1 negative) persistidos; sin
+  `reanalyze` no reprocesa (0, el filtro excluye los ya clasificados); `reanalyze=true`
+  rehace los 2; 4 filas en `ai_runs`. `pnpm typecheck`, `pnpm lint` (a cero) y `pnpm build`
+  en verde.
+- **Fase 8 (IA agnóstica) COMPLETA:** 8.1 (capa) · 8.2 (emails) · 8.3 (resumen) · 8.4
+  (NL→secuencia) · 8.5 (lead scoring) · 8.6 (next best action) · 8.7 (sentimiento). Todo
+  sobre la abstracción `AIProvider`, gratis o de pago según `.env.local`.
 
 ### 2026-06-26 (78) — Fase 8.6: siguiente mejor acción por negocio con IA
 - **Modelo:** migración `0014_hot_loa` añade `deals.next_best_action` (jsonb, tipo

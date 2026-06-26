@@ -23,6 +23,8 @@ export type EmailProvider = "gmail" | "resend";
 export type MailboxStatus = "active" | "needs_reauth" | "paused" | "error";
 export type EmailThreadStatus = "active" | "archived" | "trash" | "spam";
 export type EmailDirection = "inbound" | "outbound";
+/** Sentimiento de un email entrante clasificado por IA (8.7). */
+export type EmailSentiment = "positive" | "neutral" | "negative";
 export type EmailMessageStatus =
   | "draft"
   | "queued"
@@ -236,6 +238,9 @@ export const emailMessages = pgTable(
     bouncedAt: timestamp("bounced_at", { withTimezone: true }),
     openCount: integer("open_count").default(0).notNull(),
     clickCount: integer("click_count").default(0).notNull(),
+    /** Sentimiento del email entrante clasificado por IA (8.7). */
+    sentiment: text("sentiment").$type<EmailSentiment>(),
+    sentimentAt: timestamp("sentiment_at", { withTimezone: true }),
     error: text("error"),
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()

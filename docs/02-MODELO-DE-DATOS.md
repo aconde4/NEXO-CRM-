@@ -260,7 +260,8 @@ control de gasto, depuración y auditoría — independiente del proveedor activ
   `persons.score` queda pendiente (el scoring vive en el lead).
 - **`deals.next_best_action`** (jsonb) + `deals.next_best_action_at` (8.6 **hecho**).
   `deals.ai_summary` se cubre on-demand con el panel de Resumen IA (8.3), no persistido.
-- `email_messages.sentiment` (en respuestas, 8.7, pendiente).
+- **`email_messages.sentiment`** + `email_messages.sentiment_at` (en respuestas entrantes,
+  8.7 **hecho**).
 
 ---
 

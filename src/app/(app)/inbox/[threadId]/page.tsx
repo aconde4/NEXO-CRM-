@@ -21,12 +21,29 @@ import { listAllCustomFieldDefs } from "@/server/queries/custom-fields";
 import { getThreadWithMessages } from "@/server/queries/email-threads";
 import { listEmailTemplates } from "@/server/queries/email-templates";
 import { getGmailConnectionStatus } from "@/server/queries/gmail";
+import { AISentimentButton } from "@/components/ai/ai-sentiment-button";
 import { EmailComposerButton } from "@/components/email/email-composer-button";
 import type { EmailComposerRecipient } from "@/components/email/send-email-dialog";
+import type { EmailSentiment } from "@/server/db/schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "Conversación" };
+
+const sentimentMeta: Record<
+  EmailSentiment,
+  { label: string; className: string }
+> = {
+  positive: {
+    label: "Positivo",
+    className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  },
+  neutral: {
+    label: "Neutral",
+    className: "bg-muted text-muted-foreground",
+  },
+  negative: { label: "Negativo", className: "bg-destructive/10 text-destructive" },
+};
 
 /** Convierte HTML a texto plano legible (seguro: no inyecta HTML). */
 function htmlToText(html: string): string {
@@ -159,6 +176,13 @@ export default async function ThreadPage({
     Boolean(thread.organization),
   );
   const replyRecipients = buildReplyRecipient({ customFieldDefs, thread });
+  const inboundMessages = thread.messages.filter(
+    (message) => message.direction === "inbound",
+  );
+  const inboundCount = inboundMessages.length;
+  const unanalyzedCount = inboundMessages.filter(
+    (message) => !message.sentiment,
+  ).length;
 
   return (
     <>
@@ -208,18 +232,26 @@ export default async function ThreadPage({
             ) : null}
           </div>
         </div>
-        <EmailComposerButton
-          aiStatus={aiStatus}
-          catalog={mergeCatalog}
-          defaultSubject={thread.subject ?? ""}
-          gmailReady={gmailStatus.ready}
-          label="Responder"
-          mode="reply"
-          recipients={replyRecipients}
-          templates={emailTemplates}
-          threadId={thread.id}
-          variant="default"
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <AISentimentButton
+            threadId={thread.id}
+            aiStatus={{ configured: aiStatus.configured, reason: aiStatus.reason }}
+            inboundCount={inboundCount}
+            unanalyzedCount={unanalyzedCount}
+          />
+          <EmailComposerButton
+            aiStatus={aiStatus}
+            catalog={mergeCatalog}
+            defaultSubject={thread.subject ?? ""}
+            gmailReady={gmailStatus.ready}
+            label="Responder"
+            mode="reply"
+            recipients={replyRecipients}
+            templates={emailTemplates}
+            threadId={thread.id}
+            variant="default"
+          />
+        </div>
       </div>
 
       <ol className="space-y-3">
@@ -253,6 +285,14 @@ export default async function ThreadPage({
                   <span className="text-sm font-medium">
                     {message.fromName || message.fromEmail}
                   </span>
+                  {!outbound && message.sentiment ? (
+                    <Badge
+                      variant="secondary"
+                      className={sentimentMeta[message.sentiment].className}
+                    >
+                      {sentimentMeta[message.sentiment].label}
+                    </Badge>
+                  ) : null}
                 </div>
                 <span className="text-muted-foreground text-xs tabular-nums">
                   {formatDateTime(date)}

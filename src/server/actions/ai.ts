@@ -18,12 +18,17 @@ import {
   type NextBestActionInputValues,
 } from "@/lib/validations/ai-next-action";
 import {
+  analyzeSentimentInputSchema,
+  type AnalyzeSentimentInputValues,
+} from "@/lib/validations/ai-sentiment";
+import {
   generateWorkflowDraftSchema,
   type GenerateWorkflowDraftValues,
 } from "@/lib/validations/ai-workflow";
 import { generateAIHistorySummary } from "@/server/services/ai-history-summary";
 import { scoreLead, scoreNewLeads } from "@/server/services/ai-lead-score";
 import { generateNextBestAction } from "@/server/services/ai-next-action";
+import { analyzeThreadSentiment } from "@/server/services/ai-sentiment";
 import { generateAIWorkflowDraft } from "@/server/services/ai-workflow-draft";
 
 export async function generateHistorySummary(
@@ -61,5 +66,17 @@ export async function suggestNextBestAction(raw: NextBestActionInputValues) {
   const data = nextBestActionInputSchema.parse(raw);
   const result = await generateNextBestAction(user.id, data.dealId);
   revalidatePath(`/deals/${data.dealId}`);
+  return result;
+}
+
+export async function analyzeSentiment(raw: AnalyzeSentimentInputValues) {
+  const user = await requireUser();
+  const data = analyzeSentimentInputSchema.parse(raw);
+  const result = await analyzeThreadSentiment(
+    user.id,
+    data.threadId,
+    data.reanalyze ?? false,
+  );
+  revalidatePath(`/inbox/${data.threadId}`);
   return result;
 }
