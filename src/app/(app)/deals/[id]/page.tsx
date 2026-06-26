@@ -33,6 +33,7 @@ import { listEmailTemplates } from "@/server/queries/email-templates";
 import { getGmailConnectionStatus } from "@/server/queries/gmail";
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
 import { AIHistorySummaryPanel } from "@/components/ai/ai-history-summary-panel";
+import { AINextActionPanel } from "@/components/ai/ai-next-action-panel";
 import { DealActions } from "@/components/deals/deal-actions";
 import { DealParticipants } from "@/components/deals/deal-participants";
 import { EmailComposerButton } from "@/components/email/email-composer-button";
@@ -247,6 +248,21 @@ export default async function DealDetailPage({
             aiStatus={aiStatus}
             entityId={deal.id}
             entityType="deal"
+          />
+
+          <AINextActionPanel
+            aiStatus={aiStatus}
+            dealId={deal.id}
+            initialAction={
+              deal.nextBestAction
+                ? {
+                    ...deal.nextBestAction,
+                    generatedAt: deal.nextBestActionAt
+                      ? deal.nextBestActionAt.toISOString()
+                      : null,
+                  }
+                : null
+            }
           />
 
           <DealParticipants

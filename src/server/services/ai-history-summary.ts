@@ -572,7 +572,7 @@ async function buildPersonContext(ownerId: string, personId: string) {
   };
 }
 
-async function buildDealContext(ownerId: string, dealId: string) {
+export async function buildDealContext(ownerId: string, dealId: string) {
   const deal = await db.query.deals.findFirst({
     where: and(
       eq(deals.id, dealId),

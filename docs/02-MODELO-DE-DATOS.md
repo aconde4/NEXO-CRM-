@@ -258,7 +258,8 @@ control de gasto, depuración y auditoría — independiente del proveedor activ
 ### Campos derivados de IA
 - **`leads.score`** + `leads.score_reason` + `leads.scored_at` (lead scoring, 8.5 **hecho**).
   `persons.score` queda pendiente (el scoring vive en el lead).
-- `deals.ai_summary`, `deals.next_best_action` (8.6, pendiente).
+- **`deals.next_best_action`** (jsonb) + `deals.next_best_action_at` (8.6 **hecho**).
+  `deals.ai_summary` se cubre on-demand con el panel de Resumen IA (8.3), no persistido.
 - `email_messages.sentiment` (en respuestas, 8.7, pendiente).
 
 ---

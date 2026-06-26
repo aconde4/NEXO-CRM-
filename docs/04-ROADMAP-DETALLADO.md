@@ -541,7 +541,15 @@ otro proveedor de pago editando solo variables de entorno. El gran diferenciador
       Repuntuar con IA" por fila, botón **"Puntuar nuevos"** (lote acotado), orden por
       puntuación y **degradación elegante** si no hay proveedor de IA. *(`persons.score`
       queda pendiente: el scoring vive en el lead, su unidad natural.)*
-- [ ] **8.6** Siguiente mejor acción por negocio (`deals.next_best_action`).
+- [x] **8.6** Siguiente mejor acción por negocio (`deals.next_best_action`). Servicio
+      `ai-next-action.ts` (`generateNextBestAction`) reutiliza el contexto rico del negocio
+      (`buildDealContext`, exportado de `ai-history-summary.ts`) y pide salida estructurada
+      validada con Zod (`nextBestActionResultSchema`: `action`/`reason`/`urgency`/`steps`/
+      `confidence`) con `modelPreference:"quality"` y traza en `ai_runs`. Persiste en
+      `deals.next_best_action` (jsonb) + `next_best_action_at` (migración `0014`). Acción
+      `suggestNextBestAction` (Zod, owner). UI: panel **"Siguiente mejor acción"** en la
+      ficha de negocio (`/deals/[id]`), estilo el panel de Resumen IA, que carga la acción
+      persistida y permite regenerarla, con **degradación elegante** si no hay IA.
 - [ ] **8.7** Análisis de sentimiento de respuestas entrantes.
 
 ### Criterios de aceptación

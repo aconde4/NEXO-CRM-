@@ -14,11 +14,16 @@ import {
   type ScoreNewLeadsValues,
 } from "@/lib/validations/ai-lead-score";
 import {
+  nextBestActionInputSchema,
+  type NextBestActionInputValues,
+} from "@/lib/validations/ai-next-action";
+import {
   generateWorkflowDraftSchema,
   type GenerateWorkflowDraftValues,
 } from "@/lib/validations/ai-workflow";
 import { generateAIHistorySummary } from "@/server/services/ai-history-summary";
 import { scoreLead, scoreNewLeads } from "@/server/services/ai-lead-score";
+import { generateNextBestAction } from "@/server/services/ai-next-action";
 import { generateAIWorkflowDraft } from "@/server/services/ai-workflow-draft";
 
 export async function generateHistorySummary(
@@ -48,5 +53,13 @@ export async function scoreNewLeadsWithAI(raw?: ScoreNewLeadsValues) {
   const data = scoreNewLeadsSchema.parse(raw ?? {});
   const result = await scoreNewLeads(user.id, data.limit);
   revalidatePath("/leads");
+  return result;
+}
+
+export async function suggestNextBestAction(raw: NextBestActionInputValues) {
+  const user = await requireUser();
+  const data = nextBestActionInputSchema.parse(raw);
+  const result = await generateNextBestAction(user.id, data.dealId);
+  revalidatePath(`/deals/${data.dealId}`);
   return result;
 }

@@ -346,16 +346,19 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 8.6** — **siguiente mejor acción por negocio**
-(`deals.next_best_action`) sobre la capa agnóstica de IA. Patrón ya rodado en 8.3/8.5:
-construir contexto owner-aware del negocio (reutilizable: ver `ai-history-summary.ts`
-`buildDealContext`), pedir salida estructurada validada con Zod (acción sugerida + motivo
-+ urgencia/plazo), `modelPreference` `quality`, traza en `ai_runs`, **degradación
-elegante** y persistir en una columna nueva `deals.next_best_action` (+ quizá
-`next_best_action_at`) — requiere migración. UI: panel/sección en la ficha de negocio
-(`/deals/[id]`), estilo el panel de Resumen IA, sin sobrescribir criterio humano. Después
-8.7 (sentimiento de respuestas entrantes → `email_messages.sentiment`). Pendiente futuro:
-`send_email`/`ai_summary` en automatizaciones; conversión temporal real del embudo (6.4i).
+**Siguiente tarea de desarrollo:** **Fase 8.7** (cierra la Fase 8) — **análisis de
+sentimiento de respuestas entrantes** (`email_messages.sentiment`) sobre la capa agnóstica.
+Patrón ya rodado (8.5/8.6): al sincronizar/recibir un email **entrante** (dirección
+`inbound`), clasificar el sentimiento (p. ej. `positive`/`neutral`/`negative` + opcional
+`intent` como interés/objeción/baja) con salida estructurada Zod, `modelPreference:"fast"`,
+traza en `ai_runs` y **degradación elegante** si no hay IA. Persistir en una columna nueva
+`email_messages.sentiment` (migración). Decisión a tomar: clasificar **bajo demanda** (un
+botón/acción por hilo, como el resumen) o **automático al sincronizar** (en `gmail-sync`,
+best-effort y solo si hay IA configurada, para no encarecer). Recomendado: empezar
+on-demand/por hilo (control de coste) y dejar el automático como opción. Mostrar el
+sentimiento en la vista de conversación (`/inbox/[threadId]`) y/o en el panel de hilos.
+Con 8.7 la **Fase 8 (IA) queda completa**. Pendiente futuro: `send_email`/`ai_summary` en
+automatizaciones (se apoyan en esta capa); conversión temporal real del embudo (6.4i).
 
 > **Recomendación de modelos (resumen, detalle en `docs/07-IA-PROVEEDORES-Y-MODELOS.md`):**
 > empezar **gratis** con **Gemini 2.5 Flash** (mejor calidad gratis) o **Groq + Llama 3.3
@@ -491,6 +494,28 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-26 (78) — Fase 8.6: siguiente mejor acción por negocio con IA
+- **Modelo:** migración `0014_hot_loa` añade `deals.next_best_action` (jsonb, tipo
+  `DealNextBestAction`) y `deals.next_best_action_at` (timestamp).
+- **Servicio** `src/server/services/ai-next-action.ts` (`generateNextBestAction`):
+  reutiliza el **contexto rico del negocio** (`buildDealContext`, ahora **exportado** de
+  `ai-history-summary.ts`) y pide a `completeAI` (con `modelPreference:"quality"`) una
+  salida estructurada validada con Zod (`nextBestActionResultSchema`:
+  `action`/`reason`/`urgency`/`steps`/`confidence`); persiste la sugerencia y queda
+  trazada en `ai_runs`.
+- **Validación** `src/lib/validations/ai-next-action.ts`; **acción** `suggestNextBestAction`
+  en `actions/ai.ts` (Zod, owner, revalida la ficha).
+- **UI:** nuevo panel **`AINextActionPanel`** en la ficha de negocio (`/deals/[id]`),
+  estilo el panel de Resumen IA: carga la acción **persistida** al abrir (sin llamar al
+  modelo), permite **Sugerir/Actualizar**, muestra urgencia/confianza/pasos y **degrada**
+  si no hay proveedor de IA. `getDeal` ya devolvía las columnas nuevas.
+- **Verificado:** `tsx` (borrado) con **mock OpenAI-compatible**: `generateNextBestAction`
+  → acción/urgencia/3 pasos usando el modelo **quality**, persistencia en
+  `deals.next_best_action` + `at`, y fila `ai_runs` `completed`. Render real vía login dev
+  (IA configurada por env): el panel pinta la acción persistida (acción, "Urgencia alta",
+  pasos, "Confianza media", botón "Actualizar"). `pnpm typecheck`, `pnpm lint` (a cero) y
+  `pnpm build` en verde.
 
 ### 2026-06-26 (77) — Fase 8.5: lead scoring automático con IA
 - **Modelo:** migración `0013_clammy_supernaut` añade `leads.score_reason` (texto) y

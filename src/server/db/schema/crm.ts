@@ -41,6 +41,15 @@ export type ActivityType =
   | "lunch";
 export type DealStatus = "open" | "won" | "lost";
 
+/** Siguiente mejor acción sugerida por la IA (8.6). */
+export type DealNextBestAction = {
+  action: string;
+  reason: string;
+  urgency: "low" | "medium" | "high";
+  steps: string[];
+  confidence: "low" | "medium" | "high";
+};
+
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
@@ -311,6 +320,9 @@ export const deals = pgTable(
       .$type<Record<string, unknown>>()
       .default({})
       .notNull(),
+    /** Siguiente mejor acción sugerida por la IA (8.6). */
+    nextBestAction: jsonb("next_best_action").$type<DealNextBestAction>(),
+    nextBestActionAt: timestamp("next_best_action_at", { withTimezone: true }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     ...timestamps,
   },
