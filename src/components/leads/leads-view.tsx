@@ -8,7 +8,9 @@ import {
   CheckCircle2,
   Handshake,
   Inbox,
+  Loader2,
   MoreHorizontal,
+  Sparkles,
   Trash2,
   User,
   XCircle,
@@ -18,7 +20,12 @@ import { toast } from "sonner";
 import { relativeDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { LeadStatus } from "@/server/db/schema";
-import type { LeadCounts, LeadListItem } from "@/server/queries/leads";
+import type {
+  LeadCounts,
+  LeadListItem,
+  LeadListSort,
+} from "@/server/queries/leads";
+import { scoreLeadWithAI, scoreNewLeadsWithAI } from "@/server/actions/ai";
 import {
   convertLeadToDeal,
   deleteLead,
@@ -63,38 +70,151 @@ const statusMeta: Record<
   junk: { label: "Basura", variant: "outline" },
 };
 
+export type LeadAIStatus = {
+  configured: boolean;
+  model: string | null;
+  provider: string | null;
+  reason: string | null;
+};
+
+/** Color y etiqueta del badge de puntuación según el tramo (caliente/templado/frío). */
+function scoreMeta(score: number): { className: string; label: string } {
+  if (score >= 70) {
+    return {
+      className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+      label: "Caliente",
+    };
+  }
+  if (score >= 40) {
+    return {
+      className: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+      label: "Templado",
+    };
+  }
+  return { className: "bg-muted text-muted-foreground", label: "Frío" };
+}
+
+function tabHref(status: TabKey, sort: LeadListSort): string {
+  const params = new URLSearchParams();
+  if (status !== "all") params.set("status", status);
+  if (sort === "score") params.set("sort", "score");
+  const qs = params.toString();
+  return qs ? `/leads?${qs}` : "/leads";
+}
+
 export function LeadsView({
   leads,
   counts,
   activeStatus,
+  activeSort,
+  aiStatus,
 }: {
   leads: LeadListItem[];
   counts: LeadCounts;
   activeStatus: TabKey;
+  activeSort: LeadListSort;
+  aiStatus: LeadAIStatus;
 }) {
+  const router = useRouter();
+  const [scoringAll, setScoringAll] = React.useState(false);
+
+  async function scoreNew() {
+    if (scoringAll || !aiStatus.configured) return;
+    setScoringAll(true);
+    try {
+      const result = await scoreNewLeadsWithAI({ limit: 10 });
+      if (result.total === 0) {
+        toast.info("No hay leads nuevos sin puntuar.");
+      } else {
+        toast.success(
+          `Puntuados ${result.scored}/${result.total}` +
+            (result.failed ? ` (${result.failed} con error)` : ""),
+        );
+      }
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudieron puntuar",
+      );
+    } finally {
+      setScoringAll(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-1.5">
-        {TABS.map((tab) => {
-          const active = tab.key === activeStatus;
-          const count = tab.key === "all" ? counts.all : counts[tab.key];
-          return (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {TABS.map((tab) => {
+            const active = tab.key === activeStatus;
+            const count = tab.key === "all" ? counts.all : counts[tab.key];
+            return (
+              <Link
+                key={tab.key}
+                href={tabHref(tab.key, activeSort)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-sm font-medium transition-colors",
+                  active
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {tab.label}
+                <span className="ml-1.5 tabular-nums opacity-70">{count}</span>
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="text-muted-foreground inline-flex items-center overflow-hidden rounded-full border text-xs">
             <Link
-              key={tab.key}
-              href={tab.key === "all" ? "/leads" : `/leads?status=${tab.key}`}
+              href={tabHref(activeStatus, "recent")}
               className={cn(
-                "rounded-full border px-3 py-1 text-sm font-medium transition-colors",
-                active
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                "px-3 py-1 font-medium transition-colors",
+                activeSort === "recent"
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted",
               )}
             >
-              {tab.label}
-              <span className="ml-1.5 tabular-nums opacity-70">{count}</span>
+              Recientes
             </Link>
-          );
-        })}
+            <Link
+              href={tabHref(activeStatus, "score")}
+              className={cn(
+                "px-3 py-1 font-medium transition-colors",
+                activeSort === "score"
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted",
+              )}
+            >
+              Puntuación
+            </Link>
+          </div>
+          {aiStatus.configured ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={scoreNew}
+              disabled={scoringAll}
+              title="Puntúa con IA los leads nuevos aún sin puntuar"
+            >
+              {scoringAll ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Sparkles className="size-4" />
+              )}
+              {scoringAll ? "Puntuando…" : "Puntuar nuevos"}
+            </Button>
+          ) : null}
+        </div>
       </div>
+
+      {!aiStatus.configured ? (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+          Puntuación con IA desactivada. {aiStatus.reason ?? "Configura la IA en .env.local."}
+        </div>
+      ) : null}
 
       {leads.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
@@ -115,6 +235,7 @@ export function LeadsView({
                   <th className="px-4 py-2.5 font-medium">Contacto</th>
                   <th className="px-4 py-2.5 font-medium">Empresa</th>
                   <th className="px-4 py-2.5 font-medium">Origen</th>
+                  <th className="px-4 py-2.5 font-medium">Puntuación</th>
                   <th className="px-4 py-2.5 font-medium">Recibido</th>
                   <th className="px-4 py-2.5 font-medium">Estado</th>
                   <th className="w-12 px-4 py-2.5" />
@@ -122,7 +243,7 @@ export function LeadsView({
               </thead>
               <tbody>
                 {leads.map((lead) => (
-                  <LeadRow key={lead.id} lead={lead} />
+                  <LeadRow key={lead.id} lead={lead} aiStatus={aiStatus} />
                 ))}
               </tbody>
             </table>
@@ -133,10 +254,34 @@ export function LeadsView({
   );
 }
 
-function LeadRow({ lead }: { lead: LeadListItem }) {
+function LeadRow({
+  lead,
+  aiStatus,
+}: {
+  lead: LeadListItem;
+  aiStatus: LeadAIStatus;
+}) {
   const router = useRouter();
   const [busy, setBusy] = React.useState(false);
   const meta = statusMeta[lead.status];
+  const scored = Boolean(lead.scoredAt);
+  const score = scoreMeta(lead.score);
+
+  async function scoreNow() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const result = await scoreLeadWithAI({ leadId: lead.id });
+      toast.success(`Puntuado: ${result.score}/100 — ${result.rationale}`);
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo puntuar",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function run(fn: () => Promise<unknown>, okMsg: string) {
     if (busy) return;
@@ -207,6 +352,20 @@ function LeadRow({ lead }: { lead: LeadListItem }) {
       <td className="text-muted-foreground px-4 py-2.5">
         <span className="block max-w-48 truncate">{lead.source || "—"}</span>
       </td>
+      <td className="px-4 py-2.5">
+        {scored ? (
+          <Badge
+            variant="secondary"
+            className={score.className}
+            title={lead.scoreReason ?? undefined}
+          >
+            <span className="tabular-nums">{lead.score}</span>
+            <span className="hidden sm:inline">· {score.label}</span>
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground text-xs">Sin puntuar</span>
+        )}
+      </td>
       <td className="text-muted-foreground px-4 py-2.5 whitespace-nowrap">
         {relativeDate(lead.createdAt)}
       </td>
@@ -230,6 +389,15 @@ function LeadRow({ lead }: { lead: LeadListItem }) {
             <MoreHorizontal className="size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {aiStatus.configured ? (
+              <>
+                <DropdownMenuItem onClick={scoreNow}>
+                  <Sparkles />
+                  {scored ? "Repuntuar con IA" : "Puntuar con IA"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            ) : null}
             {lead.status !== "converted" ? (
               <DropdownMenuItem onClick={convert} disabled={!lead.person}>
                 <Handshake />

@@ -346,13 +346,16 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 8.5** — **lead scoring automático**
-(`persons.score`/`leads.score`) sobre la capa agnóstica de IA. Debe usar contexto
-owner-aware, salida estructurada validada con Zod, trazabilidad en `ai_runs`, degradación
-si no hay proveedor configurado y UI/acciones que no sobrescriban criterios humanos sin
-revisión. Después siguen 8.6–8.7 (next best action y sentimiento). Pendiente futuro:
-`send_email`/`ai_summary` en automatizaciones; conversión temporal real del embudo (6.4i)
-con historial de etapas.
+**Siguiente tarea de desarrollo:** **Fase 8.6** — **siguiente mejor acción por negocio**
+(`deals.next_best_action`) sobre la capa agnóstica de IA. Patrón ya rodado en 8.3/8.5:
+construir contexto owner-aware del negocio (reutilizable: ver `ai-history-summary.ts`
+`buildDealContext`), pedir salida estructurada validada con Zod (acción sugerida + motivo
++ urgencia/plazo), `modelPreference` `quality`, traza en `ai_runs`, **degradación
+elegante** y persistir en una columna nueva `deals.next_best_action` (+ quizá
+`next_best_action_at`) — requiere migración. UI: panel/sección en la ficha de negocio
+(`/deals/[id]`), estilo el panel de Resumen IA, sin sobrescribir criterio humano. Después
+8.7 (sentimiento de respuestas entrantes → `email_messages.sentiment`). Pendiente futuro:
+`send_email`/`ai_summary` en automatizaciones; conversión temporal real del embudo (6.4i).
 
 > **Recomendación de modelos (resumen, detalle en `docs/07-IA-PROVEEDORES-Y-MODELOS.md`):**
 > empezar **gratis** con **Gemini 2.5 Flash** (mejor calidad gratis) o **Groq + Llama 3.3
@@ -488,6 +491,30 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-26 (77) — Fase 8.5: lead scoring automático con IA
+- **Modelo:** migración `0013_clammy_supernaut` añade `leads.score_reason` (texto) y
+  `leads.scored_at` (timestamp) junto al ya existente `leads.score` (0-100).
+- **Servicio** `src/server/services/ai-lead-score.ts`: `scoreLead(ownerId, leadId)`
+  construye un contexto owner-aware del lead (contacto, empresa, **respuestas del
+  formulario**, señales de interacción: tareas/notas/hilos) y pide salida estructurada
+  (`leadScoreResultSchema`: `score`/`rationale`/`signals`, validada con Zod) a la capa
+  agnóstica `completeAI` con `modelPreference:"fast"` y baja temperatura; persiste
+  `score`/`score_reason`/`scored_at` y queda trazado en `ai_runs`. `scoreNewLeads` puntúa
+  en lote los `new` aún sin puntuar (acotado, **excluye los ya puntuados**).
+- **Validación** `src/lib/validations/ai-lead-score.ts`; **acciones**
+  `scoreLeadWithAI`/`scoreNewLeadsWithAI` en `actions/ai.ts` (Zod, owner, revalida).
+- **UI `/leads`:** columna **Puntuación** con badge de color (caliente/templado/frío) y la
+  razón en el tooltip; acción **"Puntuar/Repuntuar con IA"** por fila; botón **"Puntuar
+  nuevos"** (lote); **orden por puntuación** (`?sort=score`); **degradación elegante** si
+  no hay proveedor de IA (aviso + acciones ocultas). `listLeads` admite `sort` y devuelve
+  `scoreReason`/`scoredAt`.
+- **Verificado:** `tsx` (borrado) con **mock OpenAI-compatible** local end-to-end:
+  `scoreLead` → 82/razón/3 señales (usa el modelo **fast**), persistencia correcta, fila
+  en `ai_runs` `completed` con tokens, y `scoreNewLeads` puntúa 2/2 excluyendo el ya
+  puntuado. Render real vía login dev (IA "configurada" por env): columna/badge "88 ·
+  Caliente", "Sin puntuar", botón "Puntuar nuevos" y `?sort=score`=200. `pnpm typecheck`,
+  `pnpm lint` (a cero) y `pnpm build` en verde.
 
 ### 2026-06-26 (76) — Fase 8.4: secuencias y automatizaciones por lenguaje natural
 - **Contrato IA:** nuevo `src/lib/validations/ai-workflow.ts` con entrada

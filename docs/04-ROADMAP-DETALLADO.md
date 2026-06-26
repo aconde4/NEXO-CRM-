@@ -530,7 +530,17 @@ otro proveedor de pago editando solo variables de entorno. El gran diferenciador
       se abren en el builder para revisar/probar/activar. Verificado con `tsx` + servidor
       OpenAI-compatible local fake y BD real: resolución de etapa/etiqueta/secuencia/
       campo personalizado y `ai_runs` completadas.
-- [ ] **8.5** Lead scoring automático (`persons.score`/`leads.score`).
+- [x] **8.5** Lead scoring automático. Puntúa cada **lead** 0-100 (caliente/templado/frío)
+      sobre la capa agnóstica: servicio `ai-lead-score.ts` (`scoreLead`/`scoreNewLeads`)
+      construye contexto owner-aware (contacto/empresa/respuestas del formulario/
+      interacción) y pide salida estructurada validada con Zod (`leadScoreResultSchema`:
+      `score`/`rationale`/`signals`), con `modelPreference:"fast"` y traza en `ai_runs`.
+      Persiste en `leads.score` + nuevas columnas `score_reason`/`scored_at` (migración
+      `0013`). Acciones `scoreLeadWithAI`/`scoreNewLeadsWithAI` (Zod, owner). UI en
+      `/leads`: columna de puntuación con color + razón (tooltip), acción "Puntuar/
+      Repuntuar con IA" por fila, botón **"Puntuar nuevos"** (lote acotado), orden por
+      puntuación y **degradación elegante** si no hay proveedor de IA. *(`persons.score`
+      queda pendiente: el scoring vive en el lead, su unidad natural.)*
 - [ ] **8.6** Siguiente mejor acción por negocio (`deals.next_best_action`).
 - [ ] **8.7** Análisis de sentimiento de respuestas entrantes.
 

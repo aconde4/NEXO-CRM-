@@ -145,8 +145,12 @@ export const leads = pgTable(
     /** Origen del lead (nombre del formulario, "import", "manual"…). */
     source: text("source"),
     status: text("status").$type<LeadStatus>().default("new").notNull(),
-    /** Puntuación (lead scoring; lo rellena la IA en la Fase 8). */
+    /** Puntuación 0-100 (lead scoring; la rellena la IA en la Fase 8.5). */
     score: integer("score").default(0).notNull(),
+    /** Justificación de la puntuación generada por la IA (8.5). */
+    scoreReason: text("score_reason"),
+    /** Cuándo se puntuó con IA por última vez (null = sin puntuar). */
+    scoredAt: timestamp("scored_at", { withTimezone: true }),
     /** Negocio creado al convertir el lead. */
     convertedDealId: uuid("converted_deal_id").references(() => deals.id, {
       onDelete: "set null",

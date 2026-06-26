@@ -256,9 +256,10 @@ precios), `latency_ms`, `status`/`error`, `started_at`/`finished_at`, timestamps
 control de gasto, depuración y auditoría — independiente del proveedor activo.
 
 ### Campos derivados de IA
-- `persons.score` / `leads.score` (lead scoring).
-- `deals.ai_summary`, `deals.next_best_action`.
-- `email_messages.sentiment` (en respuestas).
+- **`leads.score`** + `leads.score_reason` + `leads.scored_at` (lead scoring, 8.5 **hecho**).
+  `persons.score` queda pendiente (el scoring vive en el lead).
+- `deals.ai_summary`, `deals.next_best_action` (8.6, pendiente).
+- `email_messages.sentiment` (en respuestas, 8.7, pendiente).
 
 ---
 

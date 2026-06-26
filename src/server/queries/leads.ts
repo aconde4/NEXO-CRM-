@@ -6,11 +6,15 @@ import { requireUser } from "@/lib/session";
 import { db } from "@/server/db";
 import { type LeadStatus, leads, organizations, persons } from "@/server/db/schema";
 
+export type LeadListSort = "recent" | "score";
+
 export type LeadListItem = {
   id: string;
   status: LeadStatus;
   source: string;
   score: number;
+  scoreReason: string | null;
+  scoredAt: string | null;
   createdAt: string;
   convertedDealId: string | null;
   person: { id: string; name: string; email: string | null } | null;
@@ -21,11 +25,19 @@ export type LeadCounts = Record<LeadStatus, number> & { all: number };
 
 export async function listLeads(
   status?: LeadStatus,
+  sort: LeadListSort = "recent",
 ): Promise<LeadListItem[]> {
   const user = await requireUser();
   const where = status
     ? and(eq(leads.ownerId, user.id), eq(leads.status, status))
     : eq(leads.ownerId, user.id);
+
+  // Ordenar por puntuación pone primero los más calientes; los aún sin puntuar
+  // (scored_at null) quedan al final.
+  const orderBy =
+    sort === "score"
+      ? [sql`${leads.scoredAt} is null`, desc(leads.score), desc(leads.createdAt)]
+      : [desc(leads.createdAt)];
 
   const rows = await db
     .select({
@@ -33,6 +45,8 @@ export async function listLeads(
       status: leads.status,
       source: leads.source,
       score: leads.score,
+      scoreReason: leads.scoreReason,
+      scoredAt: leads.scoredAt,
       createdAt: leads.createdAt,
       convertedDealId: leads.convertedDealId,
       personId: persons.id,
@@ -46,7 +60,7 @@ export async function listLeads(
     .leftJoin(persons, eq(leads.personId, persons.id))
     .leftJoin(organizations, eq(persons.orgId, organizations.id))
     .where(where)
-    .orderBy(desc(leads.createdAt))
+    .orderBy(...orderBy)
     .limit(300);
 
   return rows.map((row) => ({
@@ -66,6 +80,8 @@ export async function listLeads(
         }
       : null,
     score: row.score,
+    scoreReason: row.scoreReason,
+    scoredAt: row.scoredAt ? row.scoredAt.toISOString() : null,
     source: row.source ?? "",
     status: row.status,
   }));
