@@ -82,6 +82,38 @@ auditoría completa:
   forma segura y enviar una prueba al propio usuario desde cada paso de email, eligiendo
   la variante A/B concreta.
 
+### Estado implementado en T.6
+
+`/campaigns` incluye ahora una **Auditoría de entregabilidad y cumplimiento** además del
+checklist específico de Resend. La auditoría cruza cuatro bloques:
+
+- **Gmail 1:1:** cuenta Google conectada, refresh token, permisos `gmail.send` y
+  `gmail.readonly`, estado del buzón y límite diario de calentamiento.
+- **Resend masivo:** API key, remitente del dominio verificado, dominio/DNS como revisión
+  manual, datos RGPD, webhook y `NEXT_PUBLIC_APP_URL`.
+- **Consentimiento y bajas:** pie legal, cabeceras/enlace `List-Unsubscribe`, lista de
+  supresión, rebotes, quejas y cambios de `marketing_status`.
+- **Calentamiento:** tamaño de lote, pausa entre lotes, ventana horaria y rampa manual de
+  volumen antes de campañas reales.
+
+La UI solo muestra estados y valores operativos no sensibles. No renderiza tokens OAuth,
+API keys ni secretos de webhook. Un bloqueo rojo significa que no se debe enviar volumen;
+un aviso ámbar indica que se puede preparar, pero conviene corregirlo antes de producción;
+un punto manual exige revisar una herramienta externa como Google Cloud, Resend o DNS.
+
+### Antes de enviar volumen real
+
+1. Gmail debe usarse para conversación 1:1 y secuencias muy personales; no para campañas
+   masivas. Reautoriza desde `/inbox` si falta algún permiso.
+2. Resend debe tener dominio verificado con SPF, DKIM, MX de rebotes y DMARC. Usa un
+   subdominio dedicado (`mg.tudominio.com`) si quieres aislar reputación.
+3. Los datos RGPD deben estar completos y coherentes: nombre legal, dirección, contacto,
+   política de privacidad, base legal y explicación del origen del contacto.
+4. El webhook de Resend debe estar activo antes de volumen real; sin él no se sincronizan
+   rebotes, quejas, supresiones ni métricas fiables.
+5. Empieza con lotes pequeños y sube progresivamente. Si aparecen rebotes o quejas, pausa,
+   limpia audiencia y corrige origen/segmentación antes de seguir.
+
 ---
 
 ## 2. Pantalla global de redacción

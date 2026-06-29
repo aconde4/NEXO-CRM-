@@ -8,8 +8,8 @@
 
 ## 📍 Dónde estamos
 
-- **Fase T · Transversal de comunicación comercial:** **activa por decisión del usuario
-  (2026-06-29). T.1–T.5 HECHAS.** Antes de seguir construyendo reporting, hay que cerrar una
+- **Fase T · Transversal de comunicación comercial:** **completa (T.1–T.6) por decisión
+  del usuario (2026-06-29).** Antes de seguir construyendo reporting, había que cerrar una
   experiencia profesional de comunicación: pantalla global para redactar/enviar emails
   desde el CRM, plantillas comerciales base, acciones CRM dentro de secuencias (incluido
   mover de etapa/embudo al avanzar un paso), preparación visible de Resend para contacto
@@ -26,8 +26,11 @@
   supresiones y límites de lote/pausa/ventana; sin exponer secretos. **T.5** añade controles
   de escala: duplicar campañas/secuencias, preparación mínima por tarjeta antes de lanzar,
   prueba por variante de secuencia, pausa/reanudación segura y reintentos de fallidos con
-  `delivery.runId` para idempotencia de Resend. Plan y plantilla en
-  `docs/08-EMAIL-RESEND-Y-REDACCION.md`.
+  `delivery.runId` para idempotencia de Resend. **T.6** añade la auditoría transversal
+  de entregabilidad/cumplimiento en `/campaigns`: Gmail 1:1, Resend masivo, RGPD,
+  bajas/supresiones, rebotes/quejas y calentamiento, sin exponer secretos. Plan,
+  plantilla y checklist operativo en `docs/08-EMAIL-RESEND-Y-REDACCION.md` y
+  `docs/SETUP.md`.
 
 - **Fase 9 · Analítica y reporting:** **pendiente; 9.1 iniciada y aparcada en `git stash`.**
   El WIP de Claude (dashboard `/analytics` con barras CSS/SVG: `analytics/page.tsx`,
@@ -367,11 +370,9 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase T.6 · Auditoría de entregabilidad y
-cumplimiento**. Revisar y documentar Gmail para 1:1, Resend para masivo, consentimiento/
-origen, unsubscribe, rebotes/quejas/supresiones, límites de calentamiento y lo que debe
-configurar el usuario antes de enviar volumen real. Tras cerrar T.6 se retoma la
-**Fase 9** (analítica).
+**Siguiente tarea de desarrollo:** retomar la **Fase 9 · Analítica y reporting**. Primero
+recuperar el WIP de 9.1 desde `git stash pop`, revisar qué dejó Claude y continuar por
+**9.1 Dashboard principal** sin mezclarlo con commits de la Fase T.
 
 **WIP a respetar:** el dashboard de analítica 9.1 (Claude) está en **`git stash` →
 `stash@{0}`** ("WIP Fase 9.1 dashboard analitica (CSS/SVG, gates verdes)"), no en el árbol.
@@ -462,10 +463,9 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > comerciales base, acciones CRM dentro de secuencias, preparación visible de Resend para
 > envío masivo y auditoría de entregabilidad/RGPD.
 >
-> **Hecho en la última sesión técnica cerrada:** T.2 plantillas comerciales base: 5
-> plantillas versionadas, migración de datos, seed y botón idempotente en Ajustes para
-> restaurarlas. Claude inició 9.1 sin commit; queda como WIP a respetar.
-> **Siguiente: T.3** acciones CRM dentro de secuencias.
+> **Hecho en la última sesión técnica cerrada:** Fase T cerrada con T.6: auditoría de
+> entregabilidad/cumplimiento en `/campaigns` y documentación previa a volumen real.
+> **Siguiente:** retomar Fase 9.1 desde `stash@{0}`.
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -506,6 +506,23 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-29 (88) — Fase T.6: auditoría de entregabilidad y cumplimiento
+- **Auditoría visible en `/campaigns`:** nueva query owner-aware `getDeliverabilityAudit`
+  y componente `DeliverabilityAuditPanel` con revisión de Gmail 1:1, Resend masivo,
+  consentimiento/RGPD, bajas, supresiones, rebotes/quejas y calentamiento. Reutiliza
+  `getResendReadiness` para no duplicar estados y no expone tokens, API keys ni secretos.
+- **Gmail 1:1:** comprueba cuenta Google, refresh token, permisos `gmail.send` y
+  `gmail.readonly`, estado del buzón y límite diario conservador.
+- **Resend/volumen:** comprueba API key, remitente, dominio/DNS como revisión manual,
+  webhook, URL pública, datos RGPD, `List-Unsubscribe`, supresiones activas y ritmo de
+  lotes/pausas/ventana.
+- **Documentación:** `docs/08-EMAIL-RESEND-Y-REDACCION.md` y `docs/SETUP.md` explican lo
+  que debe configurar el usuario antes de enviar volumen real y una rampa de
+  calentamiento orientativa. Roadmap marcado en T.6. La Fase T queda cerrada y lo
+  siguiente es retomar Fase 9.1 desde `stash@{0}`.
+- **Verificado:** `pnpm typecheck`, `pnpm lint`, `pnpm build` y render real de
+  `/campaigns` (HTTP 200 con auditoría visible) en verde.
 
 ### 2026-06-29 (87) — Fase T.5: mejoras de escala en campañas y secuencias
 - **Campañas:** `duplicateCampaign` crea borradores completos (contenido HTML/texto,

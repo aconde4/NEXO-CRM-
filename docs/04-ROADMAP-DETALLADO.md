@@ -637,10 +637,17 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
       idempotencia de Resend. Secuencias se duplican como borrador con pasos, pueden
       activarse/pausarse con reencolado seguro de inscripciones activas y cada paso/variante
       de email permite enviar prueba al propio usuario.
-- [ ] **T.6** Auditoría de entregabilidad y cumplimiento: Gmail para 1:1, Resend para
+- [x] **T.6** Auditoría de entregabilidad y cumplimiento: Gmail para 1:1, Resend para
       masivo, consentimiento/origen, unsubscribe, rebotes/quejas/supresiones, límites de
       calentamiento y documentación de lo que debe configurar el usuario antes de enviar
-      volumen real.
+      volumen real. **HECHA:** `/campaigns` añade una auditoría transversal
+      (`getDeliverabilityAudit` + `DeliverabilityAuditPanel`) que revisa Gmail 1:1
+      (cuenta Google, refresh token, permisos `gmail.send`/`gmail.readonly`, buzón y límite
+      diario), Resend masivo (API key, remitente, dominio manual, RGPD, webhook y URL
+      pública), consentimiento/bajas (pie RGPD, `List-Unsubscribe`, supresiones,
+      rebotes/quejas) y calentamiento (lotes, pausas, ventana y rampa manual), sin exponer
+      secretos. `docs/08-EMAIL-RESEND-Y-REDACCION.md` y `docs/SETUP.md` documentan la
+      configuración previa a volumen real.
 
 ### Criterios de aceptación
 - Puedes redactar y enviar un correo 1:1 desde una pantalla propia del CRM, no solo desde

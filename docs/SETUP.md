@@ -184,6 +184,38 @@ Resend no está configurado y no intenta ningún envío.
 > En local necesitas exponer `pnpm dev` con un túnel público si quieres probar
 > webhooks reales desde Resend.
 
+## 6 bis. Auditoría antes de enviar volumen real
+
+En `/campaigns` verás dos bloques de preparación: el checklist de Resend y la auditoría
+transversal de entregabilidad/cumplimiento. Antes de enviar a una audiencia real, deja sin
+bloqueos estos puntos:
+
+- **Gmail 1:1:** Gmail conectado desde `/inbox`, permisos `gmail.send` y
+  `gmail.readonly`, refresh token guardado y límite diario conservador en Ajustes →
+  Correo.
+- **Resend masivo:** `RESEND_API_KEY`, `CAMPAIGN_FROM_EMAIL`, `CAMPAIGN_FROM_NAME`,
+  dominio verificado en Resend y registros SPF/DKIM/MX/DMARC publicados en DNS.
+- **Webhooks y URL pública:** `RESEND_WEBHOOK_SECRET` configurado, webhook apuntando a
+  `/api/webhooks/resend` y `NEXT_PUBLIC_APP_URL` con la URL real de producción.
+- **RGPD:** `CAMPAIGN_LEGAL_NAME`, `CAMPAIGN_LEGAL_ADDRESS`, `CAMPAIGN_CONTACT_EMAIL`,
+  `CAMPAIGN_PRIVACY_URL`, `CAMPAIGN_CONSENT_BASIS` y `CAMPAIGN_CONSENT_NOTICE`
+  completos.
+- **Bajas y supresiones:** comprueba que las campañas incluyen baja visible y que las
+  supresiones por baja, rebote, queja o Resend quedan registradas antes del siguiente
+  envío.
+
+Calentamiento recomendado para un dominio nuevo o poco usado:
+
+| Periodo | Volumen diario orientativo | Qué mirar |
+| --- | ---: | --- |
+| Días 1-3 | 20-50 emails/día | Rebotes, quejas y respuestas reales |
+| Días 4-7 | 50-100 emails/día | Mantener rebotes bajos y segmentación limpia |
+| Semana 2 | 100-250 emails/día | Subir solo si no hay señales negativas |
+| Semana 3+ | Subida gradual | Ajustar por reputación, dominio y calidad de audiencia |
+
+Si hay rebotes o quejas, pausa la campaña, limpia emails inválidos/no consentidos y revisa
+el origen del segmento antes de reintentar.
+
 ---
 
 ## 7. IA (Fase 8) — opcional al principio

@@ -16,12 +16,15 @@ import {
   type CampaignStats,
   type CampaignStatus,
   type EmailEventType,
+  accounts,
   campaignRecipients,
   campaigns,
   emailEvents,
+  mailboxes,
   segments,
   suppressions,
 } from "@/server/db/schema";
+import { GMAIL_OAUTH_SCOPES, missingGmailScopes } from "@/lib/google-oauth";
 import { getCampaignDeliveryConfig } from "@/server/services/campaign-dispatch";
 import {
   getDefaultCampaignFrom,
@@ -445,6 +448,30 @@ export type ResendReadiness = {
   };
 };
 
+export type DeliverabilityAuditStatus = "ok" | "warning" | "missing" | "manual";
+
+export type DeliverabilityAuditItem = {
+  key: string;
+  label: string;
+  detail: string;
+  status: DeliverabilityAuditStatus;
+  required: boolean;
+};
+
+export type DeliverabilityAuditSection = {
+  key: string;
+  title: string;
+  description: string;
+  items: DeliverabilityAuditItem[];
+};
+
+export type DeliverabilityAudit = {
+  ready: boolean;
+  resend: ResendReadiness;
+  summary: Record<DeliverabilityAuditStatus, number>;
+  sections: DeliverabilityAuditSection[];
+};
+
 /**
  * Checklist de preparación de Resend para contacto masivo (Fase T.4). Solo expone
  * estados (booleanos/valores no secretos), nunca la API key ni el webhook secret.
@@ -537,5 +564,242 @@ export async function getResendReadiness(): Promise<ResendReadiness> {
     items,
     ready,
     suppressions: suppressionsCount,
+  };
+}
+
+function auditStatusFromResend(
+  status: ResendCheckStatus,
+): DeliverabilityAuditStatus {
+  return status === "ok" ? "ok" : status;
+}
+
+function deliveryLimitStatus(
+  batchSize: number,
+  batchDelaySeconds: number,
+): DeliverabilityAuditStatus {
+  if (batchSize > 50 || batchDelaySeconds < 60) return "warning";
+  return "ok";
+}
+
+/**
+ * Auditoría transversal de entregabilidad/cumplimiento (Fase T.6). Resume el estado
+ * operativo de Gmail 1:1 y Resend masivo sin exponer secretos ni tokens.
+ */
+export async function getDeliverabilityAudit(): Promise<DeliverabilityAudit> {
+  const user = await requireUser();
+  const resend = await getResendReadiness();
+
+  const [account] = await db
+    .select({
+      refreshToken: accounts.refresh_token,
+      scope: accounts.scope,
+    })
+    .from(accounts)
+    .where(and(eq(accounts.userId, user.id), eq(accounts.provider, "google")))
+    .limit(1);
+
+  const [mailbox] = await db
+    .select({
+      dailyLimit: mailboxes.dailyLimit,
+      email: mailboxes.email,
+      lastSyncError: mailboxes.lastSyncError,
+      sentToday: mailboxes.sentToday,
+      sentTodayResetAt: mailboxes.sentTodayResetAt,
+      status: mailboxes.status,
+    })
+    .from(mailboxes)
+    .where(and(eq(mailboxes.ownerId, user.id), eq(mailboxes.provider, "gmail")))
+    .orderBy(desc(mailboxes.updatedAt))
+    .limit(1);
+
+  const missingScopes = missingGmailScopes(account?.scope);
+  const resetValid =
+    mailbox?.sentTodayResetAt != null && mailbox.sentTodayResetAt > new Date();
+  const sentToday = resetValid ? mailbox.sentToday : 0;
+  const gmailSendScope = GMAIL_OAUTH_SCOPES[0];
+  const gmailReadScope = GMAIL_OAUTH_SCOPES[1];
+
+  const sections: DeliverabilityAuditSection[] = [
+    {
+      description:
+        "Canal personal para conversaciones reales, respuestas y secuencias de bajo volumen.",
+      items: [
+        {
+          detail: account
+            ? "Cuenta Google conectada en Auth.js."
+            : "Conecta o reautoriza Google desde Bandeja para usar Gmail.",
+          key: "gmail-account",
+          label: "Cuenta Google conectada",
+          required: true,
+          status: account ? "ok" : "missing",
+        },
+        {
+          detail: account?.refreshToken
+            ? "Refresh token guardado para enviar y sincronizar sin pedir login cada vez."
+            : "Reautoriza Gmail con acceso offline para guardar refresh token.",
+          key: "gmail-refresh",
+          label: "Acceso offline",
+          required: true,
+          status: account?.refreshToken ? "ok" : "missing",
+        },
+        {
+          detail: missingScopes.includes(gmailSendScope)
+            ? "Falta gmail.send; no se podrán enviar correos 1:1 desde el CRM."
+            : "Permiso gmail.send concedido.",
+          key: "gmail-send",
+          label: "Permiso de envío 1:1",
+          required: true,
+          status: missingScopes.includes(gmailSendScope) ? "missing" : "ok",
+        },
+        {
+          detail: missingScopes.includes(gmailReadScope)
+            ? "Falta gmail.readonly; no se podrán sincronizar respuestas ni hilos."
+            : "Permiso gmail.readonly concedido para leer hilos y detectar respuestas.",
+          key: "gmail-read",
+          label: "Permiso de lectura",
+          required: true,
+          status: missingScopes.includes(gmailReadScope) ? "missing" : "ok",
+        },
+        {
+          detail: mailbox
+            ? `${mailbox.email} · estado ${mailbox.status}${mailbox.lastSyncError ? ` · último error: ${mailbox.lastSyncError}` : ""}`
+            : "El buzón se creará automáticamente al primer envío o sync después de autorizar.",
+          key: "gmail-mailbox",
+          label: "Buzón operativo",
+          required: false,
+          status:
+            mailbox?.status === "active"
+              ? "ok"
+              : mailbox
+                ? "warning"
+                : "manual",
+        },
+        {
+          detail: mailbox
+            ? `${sentToday}/${mailbox.dailyLimit} enviados hoy. Mantener límites modestos protege el dominio.`
+            : "Define el límite diario en Ajustes -> Correo cuando exista el buzón.",
+          key: "gmail-warmup",
+          label: "Límite diario Gmail",
+          required: false,
+          status:
+            mailbox && mailbox.dailyLimit <= 75
+              ? "ok"
+              : mailbox
+                ? "warning"
+                : "manual",
+        },
+      ],
+      key: "gmail",
+      title: "Gmail 1:1",
+    },
+    {
+      description:
+        "Canal de volumen para campañas, newsletters y secuencias con bajas, rebotes y métricas.",
+      items: resend.items.map((item) => ({
+        detail: item.detail,
+        key: `resend-${item.key}`,
+        label: item.label,
+        required: item.required,
+        status: auditStatusFromResend(item.status),
+      })),
+      key: "resend",
+      title: "Resend masivo",
+    },
+    {
+      description:
+        "Controles para no escribir a contactos sin base legal o que ya se han dado de baja.",
+      items: [
+        {
+          detail:
+            "El pie de campaña incluye remitente legal, dirección, contacto, política, base legal, origen y baja.",
+          key: "compliance-footer",
+          label: "Pie RGPD completo",
+          required: true,
+          status:
+            resend.items.find((item) => item.key === "compliance")?.status ===
+            "ok"
+              ? "ok"
+              : "missing",
+        },
+        {
+          detail:
+            "Las campañas añaden cabeceras List-Unsubscribe y enlace visible de baja por destinatario.",
+          key: "unsubscribe-links",
+          label: "Baja y one-click unsubscribe",
+          required: true,
+          status: "ok",
+        },
+        {
+          detail: `${resend.suppressions} emails suprimidos por baja, rebote, queja o supresion externa. Se excluyen antes de enviar.`,
+          key: "suppressions",
+          label: "Lista de supresion activa",
+          required: true,
+          status: "ok",
+        },
+        {
+          detail:
+            "Los webhooks de Resend registran rebotes, quejas y supresiones para actualizar marketing_status.",
+          key: "bounce-complaint-sync",
+          label: "Rebotes y quejas sincronizados",
+          required: false,
+          status: cleanEnv(process.env.RESEND_WEBHOOK_SECRET)
+            ? "ok"
+            : "warning",
+        },
+      ],
+      key: "compliance",
+      title: "Consentimiento y bajas",
+    },
+    {
+      description:
+        "Ritmo de envio conservador para proteger dominio, reputacion y cuenta.",
+      items: [
+        {
+          detail: `Lotes de ${resend.delivery.batchSize}, pausa de ${resend.delivery.batchDelaySeconds}s y máximo ${resend.delivery.maxBatchesPerRun} lotes por ejecución.`,
+          key: "batch-limits",
+          label: "Lotes y pausas",
+          required: false,
+          status: deliveryLimitStatus(
+            resend.delivery.batchSize,
+            resend.delivery.batchDelaySeconds,
+          ),
+        },
+        {
+          detail: `Ventana ${resend.delivery.windowStart}-${resend.delivery.windowEnd} (${resend.delivery.timeZone}). Evita enviar fuera de horario natural.`,
+          key: "send-window",
+          label: "Ventana horaria",
+          required: false,
+          status: "ok",
+        },
+        {
+          detail:
+            "Antes de volumen real, empieza con audiencias pequeñas y sube progresivamente solo si rebotes/quejas son bajos.",
+          key: "warmup-plan",
+          label: "Plan de calentamiento",
+          required: false,
+          status: "manual",
+        },
+      ],
+      key: "warmup",
+      title: "Calentamiento",
+    },
+  ];
+
+  const allItems = sections.flatMap((section) => section.items);
+  const summary: Record<DeliverabilityAuditStatus, number> = {
+    manual: 0,
+    missing: 0,
+    ok: 0,
+    warning: 0,
+  };
+  for (const item of allItems) {
+    summary[item.status] += 1;
+  }
+
+  return {
+    ready: !allItems.some((item) => item.required && item.status === "missing"),
+    resend,
+    sections,
+    summary,
   };
 }
