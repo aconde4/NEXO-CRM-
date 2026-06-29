@@ -373,9 +373,11 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
 - [x] **6.5** Acciones (ejecución real): `create_task`, `add_label`, `move_stage`,
       `update_field` (custom field), `enroll_sequence`, `webhook` y `notify` ejecutadas
       por `automation-executor.ts` desde `run-automations-for-event` (idempotente por
-      `waiting`→`running`→`completed/failed`, con log por nodo). *Pendiente: `send_email`
-      (necesita remitente/plantilla/transporte) y `ai_summary` (Fase 8); registran traza
-      "pendiente".*
+      `waiting`→`running`→`completed/failed`, con log por nodo). **`send_email` y
+      `ai_summary` COMPLETADAS** (tras la Fase 8): `send_email` envía una plantilla al
+      contacto por Gmail con merge tags (degrada con elegancia si no hay buzón/transporte);
+      `ai_summary` resume el historial (capa de IA, 8.3) y lo guarda como nota. Ambas con
+      degradación si falta IA/transporte y reflejo en el dry-run (6.8).
 - [x] **6.6** Condiciones (if/else) y esperas reales sobre Inngest.
       **HECHA:** el executor recorre el grafo por aristas, evalua condiciones contra
       payload/evento y snapshots de persona/empresa/negocio, respeta ramas `true`/`false`

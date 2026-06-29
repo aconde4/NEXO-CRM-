@@ -2,6 +2,8 @@ import "server-only";
 
 import { and, eq, sql } from "drizzle-orm";
 
+import type { CustomFieldDef } from "@/lib/custom-fields";
+import { buildMergeContext, renderMergeTags } from "@/lib/email/merge-tags";
 import { db } from "@/server/db";
 import {
   type AutomationGraph,
@@ -9,10 +11,13 @@ import {
   type AutomationRunLogEntry,
   activities,
   automationRuns,
+  customFieldDefs,
   deals,
+  emailTemplates,
   enrollments,
   entityLabels,
   labels,
+  notes,
   organizations,
   persons,
   sequenceSteps,
@@ -20,6 +25,11 @@ import {
   stages,
 } from "@/server/db/schema";
 import { inngest } from "@/server/inngest/client";
+import { isAIConfigured } from "@/server/services/ai";
+import { generateAIHistorySummary } from "@/server/services/ai-history-summary";
+import { sanitizeEmailHtml } from "@/server/services/email-html";
+import { sendGmailEmail } from "@/server/services/gmail";
+import { GmailServiceError } from "@/server/services/gmail-auth";
 import { SEQUENCE_RUN_EVENT } from "@/server/services/sequence-runner";
 
 /**
@@ -658,13 +668,47 @@ async function simulateAction(
         skipped: false,
       };
     }
-    case "send_email":
+    case "send_email": {
+      const templateId = clean(config.templateId);
+      if (!templateId) {
+        return { message: "Sin plantilla de email configurada.", skipped: true };
+      }
+      if (!ctx.personId) {
+        return { message: "Enviar email requiere un contacto.", skipped: true };
+      }
+      const [template] = await db
+        .select({ name: emailTemplates.name })
+        .from(emailTemplates)
+        .where(
+          and(
+            eq(emailTemplates.id, templateId),
+            eq(emailTemplates.ownerId, ownerId),
+          ),
+        )
+        .limit(1);
+      if (!template) {
+        return { message: "Plantilla de email no encontrada.", skipped: true };
+      }
       return {
-        message: "Envío de email desde automatización: pendiente.",
-        skipped: true,
+        message: `Simulación: se enviaría la plantilla "${template.name}" al contacto.`,
+        skipped: false,
       };
-    case "ai_summary":
-      return { message: "Resumen con IA: pendiente (Fase 8).", skipped: true };
+    }
+    case "ai_summary": {
+      if (!isAIConfigured()) {
+        return { message: "IA no configurada; resumen omitido.", skipped: true };
+      }
+      if (ctx.entityType !== "person" && ctx.entityType !== "deal") {
+        return {
+          message: "Resumen IA solo aplica a contacto o negocio.",
+          skipped: true,
+        };
+      }
+      return {
+        message: "Simulación: se generaría un resumen IA y se guardaría como nota.",
+        skipped: false,
+      };
+    }
     default:
       return { message: `Accion no soportada: ${node.kind}`, skipped: true };
   }
@@ -746,6 +790,183 @@ async function executeWait(
   );
 }
 
+async function loadCustomDefs(
+  ownerId: string,
+  entityType: "person" | "organization",
+): Promise<CustomFieldDef[]> {
+  return db
+    .select({
+      id: customFieldDefs.id,
+      entityType: customFieldDefs.entityType,
+      key: customFieldDefs.key,
+      label: customFieldDefs.label,
+      type: customFieldDefs.type,
+      options: customFieldDefs.options,
+      required: customFieldDefs.required,
+      position: customFieldDefs.position,
+    })
+    .from(customFieldDefs)
+    .where(
+      and(
+        eq(customFieldDefs.ownerId, ownerId),
+        eq(customFieldDefs.entityType, entityType),
+      ),
+    );
+}
+
+/** Acción `send_email`: envía una plantilla al contacto por Gmail, con merge tags. */
+async function sendTemplatedEmail(
+  ownerId: string,
+  ctx: EntityContext,
+  templateId: string,
+): Promise<ActionResult> {
+  if (!ctx.personId) {
+    return { message: "Enviar email requiere un contacto.", skipped: true };
+  }
+  const [person] = await db
+    .select({
+      email: persons.email,
+      firstName: persons.firstName,
+      lastName: persons.lastName,
+      phone: persons.phone,
+      title: persons.title,
+      campaign: persons.campaign,
+      customFields: persons.customFields,
+      marketingStatus: persons.marketingStatus,
+    })
+    .from(persons)
+    .where(and(eq(persons.id, ctx.personId), eq(persons.ownerId, ownerId)))
+    .limit(1);
+  if (!person) return { message: "Contacto no encontrado.", skipped: true };
+  const email = clean(person.email);
+  if (!email) return { message: "El contacto no tiene email.", skipped: true };
+  if (person.marketingStatus === "unsubscribed") {
+    return { message: "El contacto está dado de baja.", skipped: true };
+  }
+
+  const [template] = await db
+    .select({
+      subject: emailTemplates.subject,
+      bodyHtml: emailTemplates.bodyHtml,
+      bodyText: emailTemplates.bodyText,
+    })
+    .from(emailTemplates)
+    .where(
+      and(eq(emailTemplates.id, templateId), eq(emailTemplates.ownerId, ownerId)),
+    )
+    .limit(1);
+  if (!template) {
+    return { message: "Plantilla de email no encontrada.", skipped: true };
+  }
+
+  let org: {
+    name: string;
+    tradeName: string | null;
+    website: string | null;
+    industry: string | null;
+    customFields: Record<string, unknown>;
+  } | null = null;
+  if (ctx.orgId) {
+    const [o] = await db
+      .select({
+        name: organizations.name,
+        tradeName: organizations.tradeName,
+        website: organizations.website,
+        industry: organizations.industry,
+        customFields: organizations.customFields,
+      })
+      .from(organizations)
+      .where(and(eq(organizations.id, ctx.orgId), eq(organizations.ownerId, ownerId)))
+      .limit(1);
+    org = o ?? null;
+  }
+
+  const [personDefs, orgDefs] = await Promise.all([
+    loadCustomDefs(ownerId, "person"),
+    ctx.orgId ? loadCustomDefs(ownerId, "organization") : Promise.resolve([]),
+  ]);
+
+  const mctx = buildMergeContext(
+    {
+      firstName: person.firstName,
+      lastName: person.lastName,
+      email,
+      phone: person.phone,
+      title: person.title,
+      campaign: person.campaign,
+      customFields: person.customFields,
+    },
+    org,
+    personDefs,
+    orgDefs,
+  );
+
+  const subject = renderMergeTags(template.subject, mctx) || template.subject;
+  const bodyHtml = sanitizeEmailHtml(renderMergeTags(template.bodyHtml, mctx));
+  const bodyText = template.bodyText
+    ? renderMergeTags(template.bodyText, mctx)
+    : undefined;
+  const name = [person.firstName, person.lastName].filter(Boolean).join(" ").trim();
+
+  try {
+    await sendGmailEmail(ownerId, {
+      to: [{ email, ...(name ? { name } : {}) }],
+      subject,
+      bodyHtml,
+      ...(bodyText ? { bodyText } : {}),
+      ...(ctx.personId ? { personId: ctx.personId } : {}),
+      ...(ctx.orgId ? { orgId: ctx.orgId } : {}),
+      ...(ctx.dealId ? { dealId: ctx.dealId } : {}),
+    });
+  } catch (error) {
+    if (error instanceof GmailServiceError) {
+      return { message: `Email no enviado: ${error.message}`, skipped: true };
+    }
+    throw error;
+  }
+  return { message: `Email enviado a ${email}.`, skipped: false };
+}
+
+/** Acción `ai_summary`: resume el historial de la entidad y lo guarda como nota. */
+async function summarizeWithAI(
+  ownerId: string,
+  ctx: EntityContext,
+): Promise<ActionResult> {
+  if (!isAIConfigured()) {
+    return { message: "IA no configurada; resumen omitido.", skipped: true };
+  }
+  if (ctx.entityType !== "person" && ctx.entityType !== "deal") {
+    return {
+      message: "Resumen IA solo aplica a contacto o negocio.",
+      skipped: true,
+    };
+  }
+  if (!ctx.entityId) {
+    return { message: "Sin entidad para resumir.", skipped: true };
+  }
+
+  const summary = await generateAIHistorySummary(ownerId, {
+    entityId: ctx.entityId,
+    entityType: ctx.entityType,
+  });
+
+  const lines = [`Resumen IA — ${summary.headline}`, "", summary.summary];
+  if (summary.nextSteps.length) {
+    lines.push("", "Próximos pasos:", ...summary.nextSteps.map((s) => `• ${s}`));
+  }
+  await db.insert(notes).values({
+    body: lines.join("\n"),
+    dealId: ctx.entityType === "deal" ? ctx.entityId : null,
+    ownerId,
+    personId: ctx.entityType === "person" ? ctx.entityId : null,
+  });
+
+  return {
+    message: `Resumen IA añadido como nota (${summary.model}).`,
+    skipped: false,
+  };
+}
+
 async function executeAction(
   ownerId: string,
   node: AutomationNode,
@@ -804,13 +1025,15 @@ async function executeAction(
       const message = clean(config.message) ?? "Notificación de automatización";
       return { message: `Notificación: ${message}`, skipped: false };
     }
-    case "send_email":
-      return {
-        message: "Envío de email desde automatización: pendiente.",
-        skipped: true,
-      };
+    case "send_email": {
+      const templateId = clean(config.templateId);
+      if (!templateId) {
+        return { message: "Sin plantilla de email configurada.", skipped: true };
+      }
+      return sendTemplatedEmail(ownerId, ctx, templateId);
+    }
     case "ai_summary":
-      return { message: "Resumen con IA: pendiente (Fase 8).", skipped: true };
+      return summarizeWithAI(ownerId, ctx);
     default:
       return { message: `Acción no soportada: ${node.kind}`, skipped: true };
   }

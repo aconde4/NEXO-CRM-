@@ -346,17 +346,20 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** la **Fase 8 (IA) queda COMPLETA** (8.1–8.7). Lo
-siguiente por roadmap es la **Fase 9 · Analítica y reporting** (9.1 dashboard principal
-con pipeline/previsión/actividad; 9.2 embudo de conversión y tasa de victoria; 9.3
-rendimiento de email; 9.4 métricas de secuencias/campañas; 9.5 objetivos; 9.6 informes
-personalizados). No depende de claves externas; se construye y verifica entero. Antes de
-empezar, valorar reusar/ampliar lo ya hecho: métricas del embudo (6.4i `getFunnelMetrics`),
-paneles de secuencia/campaña existentes y `ai_runs`. **Decisión abierta para el usuario:**
-empezar la Fase 9, o cerrar primero pendientes transversales —`send_email`/`ai_summary`
-en automatizaciones (6.5, ahora apoyables en la capa de IA + transporte de email) y la
-conversión temporal real del embudo (6.4i, requiere historial de cambios de etapa)—.
-Recomendado: **9 (analítica)** por orden de roadmap.
+**Siguiente tarea de desarrollo:** cerrar el **último pendiente transversal** —
+**conversión temporal real del embudo (6.4i)**. Hoy `getFunnelMetrics` da una instantánea
+(negocios abiertos por etapa) pero la "conversión" no es histórica: falta un **log de
+cambios de etapa**. Plan: nueva tabla `deal_stage_events` (dealId, fromStageId, toStageId,
+ownerId, at) que se rellena donde ya se mueve de etapa (`moveDeal`/`bulkMoveDeals`/
+`setDealWon/Lost`/`move_stage` de automatizaciones — todos tocan `deals.stageChangedAt`) y
+en el alta; luego calcular conversión real etapa→etapa y tiempo medio por etapa en las
+métricas (6.4i) y la Fase 9.2. *(Acciones de automatización `send_email`/`ai_summary`: ya
+**hechas**, ver changelog.)*
+
+Tras esto, **Fase 9 · Analítica y reporting** (9.1 dashboard; 9.2 embudo de conversión
+—que se apoyará en `deal_stage_events`—; 9.3 email; 9.4 secuencias/campañas; 9.5 objetivos;
+9.6 informes). No depende de claves externas; reutiliza `getFunnelMetrics`, paneles
+existentes y `ai_runs`.
 
 > **Recomendación de modelos (resumen, detalle en `docs/07-IA-PROVEEDORES-Y-MODELOS.md`):**
 > empezar **gratis** con **Gemini 2.5 Flash** (mejor calidad gratis) o **Groq + Llama 3.3
@@ -492,6 +495,25 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-26 (80) — Transversal: acciones de automatización `send_email` y `ai_summary`
+- Cerrado el pendiente de **6.5**: las dos acciones que quedaban como traza "pendiente" en
+  `automation-executor.ts` ya **funcionan** (desbloqueadas por la Fase 8 + el transporte de
+  email existente).
+- **`send_email`:** carga la plantilla (`email_templates`, owner), construye el contexto de
+  merge (`buildMergeContext`) con campos personalizados de persona/empresa, renderiza
+  asunto/cuerpo (`renderMergeTags`), sanea el HTML y envía por Gmail (`sendGmailEmail`,
+  registrando el hilo). **Degrada con elegancia**: salta si no hay contacto/email, si el
+  contacto está dado de baja, si no hay plantilla o si Gmail no está conectado
+  (`GmailServiceError` → `skipped`).
+- **`ai_summary`:** reutiliza `generateAIHistorySummary` (8.3) sobre la entidad disparadora
+  (contacto/negocio) y guarda el resultado como **nota** ("Resumen IA — …" + próximos
+  pasos). Salta si la IA no está configurada o la entidad no es contacto/negocio.
+- Ambas reflejadas también en el **dry-run** (6.8) con mensajes de simulación informativos.
+- **Verificado:** `tsx` (borrado) con mock OpenAI-compatible y `executeAutomationRun`:
+  `ai_summary` → run `completed` y **nota creada** ("Resumen IA…"); `send_email` → run
+  `completed` con **degradación** (sin buzón Gmail válido → `skipped`, sin romper el flujo).
+  `pnpm typecheck`, `pnpm lint` (a cero) y `pnpm build` en verde.
 
 ### 2026-06-26 (79) — Fase 8.7: sentimiento de respuestas entrantes · Fase 8 COMPLETA
 - **Modelo:** migración `0015_gray_skullbuster` añade `email_messages.sentiment`
