@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Upload } from "lucide-react";
+import { Plus, Send, Upload } from "lucide-react";
 
 import { navGroups, settingsNavItem } from "@/lib/navigation";
 import {
@@ -64,6 +64,13 @@ export function CommandMenu({
           >
             <Plus />
             Nuevo negocio
+          </CommandItem>
+          <CommandItem
+            value="redactar email correo gmail enviar"
+            onSelect={() => go("/emails/compose")}
+          >
+            <Send />
+            Redactar email
           </CommandItem>
           <CommandItem
             value="importar contactos csv excel"

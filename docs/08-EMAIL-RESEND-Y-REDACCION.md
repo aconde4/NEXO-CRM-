@@ -61,7 +61,7 @@ no solo botones dentro de fichas.
 
 ### Ruta y entrada
 
-- Ruta propuesta: `/emails/compose`.
+- Ruta implementada: `/emails/compose`.
 - Accesos: navegación, comando rápido, ficha de contacto, ficha de empresa, ficha de
   negocio, bandeja y, más adelante, acciones de secuencia/automatización.
 
@@ -76,6 +76,17 @@ no solo botones dentro de fichas.
 - Tracking, límites diarios y firma deben funcionar igual que en el compositor actual.
 - Guardas visibles: sin Gmail conectado, sin `gmail.send`, límite diario agotado, contacto
   sin email o plantilla con variables desconocidas.
+
+### Estado implementado en T.1
+
+- `/emails/compose` carga contactos con email, contexto de merge tags y negocios abiertos
+  vinculables por contacto/empresa.
+- El formulario es el mismo motor del compositor de fichas: `sendEmail`, editor Tiptap,
+  plantillas, preview, variables, IA opcional, firma, tracking y límite diario pasan por
+  las capas existentes.
+- Se puede abrir con `personId`, `dealId`, `threadId`, `mode=reply` y `subject` en query
+  string para preseleccionar contexto desde otras superficies.
+- Tras enviar desde pantalla completa, redirige al hilo de `/inbox/[threadId]`.
 
 ### No debe hacer
 

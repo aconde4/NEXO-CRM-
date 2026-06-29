@@ -9,11 +9,13 @@
 ## 📍 Dónde estamos
 
 - **Fase T · Transversal de comunicación comercial:** **activa por decisión del usuario
-  (2026-06-29). T.0 HECHA.** Antes de seguir construyendo reporting, hay que cerrar una
+  (2026-06-29). T.1 HECHA.** Antes de seguir construyendo reporting, hay que cerrar una
   experiencia profesional de comunicación: pantalla global para redactar/enviar emails
   desde el CRM, plantillas comerciales base, acciones CRM dentro de secuencias (incluido
   mover de etapa/embudo al avanzar un paso), preparación visible de Resend para contacto
-  masivo y auditoría de entregabilidad/RGPD. Plan y plantilla en
+  masivo y auditoría de entregabilidad/RGPD. La pantalla `/emails/compose` ya reutiliza
+  el compositor real de Gmail 1:1 con plantillas, merge tags, preview, IA opcional,
+  vínculo a negocio/hilo y redirección al hilo enviado. Plan y plantilla en
   `docs/08-EMAIL-RESEND-Y-REDACCION.md`.
 
 - **Fase 9 · Analítica y reporting:** **pendiente; 9.1 está iniciada pero sin commit.**
@@ -353,15 +355,14 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase T.1 · Pantalla global "Redactar email"**. Debe
-crear una superficie propia para redactar y enviar correos 1:1 desde el CRM, reutilizando
-Gmail, `sendEmail`, `RichEmailEditor`, plantillas, merge tags, preview, tracking, firma y
-límite diario. Accesos esperados: navegación, command menu, fichas y bandeja.
+**Siguiente tarea de desarrollo:** **Fase T.2 · Plantillas de redacción comerciales
+listas para usar**. Debe sembrar/gestionar plantillas comerciales base (primer contacto,
+follow-up, respuesta a interés, recuperación de silencio y cierre/reunión) en la misma
+experiencia de plantillas del CRM, con merge tags seguros y preview por contacto.
 
-**Después de T.1:** T.2 plantillas comerciales base, T.3 acciones CRM dentro de
-secuencias (incluido mover etapa/embudo al avanzar un paso), T.4 checklist Resend para
-contacto masivo profesional, T.5 mejoras de escala en campañas/secuencias y T.6 auditoría
-de entregabilidad/RGPD.
+**Después de T.2:** T.3 acciones CRM dentro de secuencias (incluido mover etapa/embudo al
+avanzar un paso), T.4 checklist Resend para contacto masivo profesional, T.5 mejoras de
+escala en campañas/secuencias y T.6 auditoría de entregabilidad/RGPD.
 
 **WIP a respetar:** Claude dejó 9.1 iniciada sin commit en `/analytics`; no mezclarla en
 commits de la fase transversal salvo que el usuario pida retomar analítica.
@@ -451,10 +452,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > comerciales base, acciones CRM dentro de secuencias, preparación visible de Resend para
 > envío masivo y auditoría de entregabilidad/RGPD.
 >
-> **Hecho en la última sesión técnica cerrada:** Fase 8 completa (8.1–8.7), acciones
-> transversales `send_email`/`ai_summary` en automatizaciones y conversión temporal real
-> del embudo (`deal_stage_events`). Claude inició 9.1 sin commit; queda como WIP a
-> respetar. **Siguiente: T.1** pantalla global "Redactar email".
+> **Hecho en la última sesión técnica cerrada:** T.1 pantalla global `/emails/compose`
+> con destinatario, negocio/hilo opcional, plantillas, merge tags, preview, IA opcional y
+> envío Gmail 1:1 reutilizando el compositor existente. Claude inició 9.1 sin commit;
+> queda como WIP a respetar. **Siguiente: T.2** plantillas comerciales base.
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -495,6 +496,21 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-29 (83) — Fase T.1: pantalla global Redactar email
+- **Pantalla global:** nueva ruta `/emails/compose` con selector de contacto, vínculo
+  opcional a negocio/hilo (`dealId`, `threadId`, `mode=reply`, `subject` por query),
+  asunto, editor Tiptap, plantillas, merge tags, preview por destinatario, borrador IA
+  opcional y envío real por Gmail 1:1.
+- **Reutilización segura:** el formulario global usa el mismo motor que los botones de
+  fichas (`sendEmail`, `RichEmailEditor`, plantillas existentes, tracking, firma, límite
+  diario, validaciones Zod y autorización owner-aware en las capas existentes).
+- **Accesos:** acción "Redactar email" en la paleta de comandos, acceso rápido en la
+  barra lateral y botón en Bandeja, sin tocar el WIP de `src/lib/navigation.ts` que
+  pertenece a 9.1.
+- **Docs:** roadmap T.1 marcada como hecha y `docs/08-EMAIL-RESEND-Y-REDACCION.md`
+  actualizado con el estado implementado.
+- **Verificado:** `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-29 (82) — Plan: fase transversal de comunicación comercial
 - **Estado corregido:** `ESTADO-ACTUAL.md` ya refleja la realidad de `git log`: Fase 8

@@ -591,13 +591,16 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
 - [x] **T.0** Replanificar el bloque transversal, corregir `ESTADO-ACTUAL.md` y crear la
       plantilla de redacción base. Documentación en
       [`08-EMAIL-RESEND-Y-REDACCION.md`](08-EMAIL-RESEND-Y-REDACCION.md).
-- [ ] **T.1** Pantalla global **Redactar email** (`/emails/compose` o equivalente):
+- [x] **T.1** Pantalla global **Redactar email** (`/emails/compose` o equivalente):
       selector de destinatario/contacto, vínculo opcional a empresa/negocio/hilo,
       asunto, editor Tiptap, selector de plantilla, merge tags, vista previa por
       destinatario, borrador IA opcional y envío real por Gmail 1:1. Debe reutilizar
       `sendEmail`, `RichEmailEditor`, plantillas existentes, tracking, firma, límite
       diario del buzón y validaciones Zod. Accesos desde navegación, command menu y
-      fichas.
+      fichas. **HECHA:** ruta `/emails/compose`, formulario reutilizado del compositor
+      de fichas, selector de destinatario, vínculo opcional a negocio, plantillas,
+      merge tags, preview, IA opcional, envío real por Gmail y redirección al hilo
+      creado/enviado.
 - [ ] **T.2** Plantillas de redacción comerciales listas para usar: primer contacto,
       follow-up, respuesta a interés, recuperación de silencio y cierre/reunión. Deben
       vivir en la misma experiencia de plantillas del CRM, usar merge tags seguros,

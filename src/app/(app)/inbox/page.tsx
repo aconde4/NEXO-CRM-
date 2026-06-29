@@ -6,10 +6,12 @@ import {
   KeyRound,
   MailCheck,
   RefreshCw,
+  Send,
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { signIn } from "@/auth";
 import { PageHeader } from "@/components/page-header";
@@ -163,6 +165,10 @@ export default async function InboxPage({
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" render={<Link href="/emails/compose" />}>
+              <Send className="size-4" />
+              Redactar email
+            </Button>
             {status.ready ? (
               <form action={syncGmailInbox}>
                 <Button type="submit" variant="outline">

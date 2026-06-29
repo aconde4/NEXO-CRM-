@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Send } from "lucide-react";
 
 import { navGroups, settingsNavItem } from "@/lib/navigation";
 import {
@@ -39,6 +40,16 @@ export function AppSidebar({ user }: { user: SessionUser }) {
                   Tu CRM personal
                 </span>
               </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isActive("/emails/compose")}
+              tooltip="Redactar email"
+              render={<Link href="/emails/compose" />}
+            >
+              <Send />
+              <span>Redactar email</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

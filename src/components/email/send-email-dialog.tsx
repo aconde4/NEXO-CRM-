@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -51,6 +52,15 @@ export type EmailComposerRecipient = {
   context: Record<string, string>;
 };
 
+export type EmailComposerDealOption = {
+  id: string;
+  title: string;
+  personId: string | null;
+  orgId: string | null;
+  pipelineName: string | null;
+  stageName: string | null;
+};
+
 export type EmailComposerAIStatus = {
   configured: boolean;
   model: string | null;
@@ -76,6 +86,28 @@ function insertIntoInput(
     const pos = start + token.length;
     input?.setSelectionRange(pos, pos);
   });
+}
+
+function recipientLabel(recipient: EmailComposerRecipient): string {
+  return recipient.name
+    ? `${recipient.name} · ${recipient.email}`
+    : recipient.email;
+}
+
+function dealLabel(deal: EmailComposerDealOption): string {
+  const location = [deal.pipelineName, deal.stageName].filter(Boolean).join(" → ");
+  return location ? `${deal.title} · ${location}` : deal.title;
+}
+
+function isDealForRecipient(
+  deal: EmailComposerDealOption,
+  recipient: EmailComposerRecipient | null,
+): boolean {
+  if (!recipient) return false;
+  return Boolean(
+    (deal.personId && recipient.personId === deal.personId) ||
+      (deal.orgId && recipient.orgId === deal.orgId),
+  );
 }
 
 export function SendEmailDialog({
@@ -105,7 +137,7 @@ export function SendEmailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl">
         {open ? (
-          <SendEmailBody
+          <EmailComposerForm
             recipients={recipients}
             catalog={catalog}
             templates={templates}
@@ -122,29 +154,42 @@ export function SendEmailDialog({
   );
 }
 
-function SendEmailBody({
+export function EmailComposerForm({
   recipients,
   catalog,
   templates,
   gmailReady,
   aiStatus,
-  defaultSubject,
-  mode,
+  defaultSubject = "",
+  mode = "new",
   threadId,
+  dealOptions = [],
+  initialRecipientId,
+  initialDealId,
   onDone,
+  redirectToThreadOnSend = false,
+  surface = "dialog",
 }: {
   recipients: EmailComposerRecipient[];
   catalog: MergeTag[];
   templates: EmailTemplateItem[];
   gmailReady: boolean;
   aiStatus: EmailComposerAIStatus;
-  defaultSubject: string;
-  mode: EmailDraftMode;
+  defaultSubject?: string;
+  mode?: EmailDraftMode;
   threadId?: string;
-  onDone: () => void;
+  dealOptions?: EmailComposerDealOption[];
+  initialRecipientId?: string;
+  initialDealId?: string;
+  onDone?: () => void;
+  redirectToThreadOnSend?: boolean;
+  surface?: "dialog" | "page";
 }) {
   const router = useRouter();
-  const [recipientId, setRecipientId] = React.useState(recipients[0]?.id ?? "");
+  const [recipientId, setRecipientId] = React.useState(
+    initialRecipientId ?? recipients[0]?.id ?? "",
+  );
+  const [dealId, setDealId] = React.useState(initialDealId ?? "");
   const [templateId, setTemplateId] = React.useState("");
   const [subject, setSubject] = React.useState(defaultSubject);
   const [bodyHtml, setBodyHtml] = React.useState("");
@@ -161,6 +206,11 @@ function SendEmailBody({
 
   const recipient =
     recipients.find((item) => item.id === recipientId) ?? recipients[0] ?? null;
+  const availableDeals = dealOptions.filter((deal) =>
+    isDealForRecipient(deal, recipient),
+  );
+  const selectedDeal =
+    availableDeals.find((deal) => deal.id === dealId) ?? null;
   const context = recipient?.context ?? {};
   const missingVariables = unknownMergeTags(
     `${subject}\n${bodyHtml}\n${bodyText}`,
@@ -173,6 +223,21 @@ function SendEmailBody({
     escapeValues: true,
   });
   const hasBody = Boolean(bodyText.trim() || bodyHtml.trim());
+  const effectiveDealId = selectedDeal?.id ?? recipient?.dealId;
+  const effectiveOrgId = selectedDeal?.orgId ?? recipient?.orgId;
+
+  function handleRecipientChange(id: string) {
+    const nextRecipient =
+      recipients.find((item) => item.id === id) ?? recipients[0] ?? null;
+    setRecipientId(id);
+    setDealId((current) =>
+      dealOptions.some(
+        (deal) => deal.id === current && isDealForRecipient(deal, nextRecipient),
+      )
+        ? current
+        : "",
+    );
+  }
 
   function applyTemplate(id: string) {
     setTemplateId(id);
@@ -213,10 +278,10 @@ function SendEmailBody({
     try {
       const draft = await generateEmailDraft({
         bodyText,
-        dealId: recipient.dealId,
+        dealId: effectiveDealId,
         instruction: aiInstruction,
         mode,
-        orgId: recipient.orgId,
+        orgId: effectiveOrgId,
         personId: recipient.personId,
         subject,
         threadId,
@@ -261,18 +326,22 @@ function SendEmailBody({
 
     setSending(true);
     try {
-      await sendEmail({
+      const result = await sendEmail({
         to: [{ email: recipient.email, name: recipient.name || undefined }],
         subject: resolvedSubject,
         bodyText: resolvedBodyText,
         bodyHtml: resolvedBodyHtml || textToHtml(resolvedBodyText),
         personId: recipient.personId,
-        orgId: recipient.orgId,
-        dealId: recipient.dealId,
+        orgId: effectiveOrgId,
+        dealId: effectiveDealId,
         threadId,
       });
       toast.success("Email enviado");
-      onDone();
+      onDone?.();
+      if (redirectToThreadOnSend) {
+        router.push(`/inbox/${result.threadId}`);
+        return;
+      }
       router.refresh();
     } catch (error) {
       toast.error(
@@ -283,18 +352,74 @@ function SendEmailBody({
     }
   }
 
-  return (
+  if (recipients.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed p-8 text-center">
+        <Mail className="text-muted-foreground mx-auto size-8" />
+        <h3 className="mt-3 text-base font-semibold">
+          No hay contactos con email
+        </h3>
+        <p className="text-muted-foreground mx-auto mt-1 max-w-md text-sm">
+          Añade un email a un contacto para poder redactar y enviar mensajes 1:1
+          desde el CRM.
+        </p>
+        <Button
+          className="mt-4"
+          variant="outline"
+          render={<Link href="/contacts" />}
+        >
+          Ir a contactos
+        </Button>
+      </div>
+    );
+  }
+
+  const footer = (
     <>
-      <DialogHeader>
-        <DialogTitle>
-          {mode === "reply" ? "Responder email" : "Enviar email"}
-        </DialogTitle>
-        <DialogDescription>
-          {recipient
-            ? `${recipient.name ? `${recipient.name} · ` : ""}${recipient.email}`
-            : "Selecciona un destinatario para redactar."}
-        </DialogDescription>
-      </DialogHeader>
+      {surface === "dialog" ? (
+        <DialogClose render={<Button type="button" variant="outline" />}>
+          Cancelar
+        </DialogClose>
+      ) : (
+        <Button type="button" variant="outline" render={<Link href="/inbox" />}>
+          Cancelar
+        </Button>
+      )}
+      <Button
+        onClick={send}
+        disabled={
+          sending ||
+          !gmailReady ||
+          !recipient ||
+          !subject.trim() ||
+          !hasBody ||
+          missingVariables.length > 0
+        }
+      >
+        {sending ? (
+          <Mail className="size-4 animate-pulse" />
+        ) : (
+          <Send className="size-4" />
+        )}
+        {sending ? "Enviando..." : "Enviar"}
+      </Button>
+    </>
+  );
+
+  return (
+    <div className="grid gap-4">
+      {surface === "dialog" ? (
+        <DialogHeader>
+          <DialogTitle>
+            {mode === "reply" ? "Responder email" : "Enviar email"}
+          </DialogTitle>
+          <DialogDescription>
+            {recipient
+              ? recipientLabel(recipient)
+              : "Selecciona un destinatario para redactar."}
+          </DialogDescription>
+        </DialogHeader>
+      ) : null}
 
       {!gmailReady ? (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
@@ -304,17 +429,32 @@ function SendEmailBody({
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        {recipients.length > 1 ? (
+        {recipients.length > 1 || surface === "page" ? (
           <select
             className={selectClass}
-            value={recipientId}
-            onChange={(e) => setRecipientId(e.target.value)}
+            value={recipient?.id ?? ""}
+            onChange={(e) => handleRecipientChange(e.target.value)}
             aria-label="Destinatario"
           >
             {recipients.map((item) => (
               <option key={item.id} value={item.id}>
-                {item.name ? `${item.name} · ` : ""}
-                {item.email}
+                {recipientLabel(item)}
+              </option>
+            ))}
+          </select>
+        ) : null}
+
+        {dealOptions.length > 0 ? (
+          <select
+            className={selectClass}
+            value={dealId}
+            onChange={(e) => setDealId(e.target.value)}
+            aria-label="Negocio vinculado"
+          >
+            <option value="">Sin negocio vinculado</option>
+            {availableDeals.map((deal) => (
+              <option key={deal.id} value={deal.id}>
+                {dealLabel(deal)}
               </option>
             ))}
           </select>
@@ -459,29 +599,13 @@ function SendEmailBody({
         </div>
       )}
 
-      <DialogFooter>
-        <DialogClose render={<Button type="button" variant="outline" />}>
-          Cancelar
-        </DialogClose>
-        <Button
-          onClick={send}
-          disabled={
-            sending ||
-            !gmailReady ||
-            !recipient ||
-            !subject.trim() ||
-            !hasBody ||
-            missingVariables.length > 0
-          }
-        >
-          {sending ? (
-            <Mail className="size-4 animate-pulse" />
-          ) : (
-            <Send className="size-4" />
-          )}
-          {sending ? "Enviando..." : "Enviar"}
-        </Button>
-      </DialogFooter>
-    </>
+      {surface === "dialog" ? (
+        <DialogFooter>{footer}</DialogFooter>
+      ) : (
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          {footer}
+        </div>
+      )}
+    </div>
   );
 }
