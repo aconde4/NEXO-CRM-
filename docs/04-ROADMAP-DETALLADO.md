@@ -576,6 +576,59 @@ otro proveedor de pago editando solo variables de entorno. El gran diferenciador
 
 ---
 
+## FASE T · Transversal de comunicación comercial
+
+**Objetivo:** cerrar la experiencia profesional de redacción, envío, contacto masivo y
+automatización comercial antes de continuar con reporting. Esta fase no sustituye Gmail,
+Resend, campañas, secuencias ni automatizaciones: los une en una experiencia coherente
+para trabajar desde el CRM sin cambios de contexto innecesarios.
+
+> **Decisión de producto (2026-06-29):** esta fase se ejecuta antes de retomar la Fase 9.
+> Hay WIP no commiteado de 9.1 iniciado por Claude, pero la prioridad pasa a ser la
+> comunicación comercial. No se debe perder ese WIP; se retomará después.
+
+### Tareas
+- [x] **T.0** Replanificar el bloque transversal, corregir `ESTADO-ACTUAL.md` y crear la
+      plantilla de redacción base. Documentación en
+      [`08-EMAIL-RESEND-Y-REDACCION.md`](08-EMAIL-RESEND-Y-REDACCION.md).
+- [ ] **T.1** Pantalla global **Redactar email** (`/emails/compose` o equivalente):
+      selector de destinatario/contacto, vínculo opcional a empresa/negocio/hilo,
+      asunto, editor Tiptap, selector de plantilla, merge tags, vista previa por
+      destinatario, borrador IA opcional y envío real por Gmail 1:1. Debe reutilizar
+      `sendEmail`, `RichEmailEditor`, plantillas existentes, tracking, firma, límite
+      diario del buzón y validaciones Zod. Accesos desde navegación, command menu y
+      fichas.
+- [ ] **T.2** Plantillas de redacción comerciales listas para usar: primer contacto,
+      follow-up, respuesta a interés, recuperación de silencio y cierre/reunión. Deben
+      vivir en la misma experiencia de plantillas del CRM, usar merge tags seguros,
+      preview por contacto y no enviar automáticamente.
+- [ ] **T.3** Acciones CRM dentro de secuencias: nuevo paso **Acción CRM** para mover
+      etapa/embudo, añadir etiqueta, actualizar campo, crear tarea, inscribir/parar otra
+      secuencia, notificar y webhook. En particular: cuando una secuencia pase por un
+      paso determinado, debe poder mover el contacto/negocio a otra etapa de otro embudo.
+      Si no existe entrada en embudo para ese contacto, el producto debe decidir y
+      documentar si la crea automáticamente o si marca el paso como omitido.
+- [ ] **T.4** Preparación de contacto masivo profesional: checklist visible de Resend
+      (dominio verificado, `RESEND_API_KEY`, remitente, webhook, datos RGPD), estado de
+      supresiones, límites por lote/ventana y degradación clara cuando falte algo.
+- [ ] **T.5** Mejoras de campañas/secuencias para escala: duplicar campaña/secuencia,
+      envío de prueba por variante, pausa/reanudación segura, reintentos controlados,
+      protección anti-duplicados por destinatario y métricas mínimas antes de lanzar.
+- [ ] **T.6** Auditoría de entregabilidad y cumplimiento: Gmail para 1:1, Resend para
+      masivo, consentimiento/origen, unsubscribe, rebotes/quejas/supresiones, límites de
+      calentamiento y documentación de lo que debe configurar el usuario antes de enviar
+      volumen real.
+
+### Criterios de aceptación
+- Puedes redactar y enviar un correo 1:1 desde una pantalla propia del CRM, no solo desde
+  una ficha.
+- Puedes convertir una intención comercial en plantillas reutilizables y previsualizadas.
+- Una secuencia puede ejecutar acciones CRM, incluido mover a otra etapa/embudo.
+- Campañas masivas muestran claramente qué falta para estar listas en producción con
+  Resend, RGPD y webhooks.
+
+---
+
 ## FASE 9 · Analítica y reporting
 
 **Objetivo:** paneles e informes para entender el negocio.

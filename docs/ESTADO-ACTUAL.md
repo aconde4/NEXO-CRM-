@@ -8,23 +8,31 @@
 
 ## 📍 Dónde estamos
 
-- **Fase 8 · IA agnóstica:** **activa. 8.1–8.4 HECHAS.** La base de IA ya no depende de un
+- **Fase T · Transversal de comunicación comercial:** **activa por decisión del usuario
+  (2026-06-29). T.0 HECHA.** Antes de seguir construyendo reporting, hay que cerrar una
+  experiencia profesional de comunicación: pantalla global para redactar/enviar emails
+  desde el CRM, plantillas comerciales base, acciones CRM dentro de secuencias (incluido
+  mover de etapa/embudo al avanzar un paso), preparación visible de Resend para contacto
+  masivo y auditoría de entregabilidad/RGPD. Plan y plantilla en
+  `docs/08-EMAIL-RESEND-Y-REDACCION.md`.
+
+- **Fase 9 · Analítica y reporting:** **pendiente; 9.1 está iniciada pero sin commit.**
+  Claude dejó WIP en `src/app/(app)/analytics/page.tsx`, `src/components/analytics/`,
+  `src/server/queries/analytics.ts` y `src/lib/navigation.ts`. No se debe borrar ni
+  mezclar con esta replanificación. Se retomará después de la fase transversal, salvo
+  orden explícita del usuario.
+
+- **Fase 8 · IA agnóstica:** **completa (8.1–8.7).** La base de IA ya no depende de un
   proveedor concreto: `ai_runs` está migrada, `src/server/ai` define `AIProvider`, el
   adaptador `openai-compatible` permite probar con Groq/Ollama/OpenRouter/etc., y
   `src/server/services/ai.ts` centraliza timeout, reintentos, salida estructurada con
-  Zod/JSON Schema, coste estimado y degradación elegante si no hay `.env.local` de IA.
-  Ajustes muestra estado de configuración y ejecuciones recientes sin exponer secretos ni
-  prompts completos. 8.2 añade borradores editables de email desde fichas y respuestas
-  asistidas desde `/inbox/[threadId]`, usando contexto owner-aware y muestras recientes
-  de tono; nunca envía automáticamente. 8.3 añade resúmenes bajo demanda del historial de
-  contacto/negocio en fichas, con notas, tareas, emails, leads/formularios y datos del
-  embudo como contexto, salida estructurada y traza en `ai_runs`. 8.4 añade creación de
-  secuencias y automatizaciones por lenguaje natural, siempre como borradores revisables,
-  con catálogos owner-aware y validación final Zod. **Siguiente: 8.5**, lead scoring
-  automático (`persons.score`/`leads.score`).
+  Zod/JSON Schema, coste estimado y degradación elegante. Están hechos: borradores de
+  email, respuestas asistidas, resúmenes de historial, creación de secuencias/
+  automatizaciones por lenguaje natural, lead scoring, siguiente mejor acción y análisis
+  de sentimiento de respuestas entrantes.
 
-- **Bloque prioritario antes de continuar 6.5 (decisión de producto 2026-06-23):**
-  **completo (6.4a–6.4d hechas).** Se puede retomar **6.5**. Resumen del bloque:
+- **Bloque prioritario de embudo/filtros (decisión de producto 2026-06-23):**
+  **cerrado** y absorbido dentro de la Fase 6 (6.4a–6.4j hechas). Resumen del bloque:
   - **6.4a HECHA** `campaign` nativo en contactos: migración, validación, formulario,
     ficha, listado, exportación, segmentos, merge tags y auto-mapeo desde Excel/CSV. Es
     la campaña/origen comercial de carga del contacto; no es la tabla `campaigns` de
@@ -87,13 +95,11 @@
     grafo y ejecuta los nodos de acción sobre la entidad disparadora, con log por nodo y
     estado final `completed`/`failed`. Acciones: `create_task`, `add_label`,
     `move_stage` (negocios), `update_field` (custom field), `enroll_sequence` (inscribe +
-    emite `sequence/run.requested`), `webhook` (POST) y `notify` (traza). `send_email` y
-    `ai_summary` quedan como "pendiente" (6.x/Fase 8). Cableado en
-    `run-automations-for-event` (ejecuta cada run tras crearlo; idempotente por carrera
-    `waiting`→`running`). Verificado con `tsx`: evento → run → 3 acciones ok → completed,
-    2.ª ejecución skip.
-  - (resto de la fase) **en curso (6.1 + 6.2 + 6.3 + 6.4 + 6.4a
-  + 6.4b hechas; 6.5 pausada hasta cerrar 6.4c–6.4d).**
+    emite `sequence/run.requested`), `webhook` (POST), `notify`, `send_email` y
+    `ai_summary`. `send_email` envía una plantilla por Gmail con merge tags y
+    degradación elegante si falta buzón/transporte; `ai_summary` resume el historial con
+    la capa de IA y lo guarda como nota. Cableado en `run-automations-for-event` y
+    reflejado en dry-run.
   - **6.4** sistema de eventos interno: `src/server/services/automation-runner.ts`
     define `AUTOMATION_EVENT` (`automation/event`), emisores best-effort hacia Inngest,
     normalización/parseo de eventos, `eventId` para deduplicar reintentos y
@@ -105,7 +111,8 @@
     `field_changed`; negocios emite también `deal_stage_changed` al mover/cambiar etapa;
     las inscripciones de secuencia emiten `sequence_enrolled`; el tracking Gmail emite
     `email_opened` solo en la primera apertura; el sync Gmail emite `email_replied` al
-    detectar respuestas. **Siguiente: 6.4c**, embudo de contactos/prospección real.
+    detectar respuestas. El embudo de contactos/prospección real quedó cerrado en
+    6.4c–6.4j.
   - **6.3** disparadores: `src/server/services/automation-events.ts` define el evento
     interno (`AutomationEvent` = type/ownerId/entityType/entityId/payload),
     `triggerMatchesEvent` (matcher puro: tipo + filtros de entidad/etapa destino/campo) y
@@ -346,23 +353,24 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 9 · Analítica y reporting** (los pendientes
-transversales quedan **cerrados**: `send_email`/`ai_summary` en automatizaciones y la
-conversión temporal real del embudo, ver changelog). Por roadmap: **9.1** dashboard
-principal (pipeline/previsión/actividad), **9.2** embudo de conversión y tasa de victoria
-(base lista: `getFunnelMetrics` ya da conversión histórica por etapa desde
-`deal_stage_events`; falta tasa de victoria por embudo + vista dedicada), **9.3**
-rendimiento de email, **9.4** métricas de secuencias/campañas, **9.5** objetivos, **9.6**
-informes personalizados. No depende de claves externas; reutiliza `getFunnelMetrics`,
-`deal_stage_events`, los paneles de secuencia/campaña y `ai_runs`. Para gráficas, valorar
-**Tremor/Recharts** (9.1 los menciona) o barras CSS como en `DealsMetrics`.
+**Siguiente tarea de desarrollo:** **Fase T.1 · Pantalla global "Redactar email"**. Debe
+crear una superficie propia para redactar y enviar correos 1:1 desde el CRM, reutilizando
+Gmail, `sendEmail`, `RichEmailEditor`, plantillas, merge tags, preview, tracking, firma y
+límite diario. Accesos esperados: navegación, command menu, fichas y bandeja.
 
-> **Recomendación de modelos (resumen, detalle en `docs/07-IA-PROVEEDORES-Y-MODELOS.md`):**
-> empezar **gratis** con **Gemini 2.5 Flash** (mejor calidad gratis) o **Groq + Llama 3.3
-> 70B** (rápido); para coste cero/privado total, **Ollama + Qwen2.5** (datos locales). De
-> pago, cuando convenga: **Claude Sonnet 4.6** (calidad) + **Claude Haiku 4.5** (volumen
-> barato). **No hace falta confirmar ninguna clave para seguir con 8.4**: la UI debe
-> degradar si no hay proveedor configurado.
+**Después de T.1:** T.2 plantillas comerciales base, T.3 acciones CRM dentro de
+secuencias (incluido mover etapa/embudo al avanzar un paso), T.4 checklist Resend para
+contacto masivo profesional, T.5 mejoras de escala en campañas/secuencias y T.6 auditoría
+de entregabilidad/RGPD.
+
+**WIP a respetar:** Claude dejó 9.1 iniciada sin commit en `/analytics`; no mezclarla en
+commits de la fase transversal salvo que el usuario pida retomar analítica.
+
+**Resend para el usuario:** para enviar masivamente hace falta cuenta de Resend, dominio o
+subdominio verificado con SPF/DKIM/MX/DMARC, `RESEND_API_KEY`, remitente del dominio
+verificado, webhook `/api/webhooks/resend`, `RESEND_WEBHOOK_SECRET`, datos legales/RGPD y
+`NEXT_PUBLIC_APP_URL` correcto en producción. Detalle en
+`docs/08-EMAIL-RESEND-Y-REDACCION.md` y `docs/SETUP.md` §6.
 
 **Nota de 7.4 (motor):** la automatización directa del formulario (`forms.automation_id`)
 se ejecuta **en proceso** (esperas inmediatas, como el dry-run) solo si su disparador no
@@ -414,22 +422,18 @@ Plan concreto para el relevo (Opción A · reutilizar `deals`):
 Después: **6.4d** UX de Negocios con muchos funnels (selector/combobox escalable). Solo
 al cerrar 6.4c–6.4d se retoma **6.5** acciones de automatización.
 
-**Pendiente externo:** 4.1 — API key de Resend **ya pegada** por el usuario; falta
-verificar dominio (no tiene aún) para enviar a terceros; en local se prueba con
-`onboarding@resend.dev` al propio correo. Métricas/bajas requieren despliegue (aplazado).
-
-**Pendiente externo de Fase 4:** **4.1** (acción del usuario): crear cuenta en Resend y
-verificar el dominio de envío (SPF/DKIM/DMARC). Guía completa en `SETUP.md` §6. Pasos:
-- Crear cuenta en https://resend.com y un **API key** → ponerlo en `.env.local` como
-  `RESEND_API_KEY`.
-- **Domains → Add Domain** con el dominio de envío (p. ej. `mg.tudominio.com` o el
-  dominio raíz). Resend da varios registros DNS:
-  - **SPF/MX** (un `MX` para el subdominio de bounce + un `TXT` `v=spf1 include:...`).
-  - **DKIM** (registro `TXT`/`CNAME` con la clave pública).
-  - **DMARC** (opcional pero recomendado): `TXT` en `_dmarc.tudominio.com` con
-    `v=DMARC1; p=none; rua=mailto:tu@correo`.
-- Añadir esos registros en el DNS del dominio y pulsar **Verify** en Resend hasta que
-  quede "Verified". Definir también `CAMPAIGN_FROM_EMAIL` (un `from` de ese dominio).
+**Pendiente externo de Fase 4 / Resend:** si `RESEND_API_KEY` ya está en `.env.local`,
+lo que falta para enviar a terceros con calidad es verificar un dominio o subdominio de
+envío. En local se puede probar con remitente de prueba (`onboarding@resend.dev`) al propio
+correo, pero no es el modo de producción. Guía completa en `SETUP.md` §6 y resumen:
+- En Resend, **Domains → Add Domain** con el dominio de envío (p. ej.
+  `mg.tudominio.com` o el dominio raíz).
+- Añadir en el DNS los registros que indique Resend: SPF/MX de rebotes, DKIM y DMARC
+  recomendado.
+- Pulsar **Verify** hasta que quede "Verified".
+- Definir `CAMPAIGN_FROM_EMAIL` con un remitente de ese dominio y `CAMPAIGN_FROM_NAME`.
+- Para métricas reales y bajas, desplegar la app o exponer local con túnel y configurar
+  el webhook `/api/webhooks/resend` + `RESEND_WEBHOOK_SECRET`.
 
 > Reutiliza lo ya hecho: el **motor de merge tags** (`lib/email/merge-tags.ts`) y el
 > **modelo de email** de la Fase 3. La supresión (`suppressions`) debe comprobarse
@@ -442,15 +446,15 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > **Para activar adjuntos:** crear el bucket `attachments` y añadir
 > `SUPABASE_SERVICE_ROLE_KEY` (ver `SETUP.md` §2 ter).
 
-> **Última decisión de producto:** antes de seguir con 6.5 hay que cerrar el bloque
-> **6.4a–6.4d** (`campaign` nativo, filtros por prefijo, embudo de contactos no basado
-> en actividades y UX de muchos funnels en Negocios).
+> **Última decisión de producto (2026-06-29):** antes de seguir con analítica, cerrar una
+> **fase transversal de comunicación comercial**: pantalla global de redacción, plantillas
+> comerciales base, acciones CRM dentro de secuencias, preparación visible de Resend para
+> envío masivo y auditoría de entregabilidad/RGPD.
 >
-> **Hecho en la última sesión técnica:** **Fase 8.4** (crear secuencias y
-> automatizaciones por lenguaje natural) sobre la capa agnóstica de 8.1, los borradores
-> de email de 8.2 y los resúmenes de 8.3. Antes: Fase 7
-> cerrada, Fase 6 completa (automatizaciones) y Fase 5 completa (secuencias).
-> **Siguiente: Fase 8.5** (lead scoring automático).
+> **Hecho en la última sesión técnica cerrada:** Fase 8 completa (8.1–8.7), acciones
+> transversales `send_email`/`ai_summary` en automatizaciones y conversión temporal real
+> del embudo (`deal_stage_events`). Claude inició 9.1 sin commit; queda como WIP a
+> respetar. **Siguiente: T.1** pantalla global "Redactar email".
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -491,6 +495,23 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-29 (82) — Plan: fase transversal de comunicación comercial
+- **Estado corregido:** `ESTADO-ACTUAL.md` ya refleja la realidad de `git log`: Fase 8
+  completa (8.1–8.7), pendientes transversales de 6.5 cerrados (`send_email` y
+  `ai_summary`) y conversión temporal real del embudo hecha. La Fase 9 queda pendiente y
+  9.1 aparece como WIP no commiteado de Claude que no debe mezclarse con esta tarea.
+- **Roadmap:** añadida la **Fase T · Transversal de comunicación comercial** antes de la
+  Fase 9, con T.1 pantalla global de redacción, T.2 plantillas comerciales, T.3 acciones
+  CRM dentro de secuencias, T.4 preparación Resend, T.5 mejoras de escala y T.6 auditoría
+  de entregabilidad/RGPD.
+- **Documento nuevo:** `docs/08-EMAIL-RESEND-Y-REDACCION.md` explica cómo funciona Resend
+  en Nexo CRM, qué debe configurar el usuario, cómo debe comportarse la futura pantalla
+  de redacción y deja una plantilla base de primer contacto compatible con merge tags.
+- **Tooling:** `pnpm-workspace.yaml` aprueba los build scripts necesarios (`esbuild`,
+  `protobufjs`, `sharp`, `unrs-resolver`) para que `pnpm` pueda ejecutar gates en modo no
+  interactivo sin pedir `approve-builds`.
+- **Verificado:** `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-26 (81) — Transversal 6.4i v2: conversión temporal real del embudo
 - **Modelo:** nueva tabla `deal_stage_events` (log de cambios de etapa: owner/deal/pipeline/
