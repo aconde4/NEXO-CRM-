@@ -5,6 +5,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import type { CampaignEmailBlock } from "@/lib/campaign-blocks";
 import {
   type CampaignComplianceValues,
+  campaignComplianceErrorMessage,
   campaignEmailBlocksSchema,
   normalizeCampaignCompliance,
 } from "@/lib/validations/campaign";
@@ -19,8 +20,13 @@ import {
   campaigns,
   emailEvents,
   segments,
+  suppressions,
 } from "@/server/db/schema";
-import { isResendConfigured } from "@/server/services/resend";
+import { getCampaignDeliveryConfig } from "@/server/services/campaign-dispatch";
+import {
+  getDefaultCampaignFrom,
+  isResendConfigured,
+} from "@/server/services/resend";
 
 const CAMPAIGN_RESULTS_RECIPIENT_LIMIT = 250;
 const CAMPAIGN_RESULTS_EVENT_LIMIT = 100;
@@ -409,5 +415,127 @@ export async function getCampaignComposerDefaults(): Promise<CampaignComposerDef
     fromName: cleanEnv(process.env.CAMPAIGN_FROM_NAME),
     fromEmail: cleanEnv(process.env.CAMPAIGN_FROM_EMAIL),
     resendConfigured: isResendConfigured(),
+  };
+}
+
+// --- Preparación de contacto masivo (Fase T.4) ------------------------------
+export type ResendCheckStatus = "ok" | "missing" | "manual";
+
+export type ResendCheckItem = {
+  key: string;
+  label: string;
+  status: ResendCheckStatus;
+  detail: string;
+  /** Requerido para enviar volumen real (vs. recomendado para producción). */
+  required: boolean;
+};
+
+export type ResendReadiness = {
+  /** No falta ningún requisito auto-comprobable (los "manual" no bloquean). */
+  ready: boolean;
+  items: ResendCheckItem[];
+  suppressions: number;
+  delivery: {
+    batchSize: number;
+    batchDelaySeconds: number;
+    maxBatchesPerRun: number;
+    windowStart: string;
+    windowEnd: string;
+    timeZone: string;
+  };
+};
+
+/**
+ * Checklist de preparación de Resend para contacto masivo (Fase T.4). Solo expone
+ * estados (booleanos/valores no secretos), nunca la API key ni el webhook secret.
+ */
+export async function getResendReadiness(): Promise<ResendReadiness> {
+  const user = await requireUser();
+
+  const apiKeyOk = isResendConfigured();
+  const from = getDefaultCampaignFrom();
+  const complianceError = campaignComplianceErrorMessage(complianceDefaults());
+  const webhookOk = cleanEnv(process.env.RESEND_WEBHOOK_SECRET) !== "";
+  const appUrl = cleanEnv(process.env.NEXT_PUBLIC_APP_URL);
+
+  const suppressionsCount = await db.$count(
+    suppressions,
+    eq(suppressions.ownerId, user.id),
+  );
+
+  const items: ResendCheckItem[] = [
+    {
+      detail: apiKeyOk
+        ? "Conectada."
+        : "Añade RESEND_API_KEY en .env.local (Resend → API Keys).",
+      key: "apiKey",
+      label: "API key de Resend",
+      required: true,
+      status: apiKeyOk ? "ok" : "missing",
+    },
+    {
+      detail: from
+        ? `Remitente: ${from}`
+        : "Define CAMPAIGN_FROM_EMAIL (y CAMPAIGN_FROM_NAME) con un correo de tu dominio.",
+      key: "fromEmail",
+      label: "Remitente por defecto",
+      required: true,
+      status: from ? "ok" : "missing",
+    },
+    {
+      detail:
+        "Verifica el dominio de envío en Resend (SPF, DKIM, MX de rebotes y DMARC). No se puede comprobar desde aquí.",
+      key: "domain",
+      label: "Dominio verificado (SPF/DKIM/DMARC)",
+      required: true,
+      status: "manual",
+    },
+    {
+      detail: complianceError
+        ? `Faltan datos: ${complianceError}`
+        : "Nombre legal, dirección, contacto, base legal y política de privacidad listos.",
+      key: "compliance",
+      label: "Datos RGPD del pie",
+      required: true,
+      status: complianceError ? "missing" : "ok",
+    },
+    {
+      detail: webhookOk
+        ? "Configurado."
+        : "Añade RESEND_WEBHOOK_SECRET y apunta el webhook de Resend a /api/webhooks/resend (métricas, rebotes y bajas).",
+      key: "webhook",
+      label: "Webhook de eventos",
+      required: false,
+      status: webhookOk ? "ok" : "missing",
+    },
+    {
+      detail: appUrl
+        ? `Enlaces públicos desde ${appUrl}.`
+        : "Define NEXT_PUBLIC_APP_URL en producción para tracking, bajas y enlaces públicos.",
+      key: "appUrl",
+      label: "URL pública de la app",
+      required: false,
+      status: appUrl ? "ok" : "missing",
+    },
+  ];
+
+  const ready = !items.some(
+    (item) => item.required && item.status === "missing",
+  );
+
+  const delivery = getCampaignDeliveryConfig();
+
+  return {
+    delivery: {
+      batchDelaySeconds: delivery.batchDelaySeconds,
+      batchSize: delivery.batchSize,
+      maxBatchesPerRun: delivery.maxBatchesPerRun,
+      timeZone: delivery.timeZone,
+      windowEnd: delivery.windowEnd,
+      windowStart: delivery.windowStart,
+    },
+    items,
+    ready,
+    suppressions: suppressionsCount,
   };
 }

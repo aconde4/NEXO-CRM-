@@ -52,6 +52,16 @@ Si falta Resend, la app debe degradar con claridad: se puede preparar una campa�
 enviarla. Si falta RGPD, dominio, remitente o webhook, la UI debe enseñar qué falta antes
 de permitir volumen real.
 
+### Estado implementado en T.4
+
+`/campaigns` muestra un checklist **Preparación para envío masivo (Resend)** (componente
+`ResendChecklist`, datos de `getResendReadiness`) con el estado de cada requisito sin
+exponer secretos: API key, remitente por defecto, dominio (verificación **manual** en
+Resend), datos RGPD del pie, webhook y URL pública. Separa **requeridos** de
+**recomendados**, indica el nº de **supresiones** y los **límites** de envío (tamaño de
+lote, pausa entre lotes, máx. lotes por ejecución, ventana horaria y zona). El bloque se
+abre solo cuando falta algún requisito.
+
 ---
 
 ## 2. Pantalla global de redacción

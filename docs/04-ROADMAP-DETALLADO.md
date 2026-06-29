@@ -620,9 +620,14 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
       en su etapa inicial y se mueve (recomendado), con toggle visible **createIfMissing**
       (si se desmarca y no existe, se omite y se registra). Verificado con `tsx` contra BD
       real.
-- [ ] **T.4** Preparación de contacto masivo profesional: checklist visible de Resend
+- [x] **T.4** Preparación de contacto masivo profesional: checklist visible de Resend
       (dominio verificado, `RESEND_API_KEY`, remitente, webhook, datos RGPD), estado de
-      supresiones, límites por lote/ventana y degradación clara cuando falte algo.
+      supresiones, límites por lote/ventana y degradación clara cuando falte algo. **HECHA:**
+      query owner-aware `getResendReadiness` (solo estados, sin exponer secretos) +
+      componente `ResendChecklist` (render puro con `<details>`, abierto si falta algo) en
+      `/campaigns`. Marca requisitos (API key, remitente, RGPD) vs. recomendados (webhook,
+      `NEXT_PUBLIC_APP_URL`) y el dominio como verificación manual; muestra nº de supresiones
+      y límites de lote/pausa/ventana. Verificado por render real (`/campaigns` HTTP 200).
 - [ ] **T.5** Mejoras de campañas/secuencias para escala: duplicar campaña/secuencia,
       envío de prueba por variante, pausa/reanudación segura, reintentos controlados,
       protección anti-duplicados por destinatario y métricas mínimas antes de lanzar.

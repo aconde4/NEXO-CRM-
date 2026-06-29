@@ -9,7 +9,7 @@
 ## 📍 Dónde estamos
 
 - **Fase T · Transversal de comunicación comercial:** **activa por decisión del usuario
-  (2026-06-29). T.1–T.3 HECHAS.** Antes de seguir construyendo reporting, hay que cerrar una
+  (2026-06-29). T.1–T.4 HECHAS.** Antes de seguir construyendo reporting, hay que cerrar una
   experiencia profesional de comunicación: pantalla global para redactar/enviar emails
   desde el CRM, plantillas comerciales base, acciones CRM dentro de secuencias (incluido
   mover de etapa/embudo al avanzar un paso), preparación visible de Resend para contacto
@@ -20,7 +20,11 @@
   añade el paso **Acción CRM** en secuencias (mover de etapa/embudo creando la entrada si
   falta —toggle `createIfMissing`—, etiqueta, campo, tarea, inscribir/parar otra secuencia,
   notificar y webhook), con lógica reutilizable en `src/server/services/crm-actions.ts`.
-  Plan y plantilla en `docs/08-EMAIL-RESEND-Y-REDACCION.md`.
+  **T.4** añade el checklist **Preparación para envío masivo (Resend)** en `/campaigns`
+  (`getResendReadiness` + `ResendChecklist`): requisitos (API key, remitente, RGPD) vs.
+  recomendados (webhook, `NEXT_PUBLIC_APP_URL`), dominio como verificación manual, nº de
+  supresiones y límites de lote/pausa/ventana; sin exponer secretos. Plan y plantilla en
+  `docs/08-EMAIL-RESEND-Y-REDACCION.md`.
 
 - **Fase 9 · Analítica y reporting:** **pendiente; 9.1 iniciada y aparcada en `git stash`.**
   El WIP de Claude (dashboard `/analytics` con barras CSS/SVG: `analytics/page.tsx`,
@@ -360,15 +364,15 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase T.4 · Preparación de contacto masivo
-profesional**. Checklist visible de Resend (dominio verificado, `RESEND_API_KEY`,
-remitente, webhook, datos RGPD), estado de supresiones, límites por lote/ventana y
-degradación clara cuando falte algo. Reutiliza `isResendConfigured`, los datos RGPD de
-4.10 y la lógica de supresiones existente.
+**Siguiente tarea de desarrollo:** **Fase T.5 · Mejoras de campañas/secuencias para
+escala**. Duplicar campaña/secuencia, envío de prueba por variante, pausa/reanudación
+segura, reintentos controlados, protección anti-duplicados por destinatario y métricas
+mínimas antes de lanzar. Reutiliza el modelo de campañas/secuencias y el dispatcher
+(`campaign-dispatch`, `sequence-runner`) existentes.
 
-**Después de T.4:** T.5 mejoras de escala en campañas/secuencias (duplicar, prueba por
-variante, pausa/reanudación, anti-duplicados) y T.6 auditoría de entregabilidad/RGPD.
-Tras cerrar la Fase T se retoma la **Fase 9** (analítica).
+**Después de T.5:** T.6 auditoría de entregabilidad/RGPD (Gmail 1:1, Resend masivo,
+consentimiento, unsubscribe, rebotes/quejas/supresiones, calentamiento). Tras cerrar la
+Fase T se retoma la **Fase 9** (analítica).
 
 **WIP a respetar:** el dashboard de analítica 9.1 (Claude) está en **`git stash` →
 `stash@{0}`** ("WIP Fase 9.1 dashboard analitica (CSS/SVG, gates verdes)"), no en el árbol.
@@ -503,6 +507,23 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-29 (86) — Fase T.4: preparación de contacto masivo (checklist Resend)
+- **Checklist visible** en `/campaigns`: nuevo componente `ResendChecklist`
+  (`src/components/campaigns/resend-checklist.tsx`, render puro con `<details>` nativo,
+  abierto si falta algún requisito) alimentado por la query owner-aware `getResendReadiness`
+  (`src/server/queries/campaigns.ts`).
+- **Estados, nunca secretos:** API key (`isResendConfigured`), remitente
+  (`getDefaultCampaignFrom`), datos RGPD del pie (`campaignComplianceErrorMessage` sobre los
+  defaults de entorno), webhook (`RESEND_WEBHOOK_SECRET`) y URL pública
+  (`NEXT_PUBLIC_APP_URL`). El dominio (SPF/DKIM/DMARC) se marca como verificación **manual**
+  (no comprobable desde la app). Distingue **requeridos** vs **recomendados**; `ready` no se
+  bloquea por los manuales.
+- Muestra **nº de supresiones** (RGPD) y los **límites de envío** reales
+  (`getCampaignDeliveryConfig`: tamaño de lote, pausa, máx. lotes/ejecución, ventana y zona).
+- **Verificado:** render real `/campaigns` HTTP 200 con todos los ítems y el badge de estado
+  reflejando el entorno ("1 pendiente"). `pnpm typecheck`, `pnpm lint` (a cero) y `pnpm build`
+  en verde.
 
 ### 2026-06-29 (85) — Fase T.3: acciones CRM dentro de secuencias
 - **Nuevo paso `crm_action`** en el builder de secuencias: mover de etapa/embudo, añadir/
