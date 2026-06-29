@@ -360,10 +360,16 @@ esperas → acciones) más potente que la lista lineal de Pipedrive.
       contacto 6.4b) + función pura `computeFunnelMetrics`: resumen (en el embudo, valor,
       previsión, estancados, ganados, perdidos), embudo por etapa (count/valor/estancados,
       `reached` acumulado y % de conversión etapa→etapa) y reparto por campaña.
-      Componente `DealsMetrics` con barras. **Nota:** la conversión es una instantánea del
-      estado actual (negocios abiertos en cada etapa o más adelante), no temporal: falta
-      historial de cambios de etapa (hoy solo `deals.stageChangedAt`). Verificado con
-      `tsx` (22 aserciones de la agregación) + render real (HTTP 200, conteo coincide).
+      Componente `DealsMetrics` con barras. Verificado con `tsx` (22 aserciones de la
+      agregación) + render real.
+      **Conversión temporal real (v2, transversal HECHA):** nueva tabla
+      `deal_stage_events` (log de cambios de etapa, migración `0016` con backfill de los
+      negocios existentes) que rellena un helper `recordStageChange` cableado en todos los
+      puntos que mueven de etapa (`createDeal`/`updateDeal`/`moveDeal`/`bulkMoveDeals`, el
+      `move_stage` de automatizaciones y `addContactToFunnel`). `getFunnelMetrics` añade,
+      por etapa, `entered` (negocios distintos que entraron alguna vez) y
+      `historicalConversion` (%), mostrados junto al snapshot en el panel. Base también
+      para la Fase 9.2. Verificado con `tsx` (entered 4/3/1 → 75%/33%, cascade) + render.
 - [x] **6.4j** **Sincronía con automatizaciones**: plantillas de automatización "al
       entrar en etapa X → inscribir en secuencia / crear tarea" (se apoya en
       `deal_stage_changed`, ya emitido). Encaja al cerrar 6.5–6.6.
@@ -576,7 +582,9 @@ otro proveedor de pago editando solo variables de entorno. El gran diferenciador
 
 ### Tareas
 - [ ] **9.1** Dashboard principal (Tremor/Recharts): pipeline, previsión, actividad.
-- [ ] **9.2** Embudo de conversión por etapa y tasa de victoria.
+- [ ] **9.2** Embudo de conversión por etapa y tasa de victoria. *(Base lista: `getFunnelMetrics`
+      ya da conversión histórica por etapa desde `deal_stage_events` —6.4i v2—; falta tasa de
+      victoria por embudo y vista dedicada.)*
 - [ ] **9.3** Rendimiento de email (aperturas/clics/respuestas/bajas).
 - [ ] **9.4** Métricas de secuencias y campañas.
 - [ ] **9.5** Objetivos (goals) y seguimiento.

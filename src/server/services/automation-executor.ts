@@ -27,6 +27,7 @@ import {
 import { inngest } from "@/server/inngest/client";
 import { isAIConfigured } from "@/server/services/ai";
 import { generateAIHistorySummary } from "@/server/services/ai-history-summary";
+import { recordStageChangeSafely } from "@/server/services/deal-stage-events";
 import { sanitizeEmailHtml } from "@/server/services/email-html";
 import { sendGmailEmail } from "@/server/services/gmail";
 import { GmailServiceError } from "@/server/services/gmail-auth";
@@ -478,10 +479,26 @@ async function moveStage(
     .limit(1);
   if (!stage) return { message: "Etapa destino no encontrada.", skipped: true };
 
+  const [current] = await db
+    .select({ stageId: deals.stageId, pipelineId: deals.pipelineId })
+    .from(deals)
+    .where(and(eq(deals.id, ctx.dealId), eq(deals.ownerId, ownerId)))
+    .limit(1);
+
   await db
     .update(deals)
     .set({ stageId, stageChangedAt: new Date() })
     .where(and(eq(deals.id, ctx.dealId), eq(deals.ownerId, ownerId)));
+
+  if (current && current.stageId !== stageId) {
+    await recordStageChangeSafely({
+      dealId: ctx.dealId,
+      fromStageId: current.stageId,
+      ownerId,
+      pipelineId: current.pipelineId,
+      toStageId: stageId,
+    });
+  }
   return { message: "Negocio movido de etapa.", skipped: false };
 }
 

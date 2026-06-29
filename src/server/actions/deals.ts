@@ -31,6 +31,7 @@ import {
   emitAutomationEventsSafely,
 } from "@/server/services/automation-runner";
 import { backfillContactsIntoFunnel } from "@/server/services/contact-funnel";
+import { recordStageChangeSafely } from "@/server/services/deal-stage-events";
 import { listPersonIdsByFilters } from "@/server/queries/contacts";
 import { listCustomFieldDefs } from "@/server/queries/custom-fields";
 import { inngest } from "@/server/inngest/client";
@@ -63,6 +64,22 @@ export async function bulkMoveDeals(dealIds: string[], stageId: string) {
     .limit(1);
   if (!stage) throw new Error("Etapa no encontrada");
 
+  // Etapas previas (para registrar el cambio en el historial, 6.4i).
+  const before = await db
+    .select({
+      id: deals.id,
+      stageId: deals.stageId,
+      pipelineId: deals.pipelineId,
+    })
+    .from(deals)
+    .where(
+      and(
+        eq(deals.ownerId, user.id),
+        inArray(deals.id, ids),
+        isNull(deals.deletedAt),
+      ),
+    );
+
   const updated = await db
     .update(deals)
     .set({ stageId, stageChangedAt: new Date() })
@@ -74,6 +91,17 @@ export async function bulkMoveDeals(dealIds: string[], stageId: string) {
       ),
     )
     .returning({ id: deals.id });
+
+  for (const row of before) {
+    if (row.stageId === stageId) continue;
+    await recordStageChangeSafely({
+      dealId: row.id,
+      fromStageId: row.stageId,
+      ownerId: user.id,
+      pipelineId: row.pipelineId,
+      toStageId: stageId,
+    });
+  }
   revalidatePath("/deals");
   return { updated: updated.length };
 }
@@ -390,6 +418,13 @@ export async function createDeal(raw: DealFormValues) {
     .returning({ id: deals.id });
 
   if (!row) throw new Error("No se pudo crear el negocio");
+  await recordStageChangeSafely({
+    dealId: row.id,
+    fromStageId: null,
+    ownerId: user.id,
+    pipelineId: data.pipelineId,
+    toStageId: data.stageId,
+  });
   await logEvent(user.id, "created", row.id, { title: data.title });
   await emitAutomationEventsSafely([
     {
@@ -462,6 +497,15 @@ export async function updateDeal(id: string, raw: DealFormValues) {
     .where(and(eq(deals.id, id), eq(deals.ownerId, user.id)));
 
   await logEvent(user.id, "updated", id);
+  if (stageChanged && current) {
+    await recordStageChangeSafely({
+      dealId: id,
+      fromStageId: current.stageId,
+      ownerId: user.id,
+      pipelineId: data.pipelineId,
+      toStageId: data.stageId,
+    });
+  }
   if (current) {
     await emitDealUpdatedEvents({
       after: dealSnapshot({
@@ -595,6 +639,13 @@ export async function moveDeal(
 
   if (stageChanged) {
     await logEvent(user.id, "stage_changed", dealId, { stageId: toStageId });
+    await recordStageChangeSafely({
+      dealId,
+      fromStageId: deal.stageId,
+      ownerId: user.id,
+      pipelineId: deal.pipelineId,
+      toStageId,
+    });
   }
   await emitDealUpdatedEvents({
     after: dealSnapshot({

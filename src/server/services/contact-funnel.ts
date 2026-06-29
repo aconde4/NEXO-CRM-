@@ -10,6 +10,7 @@ import {
   pipelines,
   stages,
 } from "@/server/db/schema";
+import { recordStageChangeSafely } from "@/server/services/deal-stage-events";
 import { ensureDefaultPipeline } from "@/server/queries/deals";
 
 /**
@@ -120,18 +121,30 @@ export async function addContactToFunnel(
     .from(deals)
     .where(and(eq(deals.ownerId, userId), eq(deals.stageId, entry.stageId)));
 
-  await db.insert(deals).values({
-    currency: "EUR",
-    orgId: person.orgId,
-    ownerId: userId,
-    personId,
-    pipelineId: entry.pipelineId,
-    position: Number(maxPos) + 1,
-    stageId: entry.stageId,
-    status: "open",
-    title,
-    value: 0,
-  });
+  const [created] = await db
+    .insert(deals)
+    .values({
+      currency: "EUR",
+      orgId: person.orgId,
+      ownerId: userId,
+      personId,
+      pipelineId: entry.pipelineId,
+      position: Number(maxPos) + 1,
+      stageId: entry.stageId,
+      status: "open",
+      title,
+      value: 0,
+    })
+    .returning({ id: deals.id });
+  if (created) {
+    await recordStageChangeSafely({
+      dealId: created.id,
+      fromStageId: null,
+      ownerId: userId,
+      pipelineId: entry.pipelineId,
+      toStageId: entry.stageId,
+    });
+  }
   return true;
 }
 

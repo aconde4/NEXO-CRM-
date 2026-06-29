@@ -355,6 +355,37 @@ export const dealContacts = pgTable(
   ],
 );
 
+// --- Historial de cambios de etapa (6.4i: conversión temporal real) ---------
+export const dealStageEvents = pgTable(
+  "deal_stage_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: text("owner_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
+    dealId: uuid("deal_id")
+      .notNull()
+      .references(() => deals.id, { onDelete: "cascade" }),
+    pipelineId: uuid("pipeline_id").references(() => pipelines.id, {
+      onDelete: "cascade",
+    }),
+    /** Etapa de origen (null = alta/entrada al embudo). */
+    fromStageId: uuid("from_stage_id").references(() => stages.id, {
+      onDelete: "set null",
+    }),
+    toStageId: uuid("to_stage_id").references(() => stages.id, {
+      onDelete: "set null",
+    }),
+    at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("deal_stage_events_owner_idx").on(t.ownerId),
+    index("deal_stage_events_deal_idx").on(t.dealId),
+    index("deal_stage_events_to_idx").on(t.toStageId),
+    index("deal_stage_events_at_idx").on(t.at),
+  ],
+);
+
 // --- Campos personalizados (definiciones) -----------------------------------
 export const customFieldDefs = pgTable(
   "custom_field_defs",

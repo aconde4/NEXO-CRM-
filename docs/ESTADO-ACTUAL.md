@@ -346,20 +346,16 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** cerrar el **último pendiente transversal** —
-**conversión temporal real del embudo (6.4i)**. Hoy `getFunnelMetrics` da una instantánea
-(negocios abiertos por etapa) pero la "conversión" no es histórica: falta un **log de
-cambios de etapa**. Plan: nueva tabla `deal_stage_events` (dealId, fromStageId, toStageId,
-ownerId, at) que se rellena donde ya se mueve de etapa (`moveDeal`/`bulkMoveDeals`/
-`setDealWon/Lost`/`move_stage` de automatizaciones — todos tocan `deals.stageChangedAt`) y
-en el alta; luego calcular conversión real etapa→etapa y tiempo medio por etapa en las
-métricas (6.4i) y la Fase 9.2. *(Acciones de automatización `send_email`/`ai_summary`: ya
-**hechas**, ver changelog.)*
-
-Tras esto, **Fase 9 · Analítica y reporting** (9.1 dashboard; 9.2 embudo de conversión
-—que se apoyará en `deal_stage_events`—; 9.3 email; 9.4 secuencias/campañas; 9.5 objetivos;
-9.6 informes). No depende de claves externas; reutiliza `getFunnelMetrics`, paneles
-existentes y `ai_runs`.
+**Siguiente tarea de desarrollo:** **Fase 9 · Analítica y reporting** (los pendientes
+transversales quedan **cerrados**: `send_email`/`ai_summary` en automatizaciones y la
+conversión temporal real del embudo, ver changelog). Por roadmap: **9.1** dashboard
+principal (pipeline/previsión/actividad), **9.2** embudo de conversión y tasa de victoria
+(base lista: `getFunnelMetrics` ya da conversión histórica por etapa desde
+`deal_stage_events`; falta tasa de victoria por embudo + vista dedicada), **9.3**
+rendimiento de email, **9.4** métricas de secuencias/campañas, **9.5** objetivos, **9.6**
+informes personalizados. No depende de claves externas; reutiliza `getFunnelMetrics`,
+`deal_stage_events`, los paneles de secuencia/campaña y `ai_runs`. Para gráficas, valorar
+**Tremor/Recharts** (9.1 los menciona) o barras CSS como en `DealsMetrics`.
 
 > **Recomendación de modelos (resumen, detalle en `docs/07-IA-PROVEEDORES-Y-MODELOS.md`):**
 > empezar **gratis** con **Gemini 2.5 Flash** (mejor calidad gratis) o **Groq + Llama 3.3
@@ -495,6 +491,25 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-26 (81) — Transversal 6.4i v2: conversión temporal real del embudo
+- **Modelo:** nueva tabla `deal_stage_events` (log de cambios de etapa: owner/deal/pipeline/
+  from/to/at, migración `0016_famous_norman_osborn`) con **backfill** de los negocios
+  existentes (un evento de entrada en su etapa actual).
+- **Captura:** helper `recordStageChange`/`recordStageChangeSafely`
+  (`src/server/services/deal-stage-events.ts`, best-effort) cableado en **todos** los
+  puntos que mueven de etapa: `createDeal`, `updateDeal`, `moveDeal`, `bulkMoveDeals`
+  (acciones), `addContactToFunnel` (alta en el embudo) y el `move_stage` de automatizaciones.
+- **Métrica:** `getFunnelMetrics` añade por etapa `entered` (negocios distintos que
+  entraron alguna vez, desde el historial) e `historicalConversion` (% respecto a la etapa
+  anterior). El panel `DealsMetrics` muestra "N entraron (histórico · X%)" junto al snapshot.
+  `FunnelStageMetric` gana los campos opcionales (la función pura `computeFunnelMetrics` no
+  cambia).
+- **Verificado:** `tsx` (borrado) — backfill pobló eventos; escenario controlado (4 deals:
+  S1=4, S2=3, S3=1) da conversión 75%/33%; el cascade borra los eventos al borrar los
+  negocios. Render real: `/deals?view=metrics` (HTTP 200) muestra "entraron (histórico…)".
+  `pnpm typecheck`, `pnpm lint` (a cero) y `pnpm build` en verde.
+- Con esto **quedan cerrados los pendientes transversales**; lo siguiente es la Fase 9.
 
 ### 2026-06-26 (80) — Transversal: acciones de automatización `send_email` y `ai_summary`
 - Cerrado el pendiente de **6.5**: las dos acciones que quedaban como traza "pendiente" en

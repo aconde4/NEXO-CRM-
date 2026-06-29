@@ -170,6 +170,15 @@ export function DealsMetrics({
                       {stage.conversionFromPrev}% desde la etapa anterior
                     </span>
                   ) : null}
+                  {stage.entered != null ? (
+                    <span className="tabular-nums">
+                      {stage.entered} entraron (histórico
+                      {stage.historicalConversion != null
+                        ? ` · ${stage.historicalConversion}%`
+                        : ""}
+                      )
+                    </span>
+                  ) : null}
                   {stage.stalled > 0 ? (
                     <span className="text-destructive inline-flex items-center gap-1">
                       <AlertTriangle className="size-3" />

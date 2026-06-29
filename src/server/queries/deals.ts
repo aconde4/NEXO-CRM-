@@ -18,6 +18,7 @@ import { db } from "@/server/db";
 import {
   activities,
   dealContacts,
+  dealStageEvents,
   deals,
   notes,
   organizations,
@@ -416,6 +417,10 @@ export type FunnelStageMetric = {
   reached: number;
   /** % de conversión desde la etapa anterior (`reached`/`reached` anterior). */
   conversionFromPrev: number | null;
+  /** Histórico (6.4i): negocios distintos que entraron alguna vez en esta etapa. */
+  entered?: number;
+  /** Histórico: % de los que entraron en la etapa anterior que llegaron a esta. */
+  historicalConversion?: number | null;
 };
 
 export type FunnelCampaignMetric = {
@@ -505,7 +510,41 @@ export async function getFunnelMetrics(
       ),
     );
 
-  return computeFunnelMetrics(pipelineList, active, stageRows, dealRows);
+  const metrics = computeFunnelMetrics(pipelineList, active, stageRows, dealRows);
+
+  // Conversión temporal real (6.4i): negocios distintos que entraron en cada etapa,
+  // según el historial `deal_stage_events`.
+  const enteredRows = await db
+    .select({
+      toStageId: dealStageEvents.toStageId,
+      count: sql<number>`count(distinct ${dealStageEvents.dealId})::int`,
+    })
+    .from(dealStageEvents)
+    .where(
+      and(
+        eq(dealStageEvents.ownerId, user.id),
+        eq(dealStageEvents.pipelineId, active.id),
+      ),
+    )
+    .groupBy(dealStageEvents.toStageId);
+  const enteredByStage = new Map(
+    enteredRows.map((row) => [row.toStageId, row.count]),
+  );
+
+  let prevEntered: number | null = null;
+  const stagesWithHistory = metrics.stages.map((stage, index) => {
+    const entered = enteredByStage.get(stage.id) ?? 0;
+    const historicalConversion =
+      index === 0
+        ? null
+        : prevEntered && prevEntered > 0
+          ? Math.round((entered / prevEntered) * 100)
+          : 0;
+    prevEntered = entered;
+    return { ...stage, entered, historicalConversion };
+  });
+
+  return { ...metrics, stages: stagesWithHistory };
 }
 
 type FunnelStageRow = {
