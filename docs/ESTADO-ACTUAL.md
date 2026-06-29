@@ -32,12 +32,12 @@
   plantilla y checklist operativo en `docs/08-EMAIL-RESEND-Y-REDACCION.md` y
   `docs/SETUP.md`.
 
-- **Fase 9 · Analítica y reporting:** **pendiente; 9.1 iniciada y aparcada en `git stash`.**
-  El WIP de Claude (dashboard `/analytics` con barras CSS/SVG: `analytics/page.tsx`,
-  `src/components/analytics/`, `src/server/queries/analytics.ts`, `navigation.ts`) está
-  guardado en **`stash@{0}`** ("WIP Fase 9.1 dashboard analitica (CSS/SVG, gates verdes)")
-  para mantener el árbol limpio durante la Fase T. Al retomar la Fase 9: `git stash pop`.
-  No se debe borrar.
+- **Fase 9 · Analítica y reporting:** **activa; 9.1 HECHA.** `/analytics` muestra el
+  dashboard principal con KPIs de negocio, previsión ponderada, actividad reciente,
+  ganados por mes y snapshot del embudo. Se retomó el WIP de Claude desde `git stash`,
+  se corrigió navegación/etiquetado y quedó integrado en el árbol. La siguiente tarea es
+  **9.2 Embudo de conversión por etapa y tasa de victoria**, aprovechando la base
+  existente de `getFunnelMetrics` y `deal_stage_events`.
 
 - **Fase 8 · IA agnóstica:** **completa (8.1–8.7).** La base de IA ya no depende de un
   proveedor concreto: `ai_runs` está migrada, `src/server/ai` define `AIProvider`, el
@@ -370,13 +370,10 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** retomar la **Fase 9 · Analítica y reporting**. Primero
-recuperar el WIP de 9.1 desde `git stash pop`, revisar qué dejó Claude y continuar por
-**9.1 Dashboard principal** sin mezclarlo con commits de la Fase T.
-
-**WIP a respetar:** el dashboard de analítica 9.1 (Claude) está en **`git stash` →
-`stash@{0}`** ("WIP Fase 9.1 dashboard analitica (CSS/SVG, gates verdes)"), no en el árbol.
-Al retomar la Fase 9: `git stash pop`. No mezclar con commits de la Fase T.
+**Siguiente tarea de desarrollo:** **Fase 9.2 · Embudo de conversión por etapa y tasa de
+victoria.** Base ya disponible: `getFunnelMetrics` calcula conversión histórica por etapa
+desde `deal_stage_events`; falta completar vista/consulta dedicada con tasa de victoria por
+embudo y una lectura ejecutiva más profunda.
 
 **Resend para el usuario:** para enviar masivamente hace falta cuenta de Resend, dominio o
 subdominio verificado con SPF/DKIM/MX/DMARC, `RESEND_API_KEY`, remitente del dominio
@@ -463,9 +460,9 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > comerciales base, acciones CRM dentro de secuencias, preparación visible de Resend para
 > envío masivo y auditoría de entregabilidad/RGPD.
 >
-> **Hecho en la última sesión técnica cerrada:** Fase T cerrada con T.6: auditoría de
-> entregabilidad/cumplimiento en `/campaigns` y documentación previa a volumen real.
-> **Siguiente:** retomar Fase 9.1 desde `stash@{0}`.
+> **Hecho en la última sesión técnica cerrada:** Fase 9.1 cerrada: dashboard principal
+> `/analytics` con pipeline, previsión, actividad y navegación activa.
+> **Siguiente:** Fase 9.2, embudo de conversión por etapa y tasa de victoria.
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -506,6 +503,21 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-29 (89) — Fase 9.1: dashboard principal de analítica
+- **Dashboard `/analytics`:** retomado el WIP de Claude desde `git stash` e integrado en
+  la app. La página muestra KPIs de negocios abiertos, valor en juego, previsión ponderada,
+  ganado del mes y tasa de victoria.
+- **Gráficas server-rendered:** componentes `src/components/analytics/*` con barras CSS
+  para previsión por mes, actividad completada de los últimos 14 días, ganados por mes y
+  snapshot del embudo con enlace a `/deals?view=metrics`.
+- **Datos:** nueva query owner-aware `src/server/queries/analytics.ts` con agregación pura
+  `computeAnalyticsOverview` (testeada con reloj fijo) y carga de negocios abiertos,
+  cerrados y actividades recientes.
+- **Navegación:** grupo "Análisis" con "Analítica" activo; corregido `Secuencias` para que
+  no aparezca como próximamente.
+- **Verificado:** `computeAnalyticsOverview` con `tsx`, `pnpm typecheck`, `pnpm lint`,
+  `pnpm build` y render real de `/analytics` (HTTP 200) en verde.
 
 ### 2026-06-29 (88) — Fase T.6: auditoría de entregabilidad y cumplimiento
 - **Auditoría visible en `/campaigns`:** nueva query owner-aware `getDeliverabilityAudit`

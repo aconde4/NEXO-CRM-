@@ -1,24 +1,49 @@
-import { BarChart3 } from "lucide-react";
 import type { Metadata } from "next";
 
-import { ComingSoon } from "@/components/coming-soon";
+import { getAnalyticsOverview } from "@/server/queries/analytics";
+import { getFunnelMetrics } from "@/server/queries/deals";
+import { ActivityChart } from "@/components/analytics/activity-chart";
+import { AnalyticsKpis } from "@/components/analytics/analytics-kpis";
+import { ForecastChart } from "@/components/analytics/forecast-chart";
+import { FunnelSnapshot } from "@/components/analytics/funnel-snapshot";
+import { WonChart } from "@/components/analytics/won-chart";
+import { PageHeader } from "@/components/page-header";
 
 export const metadata: Metadata = { title: "Analítica" };
 
-export default function AnalyticsPage() {
+export default async function AnalyticsPage() {
+  const [overview, funnel] = await Promise.all([
+    getAnalyticsOverview(),
+    getFunnelMetrics(),
+  ]);
+
+  // El mes/día actual se deriva de los propios datos (sin recomputar fechas):
+  // la previsión empieza en el mes actual y la actividad/ganados terminan en él.
+  const currentMonthKey = overview.forecastByMonth[0]?.key ?? "";
+  const todayKey = overview.activityByDay.at(-1)?.key ?? "";
+
   return (
-    <ComingSoon
-      icon={BarChart3}
-      title="Analítica"
-      description="Paneles e informes para entender tu pipeline y el rendimiento del email."
-      phase="Fase 9"
-      features={[
-        "Embudo de conversión y tasa de victoria",
-        "Previsión de ingresos",
-        "Rendimiento de email, secuencias y campañas",
-        "Objetivos y seguimiento",
-        "Informes personalizados con exportación",
-      ]}
-    />
+    <>
+      <PageHeader
+        title="Analítica"
+        description="Un vistazo a tu pipeline, la previsión de ingresos y tu actividad."
+      />
+
+      <AnalyticsKpis kpis={overview.kpis} />
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ForecastChart
+          data={overview.forecastByMonth}
+          forecastTotal={overview.kpis.forecast}
+          currentKey={currentMonthKey}
+        />
+        <FunnelSnapshot metrics={funnel} />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ActivityChart data={overview.activityByDay} currentKey={todayKey} />
+        <WonChart data={overview.wonByMonth} currentKey={currentMonthKey} />
+      </div>
+    </>
   );
 }

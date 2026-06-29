@@ -49,7 +49,7 @@ export const navGroups: NavGroup[] = [
       { title: "Bandeja", href: "/inbox", icon: Inbox },
       { title: "Segmentos", href: "/segments", icon: Target },
       { title: "Campañas", href: "/campaigns", icon: Megaphone },
-      { title: "Secuencias", href: "/sequences", icon: Repeat, soon: true },
+      { title: "Secuencias", href: "/sequences", icon: Repeat },
       {
         title: "Automatizaciones",
         href: "/automations",
@@ -61,9 +61,7 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: "Análisis",
-    items: [
-      { title: "Analítica", href: "/analytics", icon: BarChart3, soon: true },
-    ],
+    items: [{ title: "Analítica", href: "/analytics", icon: BarChart3 }],
   },
 ];
 

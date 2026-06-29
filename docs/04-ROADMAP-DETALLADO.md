@@ -664,7 +664,13 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
 **Objetivo:** paneles e informes para entender el negocio.
 
 ### Tareas
-- [ ] **9.1** Dashboard principal (Tremor/Recharts): pipeline, previsión, actividad.
+- [x] **9.1** Dashboard principal: pipeline, previsión y actividad. **HECHA:** nueva ruta
+      `/analytics` con KPIs de negocios abiertos, valor en juego, previsión ponderada,
+      ganado del mes y tasa de victoria; gráficos server-rendered CSS/SVG de previsión por
+      mes, actividad completada en 14 días, ganados por mes y snapshot del embudo con enlace
+      al detalle de métricas de `/deals?view=metrics`. Query owner-aware
+      `getAnalyticsOverview` con agregación pura `computeAnalyticsOverview` y navegación
+      "Análisis → Analítica" activa.
 - [ ] **9.2** Embudo de conversión por etapa y tasa de victoria. *(Base lista: `getFunnelMetrics`
       ya da conversión histórica por etapa desde `deal_stage_events` —6.4i v2—; falta tasa de
       victoria por embudo y vista dedicada.)*
