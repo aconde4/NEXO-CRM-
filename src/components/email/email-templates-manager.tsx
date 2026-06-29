@@ -2,13 +2,18 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import {
+  SALES_EMAIL_TEMPLATES,
+  SALES_TEMPLATE_CATEGORY,
+} from "@/lib/email/sales-templates";
 import type { MergeTag } from "@/lib/email/merge-tags";
 import {
   createEmailTemplate,
   deleteEmailTemplate,
+  installSalesEmailTemplates,
   updateEmailTemplate,
 } from "@/server/actions/email-templates";
 import type { EmailTemplateItem } from "@/server/queries/email-templates";
@@ -78,10 +83,48 @@ export function EmailTemplatesManager({
   templates: EmailTemplateItem[];
   catalog: MergeTag[];
 }) {
+  const router = useRouter();
   const [dialog, setDialog] = React.useState<DialogState | null>(null);
   const [deleting, setDeleting] = React.useState<EmailTemplateItem | null>(
     null,
   );
+  const [installingSales, setInstallingSales] = React.useState(false);
+  const installedSalesTemplates = templates.filter(
+    (template) =>
+      template.category === SALES_TEMPLATE_CATEGORY ||
+      SALES_EMAIL_TEMPLATES.some((preset) => preset.name === template.name),
+  ).length;
+  const missingSalesTemplates = Math.max(
+    SALES_EMAIL_TEMPLATES.length - installedSalesTemplates,
+    0,
+  );
+
+  async function installSalesTemplates() {
+    setInstallingSales(true);
+    try {
+      const result = await installSalesEmailTemplates();
+      if (result.inserted === 0) {
+        toast.success("Las plantillas comerciales ya estaban instaladas");
+      } else {
+        toast.success(
+          `${result.inserted} ${
+            result.inserted === 1
+              ? "plantilla instalada"
+              : "plantillas instaladas"
+          }`,
+        );
+      }
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No se pudieron instalar las plantillas",
+      );
+    } finally {
+      setInstallingSales(false);
+    }
+  }
 
   return (
     <Card>
@@ -90,7 +133,20 @@ export function EmailTemplatesManager({
         <CardDescription>
           Asuntos y cuerpos reutilizables para emails 1:1.
         </CardDescription>
-        <CardAction>
+        <CardAction className="flex flex-wrap justify-end gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={installSalesTemplates}
+            disabled={installingSales || missingSalesTemplates === 0}
+          >
+            <Sparkles />
+            {missingSalesTemplates === 0
+              ? "Comerciales listas"
+              : installingSales
+                ? "Instalando..."
+                : "Instalar comerciales"}
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -114,9 +170,16 @@ export function EmailTemplatesManager({
                 className="flex items-center gap-3 px-6 py-3"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
-                    {template.name}
-                  </p>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="truncate text-sm font-medium">
+                      {template.name}
+                    </p>
+                    {template.category === SALES_TEMPLATE_CATEGORY ? (
+                      <Badge variant="outline" className="shrink-0">
+                        Comercial
+                      </Badge>
+                    ) : null}
+                  </div>
                   <p className="text-muted-foreground truncate text-xs">
                     {template.subject}
                   </p>

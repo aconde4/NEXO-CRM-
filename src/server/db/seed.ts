@@ -5,7 +5,25 @@
  */
 import { config } from "dotenv";
 
+import {
+  SALES_EMAIL_TEMPLATES,
+  SALES_TEMPLATE_CATEGORY,
+} from "@/lib/email/sales-templates";
+import { textToHtml } from "@/lib/email/merge-tags";
+
 config({ path: ".env.local" });
+
+const TAG_RE = /\{\{\s*([\w.]+)/g;
+
+function extractVariables(...parts: string[]): string[] {
+  const found = new Set<string>();
+  for (const part of parts) {
+    for (const match of part.matchAll(TAG_RE)) {
+      if (match[1]) found.add(match[1]);
+    }
+  }
+  return [...found];
+}
 
 async function main() {
   const { eq } = await import("drizzle-orm");
@@ -19,6 +37,7 @@ async function main() {
     entityLabels,
     activities,
     customFieldDefs,
+    emailTemplates,
     pipelines,
     stages,
     deals,
@@ -100,16 +119,83 @@ async function main() {
     org: string | null;
     campaign?: string;
   }> = [
-    { firstName: "Ana", lastName: "García", email: "ana.garcia@innovatech.es", phone: "+34 600 111 222", title: "Directora de Marketing", org: "Innovatech Soluciones" },
-    { firstName: "Carlos", lastName: "Ruiz", email: "carlos.ruiz@innovatech.es", phone: "+34 600 333 444", title: "CTO", org: "Innovatech Soluciones" },
-    { firstName: "Lucía", lastName: "Fernández", email: "lucia@marbellahoteles.com", phone: "+34 600 555 666", title: "Revenue Manager", org: "Marbella Hoteles" },
-    { firstName: "Javier", lastName: "Moreno", email: "javier.moreno@marbellahoteles.com", title: "Director General", org: "Marbella Hoteles" },
-    { firstName: "Elena", lastName: "Sánchez", email: "elena.sanchez@logisur.es", phone: "+34 600 777 888", title: "Jefa de Operaciones", org: "Logística del Sur" },
-    { firstName: "Miguel", lastName: "Torres", email: "miguel.torres@logisur.es", title: "Responsable de Compras", org: "Logística del Sur" },
-    { firstName: "Paula", lastName: "Navarro", email: "paula@estudioverde.es", phone: "+34 600 999 000", title: "Arquitecta", org: "Estudio Verde Arquitectura" },
-    { firstName: "Diego", lastName: "Romero", email: "diego.romero@gmail.com", phone: "+34 611 222 333", title: "Consultor independiente", org: null },
-    { firstName: "Marta", lastName: "Gil", email: "marta.gil@hotmail.com", title: "Emprendedora", org: null },
-    { firstName: "Sergio", lastName: "Castro", email: "sergio.castro@innovatech.es", phone: "+34 622 333 444", title: "Comercial", org: "Innovatech Soluciones" },
+    {
+      firstName: "Ana",
+      lastName: "García",
+      email: "ana.garcia@innovatech.es",
+      phone: "+34 600 111 222",
+      title: "Directora de Marketing",
+      org: "Innovatech Soluciones",
+    },
+    {
+      firstName: "Carlos",
+      lastName: "Ruiz",
+      email: "carlos.ruiz@innovatech.es",
+      phone: "+34 600 333 444",
+      title: "CTO",
+      org: "Innovatech Soluciones",
+    },
+    {
+      firstName: "Lucía",
+      lastName: "Fernández",
+      email: "lucia@marbellahoteles.com",
+      phone: "+34 600 555 666",
+      title: "Revenue Manager",
+      org: "Marbella Hoteles",
+    },
+    {
+      firstName: "Javier",
+      lastName: "Moreno",
+      email: "javier.moreno@marbellahoteles.com",
+      title: "Director General",
+      org: "Marbella Hoteles",
+    },
+    {
+      firstName: "Elena",
+      lastName: "Sánchez",
+      email: "elena.sanchez@logisur.es",
+      phone: "+34 600 777 888",
+      title: "Jefa de Operaciones",
+      org: "Logística del Sur",
+    },
+    {
+      firstName: "Miguel",
+      lastName: "Torres",
+      email: "miguel.torres@logisur.es",
+      title: "Responsable de Compras",
+      org: "Logística del Sur",
+    },
+    {
+      firstName: "Paula",
+      lastName: "Navarro",
+      email: "paula@estudioverde.es",
+      phone: "+34 600 999 000",
+      title: "Arquitecta",
+      org: "Estudio Verde Arquitectura",
+    },
+    {
+      firstName: "Diego",
+      lastName: "Romero",
+      email: "diego.romero@gmail.com",
+      phone: "+34 611 222 333",
+      title: "Consultor independiente",
+      org: null,
+    },
+    {
+      firstName: "Marta",
+      lastName: "Gil",
+      email: "marta.gil@hotmail.com",
+      title: "Emprendedora",
+      org: null,
+    },
+    {
+      firstName: "Sergio",
+      lastName: "Castro",
+      email: "sergio.castro@innovatech.es",
+      phone: "+34 622 333 444",
+      title: "Comercial",
+      org: "Innovatech Soluciones",
+    },
   ];
 
   const campaignSamples = [
@@ -168,13 +254,11 @@ async function main() {
     ])
     .returning({ id: labels.id });
 
-  const labelAssignments = insertedPeople
-    .slice(0, 6)
-    .map((p, i) => ({
-      labelId: createdLabels[i % createdLabels.length]!.id,
-      entityType: "person" as const,
-      entityId: p.id,
-    }));
+  const labelAssignments = insertedPeople.slice(0, 6).map((p, i) => ({
+    labelId: createdLabels[i % createdLabels.length]!.id,
+    entityType: "person" as const,
+    entityId: p.id,
+  }));
   if (labelAssignments.length) {
     await db.insert(entityLabels).values(labelAssignments);
   }
@@ -188,11 +272,51 @@ async function main() {
   };
   const firstOrgId = insertedOrgs[0]?.id ?? null;
   const activitiesData = [
-    { type: "call", subject: "Llamar para confirmar la demo", dueAt: at(-1, 11), personId: insertedPeople[0]?.id ?? null, orgId: null, done: false, doneAt: null },
-    { type: "meeting", subject: "Reunión de seguimiento", dueAt: at(0, 16), personId: insertedPeople[2]?.id ?? null, orgId: null, done: false, doneAt: null },
-    { type: "task", subject: "Enviar propuesta revisada", dueAt: at(1, 9, 30), personId: insertedPeople[4]?.id ?? null, orgId: null, done: false, doneAt: null },
-    { type: "email", subject: "Hacer seguimiento del presupuesto", dueAt: at(3, 12), personId: null, orgId: firstOrgId, done: false, doneAt: null },
-    { type: "task", subject: "Preparar materiales de la presentación", dueAt: at(-3, 10), personId: insertedPeople[1]?.id ?? null, orgId: null, done: true, doneAt: at(-2, 15) },
+    {
+      type: "call",
+      subject: "Llamar para confirmar la demo",
+      dueAt: at(-1, 11),
+      personId: insertedPeople[0]?.id ?? null,
+      orgId: null,
+      done: false,
+      doneAt: null,
+    },
+    {
+      type: "meeting",
+      subject: "Reunión de seguimiento",
+      dueAt: at(0, 16),
+      personId: insertedPeople[2]?.id ?? null,
+      orgId: null,
+      done: false,
+      doneAt: null,
+    },
+    {
+      type: "task",
+      subject: "Enviar propuesta revisada",
+      dueAt: at(1, 9, 30),
+      personId: insertedPeople[4]?.id ?? null,
+      orgId: null,
+      done: false,
+      doneAt: null,
+    },
+    {
+      type: "email",
+      subject: "Hacer seguimiento del presupuesto",
+      dueAt: at(3, 12),
+      personId: null,
+      orgId: firstOrgId,
+      done: false,
+      doneAt: null,
+    },
+    {
+      type: "task",
+      subject: "Preparar materiales de la presentación",
+      dueAt: at(-3, 10),
+      personId: insertedPeople[1]?.id ?? null,
+      orgId: null,
+      done: true,
+      doneAt: at(-2, 15),
+    },
   ] as const;
   await db
     .insert(activities)
@@ -217,6 +341,25 @@ async function main() {
       ownerId: user.id,
     },
   ]);
+
+  await db.insert(emailTemplates).values(
+    SALES_EMAIL_TEMPLATES.map((template) => {
+      const bodyHtml = textToHtml(template.bodyText);
+      return {
+        bodyHtml,
+        bodyText: template.bodyText,
+        category: SALES_TEMPLATE_CATEGORY,
+        name: template.name,
+        ownerId: user.id,
+        subject: template.subject,
+        variables: extractVariables(
+          template.subject,
+          template.bodyText,
+          bodyHtml,
+        ),
+      };
+    }),
+  );
 
   // Embudo + etapas + negocios de ejemplo (Fase 2).
   const [pipeline] = await db
@@ -247,11 +390,51 @@ async function main() {
 
   if (pipeline && insertedStages.length === 4) {
     const dealsData = [
-      { title: "Suscripción anual — Innovatech", value: 12000, stage: 0, person: 0, org: 0, pos: 0, rotting: false },
-      { title: "Renovación — Marbella Hoteles", value: 8000, stage: 0, person: null, org: 1, pos: 1, rotting: false },
-      { title: "Implantación CRM", value: 25000, stage: 1, person: 2, org: null, pos: 0, rotting: false },
-      { title: "Consultoría estratégica", value: 5000, stage: 2, person: null, org: 2, pos: 0, rotting: true },
-      { title: "Ampliación de licencias", value: 18000, stage: 3, person: 4, org: 0, pos: 0, rotting: false },
+      {
+        title: "Suscripción anual — Innovatech",
+        value: 12000,
+        stage: 0,
+        person: 0,
+        org: 0,
+        pos: 0,
+        rotting: false,
+      },
+      {
+        title: "Renovación — Marbella Hoteles",
+        value: 8000,
+        stage: 0,
+        person: null,
+        org: 1,
+        pos: 1,
+        rotting: false,
+      },
+      {
+        title: "Implantación CRM",
+        value: 25000,
+        stage: 1,
+        person: 2,
+        org: null,
+        pos: 0,
+        rotting: false,
+      },
+      {
+        title: "Consultoría estratégica",
+        value: 5000,
+        stage: 2,
+        person: null,
+        org: 2,
+        pos: 0,
+        rotting: true,
+      },
+      {
+        title: "Ampliación de licencias",
+        value: 18000,
+        stage: 3,
+        person: 4,
+        org: 0,
+        pos: 0,
+        rotting: false,
+      },
     ];
     await db.insert(deals).values(
       dealsData.map((d) => ({
@@ -260,7 +443,8 @@ async function main() {
         currency: "EUR",
         pipelineId: pipeline.id,
         stageId: insertedStages[d.stage]!.id,
-        personId: d.person != null ? (insertedPeople[d.person]?.id ?? null) : null,
+        personId:
+          d.person != null ? (insertedPeople[d.person]?.id ?? null) : null,
         orgId: d.org != null ? (insertedOrgs[d.org]?.id ?? null) : null,
         position: d.pos,
         ownerId: user.id,

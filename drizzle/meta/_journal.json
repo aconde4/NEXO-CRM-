@@ -120,6 +120,13 @@
       "when": 1782719393014,
       "tag": "0016_famous_norman_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1782721200000,
+      "tag": "0017_ready_sales_templates",
+      "breakpoints": true
     }
   ]
 }

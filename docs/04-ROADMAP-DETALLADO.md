@@ -601,10 +601,12 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
       de fichas, selector de destinatario, vínculo opcional a negocio, plantillas,
       merge tags, preview, IA opcional, envío real por Gmail y redirección al hilo
       creado/enviado.
-- [ ] **T.2** Plantillas de redacción comerciales listas para usar: primer contacto,
+- [x] **T.2** Plantillas de redacción comerciales listas para usar: primer contacto,
       follow-up, respuesta a interés, recuperación de silencio y cierre/reunión. Deben
       vivir en la misma experiencia de plantillas del CRM, usar merge tags seguros,
-      preview por contacto y no enviar automáticamente.
+      preview por contacto y no enviar automáticamente. **HECHA:** catálogo versionado
+      de 5 plantillas comerciales, migración de datos para usuarios existentes, seed
+      para entornos nuevos y acción idempotente "Instalar comerciales" en Ajustes.
 - [ ] **T.3** Acciones CRM dentro de secuencias: nuevo paso **Acción CRM** para mover
       etapa/embudo, añadir etiqueta, actualizar campo, crear tarea, inscribir/parar otra
       secuencia, notificar y webhook. En particular: cuando una secuencia pase por un

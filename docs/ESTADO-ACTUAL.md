@@ -9,14 +9,15 @@
 ## 📍 Dónde estamos
 
 - **Fase T · Transversal de comunicación comercial:** **activa por decisión del usuario
-  (2026-06-29). T.1 HECHA.** Antes de seguir construyendo reporting, hay que cerrar una
+  (2026-06-29). T.2 HECHA.** Antes de seguir construyendo reporting, hay que cerrar una
   experiencia profesional de comunicación: pantalla global para redactar/enviar emails
   desde el CRM, plantillas comerciales base, acciones CRM dentro de secuencias (incluido
   mover de etapa/embudo al avanzar un paso), preparación visible de Resend para contacto
   masivo y auditoría de entregabilidad/RGPD. La pantalla `/emails/compose` ya reutiliza
   el compositor real de Gmail 1:1 con plantillas, merge tags, preview, IA opcional,
-  vínculo a negocio/hilo y redirección al hilo enviado. Plan y plantilla en
-  `docs/08-EMAIL-RESEND-Y-REDACCION.md`.
+  vínculo a negocio/hilo y redirección al hilo enviado. Las 5 plantillas comerciales
+  base ya viven en `email_templates` con restauración idempotente desde Ajustes. Plan y
+  plantilla en `docs/08-EMAIL-RESEND-Y-REDACCION.md`.
 
 - **Fase 9 · Analítica y reporting:** **pendiente; 9.1 está iniciada pero sin commit.**
   Claude dejó WIP en `src/app/(app)/analytics/page.tsx`, `src/components/analytics/`,
@@ -355,14 +356,14 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase T.2 · Plantillas de redacción comerciales
-listas para usar**. Debe sembrar/gestionar plantillas comerciales base (primer contacto,
-follow-up, respuesta a interés, recuperación de silencio y cierre/reunión) en la misma
-experiencia de plantillas del CRM, con merge tags seguros y preview por contacto.
+**Siguiente tarea de desarrollo:** **Fase T.3 · Acciones CRM dentro de secuencias**.
+Debe añadir un paso "Acción CRM" para mover etapa/embudo, añadir etiqueta, actualizar
+campo, crear tarea, inscribir/parar otra secuencia, notificar y webhook. Caso clave:
+cuando una secuencia avance por un paso concreto, debe poder mover el contacto/negocio a
+otra etapa de otro embudo.
 
-**Después de T.2:** T.3 acciones CRM dentro de secuencias (incluido mover etapa/embudo al
-avanzar un paso), T.4 checklist Resend para contacto masivo profesional, T.5 mejoras de
-escala en campañas/secuencias y T.6 auditoría de entregabilidad/RGPD.
+**Después de T.3:** T.4 checklist Resend para contacto masivo profesional, T.5 mejoras
+de escala en campañas/secuencias y T.6 auditoría de entregabilidad/RGPD.
 
 **WIP a respetar:** Claude dejó 9.1 iniciada sin commit en `/analytics`; no mezclarla en
 commits de la fase transversal salvo que el usuario pida retomar analítica.
@@ -452,10 +453,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > comerciales base, acciones CRM dentro de secuencias, preparación visible de Resend para
 > envío masivo y auditoría de entregabilidad/RGPD.
 >
-> **Hecho en la última sesión técnica cerrada:** T.1 pantalla global `/emails/compose`
-> con destinatario, negocio/hilo opcional, plantillas, merge tags, preview, IA opcional y
-> envío Gmail 1:1 reutilizando el compositor existente. Claude inició 9.1 sin commit;
-> queda como WIP a respetar. **Siguiente: T.2** plantillas comerciales base.
+> **Hecho en la última sesión técnica cerrada:** T.2 plantillas comerciales base: 5
+> plantillas versionadas, migración de datos, seed y botón idempotente en Ajustes para
+> restaurarlas. Claude inició 9.1 sin commit; queda como WIP a respetar.
+> **Siguiente: T.3** acciones CRM dentro de secuencias.
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -496,6 +497,21 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-29 (84) — Fase T.2: plantillas comerciales base
+- **Catálogo comercial:** nuevo `src/lib/email/sales-templates.ts` con 5 plantillas listas
+  para usar: primer contacto consultivo, follow-up, respuesta a interés, recuperación de
+  silencio y cierre para reunión. Todas usan merge tags seguros con fallback y no envían
+  automáticamente.
+- **Persistencia:** migración `0017_ready_sales_templates` para sembrarlas en
+  `email_templates` de usuarios existentes con `category='sales'`, sin duplicar ni pisar
+  plantillas editadas.
+- **Restauración:** Ajustes → Plantillas de email muestra badge "Comercial" y añade el
+  botón idempotente **Instalar comerciales** para crear solo las que falten.
+- **Seed:** `pnpm db:seed` también incluye las plantillas en entornos nuevos.
+- **Docs:** roadmap T.2 marcada como hecha y `docs/08-EMAIL-RESEND-Y-REDACCION.md`
+  actualizado con el estado implementado.
+- **Verificado:** `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-29 (83) — Fase T.1: pantalla global Redactar email
 - **Pantalla global:** nueva ruta `/emails/compose` con selector de contacto, vínculo

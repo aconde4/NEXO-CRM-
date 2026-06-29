@@ -7,6 +7,7 @@ import { db } from "@/server/db";
 import { emailTemplates } from "@/server/db/schema";
 
 export type EmailTemplateItem = {
+  category: string | null;
   id: string;
   name: string;
   subject: string;
@@ -24,6 +25,7 @@ export async function listEmailTemplates(): Promise<EmailTemplateItem[]> {
       subject: emailTemplates.subject,
       bodyHtml: emailTemplates.bodyHtml,
       bodyText: emailTemplates.bodyText,
+      category: emailTemplates.category,
       variables: emailTemplates.variables,
     })
     .from(emailTemplates)
@@ -36,6 +38,7 @@ export async function listEmailTemplates(): Promise<EmailTemplateItem[]> {
     .orderBy(asc(emailTemplates.name));
   return rows.map((r) => ({
     id: r.id,
+    category: r.category,
     name: r.name,
     subject: r.subject,
     bodyHtml: r.bodyHtml,

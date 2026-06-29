@@ -102,6 +102,25 @@ no solo botones dentro de fichas.
 Esta plantilla es el patrón inicial para sembrar plantillas comerciales y para orientar
 la IA al redactar. Debe ser breve, concreta, revisable y compatible con merge tags.
 
+### Estado implementado en T.2
+
+Las plantillas comerciales base viven en `src/lib/email/sales-templates.ts`, se instalan
+en `email_templates` con `category='sales'` y aparecen en la misma experiencia de Ajustes
+→ Plantillas de email. La instalación es idempotente: conserva las ediciones del usuario
+y solo crea las que falten. Además:
+
+- La migración `0017_ready_sales_templates` las crea para usuarios existentes.
+- `pnpm db:seed` las siembra en entornos nuevos.
+- El botón **Instalar comerciales** en Ajustes permite restaurarlas si alguna se borra.
+
+Plantillas incluidas:
+
+- Comercial - Primer contacto consultivo.
+- Comercial - Follow-up tras primer contacto.
+- Comercial - Respuesta a interés.
+- Comercial - Recuperación de silencio.
+- Comercial - Cierre para reunión.
+
 ### Plantilla: primer contacto consultivo
 
 **Nombre:** Primer contacto consultivo  
