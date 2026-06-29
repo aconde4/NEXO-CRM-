@@ -1,6 +1,7 @@
 "use server";
 
 import { and, eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/session";
@@ -51,6 +52,16 @@ function mergeSettings(
   return { ...settings, ...patch };
 }
 
+function deliveryRunPatch(patch: Record<string, unknown>) {
+  return {
+    delivery: {
+      ...patch,
+      runId: randomUUID(),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
 async function assertOwnedSegment(ownerId: string, segmentId: string | null) {
   if (!segmentId) return;
   const [row] = await db
@@ -69,8 +80,10 @@ async function assertEditableCampaign(ownerId: string, id: string) {
     .limit(1);
 
   if (!row) throw new Error("Campaña no encontrada");
-  if (row.status === "sending" || row.status === "sent") {
-    throw new Error("No se puede editar una campaña enviada o en envío.");
+  if (["paused", "sending", "sent"].includes(row.status)) {
+    throw new Error(
+      "No se puede editar una campaña enviada, pausada o en envío.",
+    );
   }
 }
 
@@ -288,6 +301,43 @@ export async function deleteCampaignDraft(id: string) {
   return { id };
 }
 
+/** Duplica una campaña como nuevo borrador (Fase T.5): copia contenido, no estado. */
+export async function duplicateCampaign(id: string) {
+  const user = await requireUser();
+  const campaignId = campaignIdSchema.parse(id);
+
+  const [original] = await db
+    .select()
+    .from(campaigns)
+    .where(and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, user.id)))
+    .limit(1);
+  if (!original) throw new Error("Campaña no encontrada");
+
+  const [created] = await db
+    .insert(campaigns)
+    .values({
+      bodyHtml: original.bodyHtml,
+      bodyText: original.bodyText,
+      fromEmail: original.fromEmail,
+      fromName: original.fromName,
+      name: `${original.name} (copia)`,
+      ownerId: user.id,
+      preheader: original.preheader,
+      provider: original.provider,
+      replyTo: original.replyTo,
+      segmentId: original.segmentId,
+      settings: original.settings,
+      stats: {},
+      status: "draft",
+      subject: original.subject,
+      templateId: original.templateId,
+    })
+    .returning({ id: campaigns.id });
+
+  revalidateCampaigns();
+  return { id: created?.id };
+}
+
 export async function scheduleCampaign(raw: CampaignScheduleValues) {
   const user = await requireUser();
   const data = campaignScheduleSchema.parse(raw);
@@ -307,10 +357,10 @@ export async function scheduleCampaign(raw: CampaignScheduleValues) {
         scheduledAt,
         sentAt: null,
         settings: mergeSettings(campaign.settings, {
-          delivery: {
+          ...deliveryRunPatch({
             queuedAt: new Date().toISOString(),
             scheduledAt: scheduledAt.toISOString(),
-          },
+          }),
           lastError: null,
         }),
         stats: {},
@@ -354,10 +404,10 @@ export async function sendCampaignNow(id: string) {
         scheduledAt,
         sentAt: null,
         settings: mergeSettings(campaign.settings, {
-          delivery: {
+          ...deliveryRunPatch({
             queuedAt: scheduledAt.toISOString(),
             scheduledAt: scheduledAt.toISOString(),
-          },
+          }),
           lastError: null,
         }),
         stats: {},
@@ -381,6 +431,183 @@ export async function sendCampaignNow(id: string) {
 
   revalidateCampaigns();
   return { id: campaignId };
+}
+
+export async function pauseCampaignSending(id: string) {
+  const user = await requireUser();
+  const campaignId = campaignIdSchema.parse(id);
+  const [campaign] = await db
+    .select({ settings: campaigns.settings, status: campaigns.status })
+    .from(campaigns)
+    .where(and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, user.id)))
+    .limit(1);
+  if (!campaign) throw new Error("Campaña no encontrada");
+  if (campaign.status !== "sending") {
+    throw new Error("Solo se puede pausar una campaña en envío.");
+  }
+
+  await db
+    .update(campaigns)
+    .set({
+      settings: mergeSettings(campaign.settings, {
+        delivery: {
+          pausedAt: new Date().toISOString(),
+          reason: "manual_pause",
+        },
+      }),
+      status: "paused",
+      updatedAt: new Date(),
+    })
+    .where(and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, user.id)));
+  revalidateCampaigns();
+  return { id: campaignId };
+}
+
+export async function resumeCampaignSending(id: string) {
+  const user = await requireUser();
+  const campaignId = campaignIdSchema.parse(id);
+  const [campaign] = await db
+    .select({ settings: campaigns.settings, status: campaigns.status })
+    .from(campaigns)
+    .where(and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, user.id)))
+    .limit(1);
+  if (!campaign) throw new Error("Campaña no encontrada");
+  if (campaign.status !== "paused") {
+    throw new Error("Solo se puede reanudar una campaña pausada.");
+  }
+
+  const scheduledAt = new Date();
+  await db
+    .update(campaigns)
+    .set({
+      scheduledAt,
+      settings: mergeSettings(campaign.settings, {
+        ...deliveryRunPatch({
+          queuedAt: scheduledAt.toISOString(),
+          resumedAt: scheduledAt.toISOString(),
+          scheduledAt: scheduledAt.toISOString(),
+        }),
+        lastError: null,
+      }),
+      status: "scheduled",
+      updatedAt: new Date(),
+    })
+    .where(and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, user.id)));
+
+  try {
+    await queueCampaignDispatch(campaignId);
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? `No se pudo encolar la reanudación en Inngest: ${error.message}`
+        : "No se pudo encolar la reanudación en Inngest.";
+    await db
+      .update(campaigns)
+      .set({
+        settings: mergeSettings(campaign.settings, {
+          delivery: { resumeQueueFailedAt: new Date().toISOString() },
+          lastError: message,
+        }),
+        status: "paused",
+        updatedAt: new Date(),
+      })
+      .where(and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, user.id)));
+    revalidateCampaigns();
+    throw new Error(message);
+  }
+
+  revalidateCampaigns();
+  return { id: campaignId };
+}
+
+export async function retryFailedCampaignRecipients(id: string) {
+  const user = await requireUser();
+  const campaignId = campaignIdSchema.parse(id);
+  const [campaign] = await db
+    .select({ settings: campaigns.settings, status: campaigns.status })
+    .from(campaigns)
+    .where(and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, user.id)))
+    .limit(1);
+  if (!campaign) throw new Error("Campaña no encontrada");
+  if (campaign.status !== "sent" && campaign.status !== "failed") {
+    throw new Error("Solo se pueden reintentar campañas enviadas o fallidas.");
+  }
+
+  const failed = await db.$count(
+    campaignRecipients,
+    and(
+      eq(campaignRecipients.campaignId, campaignId),
+      eq(campaignRecipients.ownerId, user.id),
+      eq(campaignRecipients.status, "failed"),
+    ),
+  );
+  if (failed === 0) {
+    throw new Error("Esta campaña no tiene destinatarios fallidos.");
+  }
+
+  const scheduledAt = new Date();
+  await db.transaction(async (tx) => {
+    await tx
+      .update(campaignRecipients)
+      .set({
+        error: null,
+        status: "pending",
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(campaignRecipients.campaignId, campaignId),
+          eq(campaignRecipients.ownerId, user.id),
+          eq(campaignRecipients.status, "failed"),
+        ),
+      );
+    await tx
+      .update(campaigns)
+      .set({
+        scheduledAt,
+        settings: mergeSettings(campaign.settings, {
+          ...deliveryRunPatch({
+            queuedAt: scheduledAt.toISOString(),
+            retryRecipients: failed,
+            retryStartedAt: scheduledAt.toISOString(),
+            scheduledAt: scheduledAt.toISOString(),
+          }),
+          lastError: null,
+        }),
+        status: "scheduled",
+        updatedAt: new Date(),
+      })
+      .where(and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, user.id)));
+  });
+
+  try {
+    await queueCampaignDispatch(campaignId);
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? `No se pudo encolar el reintento en Inngest: ${error.message}`
+        : "No se pudo encolar el reintento en Inngest.";
+    await db
+      .update(campaignRecipients)
+      .set({
+        error: message,
+        status: "failed",
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(campaignRecipients.campaignId, campaignId),
+          eq(campaignRecipients.ownerId, user.id),
+          eq(campaignRecipients.status, "pending"),
+        ),
+      );
+    await markQueueError(user.id, campaignId, campaign.settings, message);
+    revalidateCampaigns();
+    throw new Error(message);
+  }
+
+  revalidateCampaigns();
+  return { failed, id: campaignId };
 }
 
 export async function cancelScheduledCampaign(id: string) {

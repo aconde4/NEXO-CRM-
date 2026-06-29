@@ -248,6 +248,17 @@ function deliveryPatch(
   };
 }
 
+function deliveryRunId(settings: Record<string, unknown>): string {
+  const delivery =
+    settings.delivery &&
+    typeof settings.delivery === "object" &&
+    !Array.isArray(settings.delivery)
+      ? (settings.delivery as Record<string, unknown>)
+      : {};
+  const runId = delivery.runId;
+  return typeof runId === "string" && runId.trim() ? runId : "legacy";
+}
+
 function resolveCampaignFrom(
   campaign: Pick<CampaignWithSegment, "fromEmail" | "fromName">,
 ) {
@@ -429,9 +440,13 @@ export async function validateCampaignCanQueue(
   if (!campaign || campaign.ownerId !== ownerId) {
     throw new CampaignDispatchError("Campana no encontrada.", "not_found");
   }
-  if (campaign.status === "sending" || campaign.status === "sent") {
+  if (
+    campaign.status === "paused" ||
+    campaign.status === "sending" ||
+    campaign.status === "sent"
+  ) {
     throw new CampaignDispatchError(
-      "No se puede relanzar una campana enviada o en envio.",
+      "No se puede relanzar una campana enviada, pausada o en envio.",
       "invalid_campaign",
     );
   }
@@ -765,7 +780,7 @@ export async function sendNextCampaignBatch(
   let result;
   try {
     result = await sendResendBatch(emails, {
-      idempotencyKey: `campaign:${campaign.id}:batch:${batchIndex}`,
+      idempotencyKey: `campaign:${campaign.id}:run:${deliveryRunId(campaign.settings)}:batch:${batchIndex}`,
     });
   } catch (error) {
     if (

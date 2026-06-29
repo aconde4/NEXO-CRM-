@@ -9,7 +9,7 @@
 ## 📍 Dónde estamos
 
 - **Fase T · Transversal de comunicación comercial:** **activa por decisión del usuario
-  (2026-06-29). T.1–T.4 HECHAS.** Antes de seguir construyendo reporting, hay que cerrar una
+  (2026-06-29). T.1–T.5 HECHAS.** Antes de seguir construyendo reporting, hay que cerrar una
   experiencia profesional de comunicación: pantalla global para redactar/enviar emails
   desde el CRM, plantillas comerciales base, acciones CRM dentro de secuencias (incluido
   mover de etapa/embudo al avanzar un paso), preparación visible de Resend para contacto
@@ -23,7 +23,10 @@
   **T.4** añade el checklist **Preparación para envío masivo (Resend)** en `/campaigns`
   (`getResendReadiness` + `ResendChecklist`): requisitos (API key, remitente, RGPD) vs.
   recomendados (webhook, `NEXT_PUBLIC_APP_URL`), dominio como verificación manual, nº de
-  supresiones y límites de lote/pausa/ventana; sin exponer secretos. Plan y plantilla en
+  supresiones y límites de lote/pausa/ventana; sin exponer secretos. **T.5** añade controles
+  de escala: duplicar campañas/secuencias, preparación mínima por tarjeta antes de lanzar,
+  prueba por variante de secuencia, pausa/reanudación segura y reintentos de fallidos con
+  `delivery.runId` para idempotencia de Resend. Plan y plantilla en
   `docs/08-EMAIL-RESEND-Y-REDACCION.md`.
 
 - **Fase 9 · Analítica y reporting:** **pendiente; 9.1 iniciada y aparcada en `git stash`.**
@@ -364,15 +367,11 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase T.5 · Mejoras de campañas/secuencias para
-escala**. Duplicar campaña/secuencia, envío de prueba por variante, pausa/reanudación
-segura, reintentos controlados, protección anti-duplicados por destinatario y métricas
-mínimas antes de lanzar. Reutiliza el modelo de campañas/secuencias y el dispatcher
-(`campaign-dispatch`, `sequence-runner`) existentes.
-
-**Después de T.5:** T.6 auditoría de entregabilidad/RGPD (Gmail 1:1, Resend masivo,
-consentimiento, unsubscribe, rebotes/quejas/supresiones, calentamiento). Tras cerrar la
-Fase T se retoma la **Fase 9** (analítica).
+**Siguiente tarea de desarrollo:** **Fase T.6 · Auditoría de entregabilidad y
+cumplimiento**. Revisar y documentar Gmail para 1:1, Resend para masivo, consentimiento/
+origen, unsubscribe, rebotes/quejas/supresiones, límites de calentamiento y lo que debe
+configurar el usuario antes de enviar volumen real. Tras cerrar T.6 se retoma la
+**Fase 9** (analítica).
 
 **WIP a respetar:** el dashboard de analítica 9.1 (Claude) está en **`git stash` →
 `stash@{0}`** ("WIP Fase 9.1 dashboard analitica (CSS/SVG, gates verdes)"), no en el árbol.
@@ -507,6 +506,24 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-29 (87) — Fase T.5: mejoras de escala en campañas y secuencias
+- **Campañas:** `duplicateCampaign` crea borradores completos (contenido HTML/texto,
+  reply-to, segmento y ajustes, sin destinatarios ni métricas heredadas). `/campaigns`
+  añade acción **Duplicar**, preparación mínima por tarjeta (Resend, audiencia alcanzable,
+  RGPD y contenido) y bloquea envío/programación cuando esa preparación falla.
+- **Pausa/reanudación/reintentos:** campañas en `sending` pueden pausarse (`paused`) y
+  reanudarse sin borrar destinatarios. Las enviadas/fallidas con destinatarios `failed`
+  pueden reintentar solo esos emails (`failed → pending`), manteniendo el índice único
+  `campaign_id + email_normalized`.
+- **Idempotencia Resend:** cada envío, reanudación o reintento genera `delivery.runId` y
+  `sendNextCampaignBatch` lo incorpora a la clave de idempotencia por lote, evitando
+  choques entre ejecuciones.
+- **Secuencias:** duplicado como borrador con todos los pasos, activar/pausar desde la
+  tarjeta con reencolado seguro de inscripciones activas y envío de prueba al propio
+  usuario desde cada paso/variante de email.
+- **Verificado:** `pnpm typecheck` y `pnpm lint` en verde durante el desarrollo; gates
+  completos al cerrar la tarea.
 
 ### 2026-06-29 (86) — Fase T.4: preparación de contacto masivo (checklist Resend)
 - **Checklist visible** en `/campaigns`: nuevo componente `ResendChecklist`

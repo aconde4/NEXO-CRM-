@@ -11,13 +11,17 @@ import {
   BarChart3,
   CalendarClock,
   Clock,
+  Copy,
   Eye,
   Heading1,
   Link2,
   MailCheck,
   MoreHorizontal,
+  Pause,
   Pencil,
+  Play,
   Plus,
+  RotateCcw,
   Rows3,
   Send,
   ShieldCheck,
@@ -44,7 +48,11 @@ import {
 import {
   cancelScheduledCampaign,
   deleteCampaignDraft,
+  duplicateCampaign,
+  pauseCampaignSending,
   previewCampaignEmail,
+  resumeCampaignSending,
+  retryFailedCampaignRecipients,
   saveCampaignDraft,
   scheduleCampaign,
   sendCampaignNow,
@@ -204,6 +212,48 @@ function complianceReady(compliance: CampaignComplianceValues): boolean {
   return campaignComplianceErrorMessage(compliance) === null;
 }
 
+function getLaunchReadiness({
+  campaign,
+  resendConfigured,
+  segmentReachable,
+}: {
+  campaign: CampaignRow;
+  resendConfigured: boolean;
+  segmentReachable: number | null;
+}) {
+  const hasContent =
+    campaign.blocks.length > 0 && campaignBlocksHaveContent(campaign.blocks);
+  const hasSegment = Boolean(campaign.segmentId);
+  const hasAudience =
+    segmentReachable === null ? hasSegment : segmentReachable > 0;
+  const items = [
+    {
+      label: resendConfigured ? "Resend configurado" : "Falta Resend",
+      ok: resendConfigured,
+    },
+    {
+      label: hasSegment
+        ? `${segmentReachable ?? 0} alcanzables`
+        : "Falta segmento",
+      ok: hasSegment && hasAudience,
+    },
+    {
+      label: complianceReady(campaign.compliance)
+        ? "RGPD completo"
+        : "RGPD pendiente",
+      ok: complianceReady(campaign.compliance),
+    },
+    {
+      label: hasContent ? "Contenido listo" : "Falta contenido",
+      ok: hasContent,
+    },
+  ];
+  return {
+    items,
+    ready: items.every((item) => item.ok),
+  };
+}
+
 function preferCampaignComplianceValue(
   value: string | undefined,
   fallback: string,
@@ -296,6 +346,13 @@ export function CampaignsView({
   const [dialog, setDialog] = React.useState<DialogState | null>(null);
   const [deleting, setDeleting] = React.useState<CampaignRow | null>(null);
   const [scheduling, setScheduling] = React.useState<CampaignRow | null>(null);
+  const reachableBySegment = React.useMemo(
+    () =>
+      new Map(
+        segments.map((segment) => [segment.id, segment.audience.reachable]),
+      ),
+    [segments],
+  );
 
   return (
     <div className="space-y-4">
@@ -334,6 +391,11 @@ export function CampaignsView({
               key={campaign.id}
               campaign={campaign}
               resendConfigured={defaults.resendConfigured}
+              segmentReachable={
+                campaign.segmentId
+                  ? (reachableBySegment.get(campaign.segmentId) ?? 0)
+                  : null
+              }
               onEdit={() => setDialog({ mode: "edit", campaign })}
               onSchedule={() => setScheduling(campaign)}
               onDelete={() => setDeleting(campaign)}
@@ -373,22 +435,38 @@ export function CampaignsView({
 function CampaignCard({
   campaign,
   resendConfigured,
+  segmentReachable,
   onEdit,
   onSchedule,
   onDelete,
 }: {
   campaign: CampaignRow;
   resendConfigured: boolean;
+  segmentReachable: number | null;
   onEdit: () => void;
   onSchedule: () => void;
   onDelete: () => void;
 }) {
   const router = useRouter();
-  const [busy, setBusy] = React.useState<"send" | "cancel" | null>(null);
-  const canEdit = campaign.status !== "sending" && campaign.status !== "sent";
+  const [busy, setBusy] = React.useState<
+    "cancel" | "duplicate" | "pause" | "resume" | "retry" | "send" | null
+  >(null);
+  const readiness = getLaunchReadiness({
+    campaign,
+    resendConfigured,
+    segmentReachable,
+  });
+  const canEdit = !["paused", "sending", "sent"].includes(campaign.status);
   const isComplianceReady = complianceReady(campaign.compliance);
-  const canLaunch = canEdit;
+  const canLaunch =
+    readiness.ready &&
+    (campaign.status === "draft" || campaign.status === "failed");
   const canCancel = campaign.status === "scheduled";
+  const canPause = campaign.status === "sending";
+  const canResume = campaign.status === "paused";
+  const canRetry =
+    (campaign.status === "failed" || campaign.status === "sent") &&
+    (campaign.stats.failed ?? 0) > 0;
 
   async function launchNow() {
     if (!resendConfigured) {
@@ -429,7 +507,69 @@ function CampaignCard({
     }
   }
 
+  async function duplicate() {
+    setBusy("duplicate");
+    try {
+      await duplicateCampaign(campaign.id);
+      toast.success("Campaña duplicada como borrador");
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo duplicar",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function pause() {
+    setBusy("pause");
+    try {
+      await pauseCampaignSending(campaign.id);
+      toast.success("Campaña pausada");
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo pausar");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function resume() {
+    setBusy("resume");
+    try {
+      await resumeCampaignSending(campaign.id);
+      toast.success("Campaña reanudada");
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo reanudar",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function retryFailed() {
+    setBusy("retry");
+    try {
+      const result = await retryFailedCampaignRecipients(campaign.id);
+      toast.success(`${result.failed} destinatarios fallidos reencolados`);
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo reintentar",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
   function requestSchedule() {
+    if (!readiness.ready) {
+      toast.error("Completa la preparación antes de programar.");
+      return;
+    }
     if (!resendConfigured) {
       toast.error("Configura RESEND_API_KEY antes de programar campañas.");
       return;
@@ -464,7 +604,16 @@ function CampaignCard({
                 Editar
               </DropdownMenuItem>
               <DropdownMenuItem
-                disabled={campaign.status === "sending"}
+                disabled={busy === "duplicate"}
+                onClick={duplicate}
+              >
+                <Copy />
+                Duplicar
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={
+                  campaign.status === "sending" || campaign.status === "paused"
+                }
                 variant="destructive"
                 onClick={onDelete}
               >
@@ -500,6 +649,7 @@ function CampaignCard({
           </p>
         ) : null}
         <CampaignTiming campaign={campaign} />
+        <CampaignLaunchReadiness items={readiness.items} />
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <CampaignMetric label="Audiencia" value={campaign.stats.audience} />
           <CampaignMetric label="Enviados" value={campaign.stats.sent} />
@@ -548,6 +698,42 @@ function CampaignCard({
             >
               <XCircle />
               {busy === "cancel" ? "Cancelando..." : "Cancelar"}
+            </Button>
+          ) : null}
+          {canPause ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy !== null}
+              onClick={pause}
+            >
+              <Pause />
+              {busy === "pause" ? "Pausando..." : "Pausar"}
+            </Button>
+          ) : null}
+          {canResume ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy !== null}
+              onClick={resume}
+            >
+              <Play />
+              {busy === "resume" ? "Reanudando..." : "Reanudar"}
+            </Button>
+          ) : null}
+          {canRetry ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy !== null}
+              onClick={retryFailed}
+            >
+              <RotateCcw />
+              {busy === "retry" ? "Reintentando..." : "Reintentar fallidos"}
             </Button>
           ) : null}
         </div>
@@ -600,6 +786,35 @@ function CampaignMetric({
         {label}
       </p>
       <p className="mt-1 text-sm font-medium tabular-nums">{value ?? 0}</p>
+    </div>
+  );
+}
+
+function CampaignLaunchReadiness({
+  items,
+}: {
+  items: { label: string; ok: boolean }[];
+}) {
+  return (
+    <div className="bg-muted/20 grid gap-1.5 rounded-md border p-2">
+      <p className="text-muted-foreground text-[0.7rem] font-medium uppercase">
+        Preparación
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((item) => (
+          <Badge
+            key={item.label}
+            variant="outline"
+            className={
+              item.ok
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+            }
+          >
+            {item.label}
+          </Badge>
+        ))}
+      </div>
     </div>
   );
 }

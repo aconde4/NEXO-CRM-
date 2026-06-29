@@ -628,9 +628,15 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
       `/campaigns`. Marca requisitos (API key, remitente, RGPD) vs. recomendados (webhook,
       `NEXT_PUBLIC_APP_URL`) y el dominio como verificación manual; muestra nº de supresiones
       y límites de lote/pausa/ventana. Verificado por render real (`/campaigns` HTTP 200).
-- [ ] **T.5** Mejoras de campañas/secuencias para escala: duplicar campaña/secuencia,
+- [x] **T.5** Mejoras de campañas/secuencias para escala: duplicar campaña/secuencia,
       envío de prueba por variante, pausa/reanudación segura, reintentos controlados,
       protección anti-duplicados por destinatario y métricas mínimas antes de lanzar.
+      **HECHA:** campañas se duplican como borrador completo, muestran preparación por
+      tarjeta (Resend, audiencia alcanzable, RGPD y contenido), pueden pausarse/reanudarse
+      durante envío y reintentar solo destinatarios fallidos con `runId` nuevo para
+      idempotencia de Resend. Secuencias se duplican como borrador con pasos, pueden
+      activarse/pausarse con reencolado seguro de inscripciones activas y cada paso/variante
+      de email permite enviar prueba al propio usuario.
 - [ ] **T.6** Auditoría de entregabilidad y cumplimiento: Gmail para 1:1, Resend para
       masivo, consentimiento/origen, unsubscribe, rebotes/quejas/supresiones, límites de
       calentamiento y documentación de lo que debe configurar el usuario antes de enviar

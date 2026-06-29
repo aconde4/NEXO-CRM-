@@ -190,7 +190,10 @@ export const crmActionWebhookSchema = z.object({
     .string()
     .trim()
     .max(2_000)
-    .refine((value) => /^https?:\/\//i.test(value), "Usa una URL http(s) válida"),
+    .refine(
+      (value) => /^https?:\/\//i.test(value),
+      "Usa una URL http(s) válida",
+    ),
 });
 
 export const crmActionConfigSchema = z.discriminatedUnion("kind", [
@@ -248,6 +251,22 @@ export const sequenceBuilderSchema = z
     path: ["windowEnd"],
   });
 
+/** Envío de prueba de un paso/variante de email (Fase T.5): a tu propio correo. */
+export const sequenceStepTestSchema = z
+  .object({
+    channel: sequenceChannelSchema,
+    subject: z.string().trim().min(1, "El asunto es obligatorio").max(500),
+    bodyHtml: z.string().trim().max(500_000).default(""),
+    bodyText: z.string().trim().max(200_000).default(""),
+  })
+  .refine(
+    (data) => Boolean(data.bodyText.trim() || htmlHasContent(data.bodyHtml)),
+    {
+      message: "El email necesita contenido",
+      path: ["bodyText"],
+    },
+  );
+
 export const sequenceIdSchema = z.string().uuid("Secuencia no válida");
 
 const enrollmentOptionalUuidSchema = z
@@ -298,3 +317,4 @@ export type SequenceCrmActionStepValues = z.infer<
 export type CrmActionConfig = z.infer<typeof crmActionConfigSchema>;
 export type CrmActionKind = CrmActionConfig["kind"];
 export type SequenceEnrollmentValues = z.infer<typeof sequenceEnrollmentSchema>;
+export type SequenceStepTestValues = z.infer<typeof sequenceStepTestSchema>;

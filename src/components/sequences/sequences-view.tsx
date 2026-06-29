@@ -11,13 +11,17 @@ import {
   BarChart3,
   CheckSquare,
   Clock3,
+  Copy,
   GitBranch,
   Mail,
   MoreHorizontal,
+  Pause,
   Pencil,
+  Play,
   Plus,
   Repeat,
   Save,
+  Send,
   Trash2,
   UserPlus,
   Zap,
@@ -38,7 +42,13 @@ import {
   type SequenceVariantValues,
   sequenceBuilderSchema,
 } from "@/lib/validations/sequence";
-import { deleteSequence, saveSequence } from "@/server/actions/sequences";
+import {
+  deleteSequence,
+  duplicateSequence,
+  saveSequence,
+  sendSequenceStepTest,
+  setSequenceStatus,
+} from "@/server/actions/sequences";
 import type { EmailTemplateItem } from "@/server/queries/email-templates";
 import type {
   SequenceCrmActionOptions,
@@ -579,14 +589,45 @@ function SequenceCard({
 }) {
   const active = sequence.enrollmentSummary.active;
   const total = sequence.enrollmentSummary.total;
+  const router = useRouter();
+  const [busy, setBusy] = React.useState(false);
+  const isActive = sequence.status === "active";
+
+  async function duplicate() {
+    setBusy(true);
+    try {
+      await duplicateSequence(sequence.id);
+      toast.success("Secuencia duplicada como borrador");
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo duplicar",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleStatus() {
+    setBusy(true);
+    try {
+      await setSequenceStatus(sequence.id, isActive ? "paused" : "active");
+      toast.success(isActive ? "Secuencia pausada" : "Secuencia activada");
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo cambiar el estado",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="truncate text-base">
-          <Link
-            href={`/sequences/${sequence.id}`}
-            className="hover:underline"
-          >
+          <Link href={`/sequences/${sequence.id}`} className="hover:underline">
             {sequence.name}
           </Link>
         </CardTitle>
@@ -603,7 +644,9 @@ function SequenceCard({
               <MoreHorizontal className="size-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem render={<Link href={`/sequences/${sequence.id}`} />}>
+              <DropdownMenuItem
+                render={<Link href={`/sequences/${sequence.id}`} />}
+              >
                 <BarChart3 />
                 Ver panel
               </DropdownMenuItem>
@@ -619,6 +662,17 @@ function SequenceCard({
               <DropdownMenuItem onClick={onEdit}>
                 <Pencil />
                 Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={busy || (!isActive && sequence.steps.length === 0)}
+                onClick={toggleStatus}
+              >
+                {isActive ? <Pause /> : <Play />}
+                {isActive ? "Pausar" : "Activar"}
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={busy} onClick={duplicate}>
+                <Copy />
+                Duplicar
               </DropdownMenuItem>
               <DropdownMenuItem variant="destructive" onClick={onDelete}>
                 <Trash2 />
@@ -1297,6 +1351,79 @@ function EmailStepFields({
         stepErrors={stepErrors}
         onChange={onChange}
       />
+
+      <SequenceStepTest step={step} />
+    </div>
+  );
+}
+
+/** Envío de prueba del paso/variante de email al propio correo (Fase T.5). */
+function SequenceStepTest({
+  step,
+}: {
+  step: Extract<SequenceBuilderStepValues, { type: "email" }>;
+}) {
+  const [variantId, setVariantId] = React.useState("base");
+  const [busy, setBusy] = React.useState(false);
+
+  async function send() {
+    const variant =
+      variantId === "base"
+        ? null
+        : step.variants.find((item) => item.id === variantId);
+    const content = variant
+      ? {
+          bodyHtml: variant.bodyHtml || step.bodyHtml,
+          bodyText: variant.bodyText || step.bodyText,
+          subject: variant.subject || step.subject,
+        }
+      : {
+          bodyHtml: step.bodyHtml,
+          bodyText: step.bodyText,
+          subject: step.subject,
+        };
+    setBusy(true);
+    try {
+      const result = await sendSequenceStepTest({
+        channel: step.channel,
+        ...content,
+      });
+      toast.success(`Prueba enviada a ${result.to}`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo enviar la prueba",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+      {step.variants.length > 0 ? (
+        <select
+          className={`${selectClass} h-8 max-w-[220px] text-xs`}
+          value={variantId}
+          onChange={(event) => setVariantId(event.target.value)}
+        >
+          <option value="base">Variante A (base)</option>
+          {step.variants.map((variant, i) => (
+            <option key={variant.id} value={variant.id}>
+              Variante {variantLetter(i)}
+            </option>
+          ))}
+        </select>
+      ) : null}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={busy}
+        onClick={send}
+      >
+        <Send />
+        {busy ? "Enviando…" : "Enviar prueba a mí"}
+      </Button>
     </div>
   );
 }

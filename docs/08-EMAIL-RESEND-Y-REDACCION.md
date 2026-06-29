@@ -62,6 +62,26 @@ Resend), datos RGPD del pie, webhook y URL pública. Separa **requeridos** de
 lote, pausa entre lotes, máx. lotes por ejecución, ventana horaria y zona). El bloque se
 abre solo cuando falta algún requisito.
 
+### Estado implementado en T.5
+
+Las campañas y secuencias ya tienen controles mínimos de escala antes de pasar a una
+auditoría completa:
+
+- **Campañas:** se pueden duplicar como borrador completo; cada tarjeta muestra una
+  preparación mínima (Resend, audiencia alcanzable del segmento, RGPD y contenido) antes
+  de lanzar; una campaña en envío se puede pausar y reanudar sin borrar destinatarios; los
+  fallidos se pueden reintentar de forma controlada, cambiando solo destinatarios
+  `failed → pending`.
+- **Idempotencia:** cada envío, reanudación o reintento guarda un `delivery.runId` nuevo
+  en `campaigns.settings`; el despachador lo añade a la clave de idempotencia de Resend
+  por lote para evitar duplicados entre ejecuciones.
+- **Anti-duplicado por destinatario:** la tabla `campaign_recipients` mantiene el índice
+  único `campaign_id + email_normalized` y la preparación usa `onConflictDoNothing`, de
+  modo que reanudar o reintentar no crea dos filas para el mismo email en la misma campaña.
+- **Secuencias:** se pueden duplicar como borrador con todos sus pasos, activar/pausar de
+  forma segura y enviar una prueba al propio usuario desde cada paso de email, eligiendo
+  la variante A/B concreta.
+
 ---
 
 ## 2. Pantalla global de redacción

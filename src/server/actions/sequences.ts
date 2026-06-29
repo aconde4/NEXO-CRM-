@@ -3,19 +3,22 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-import { textToHtml } from "@/lib/email/merge-tags";
+import { renderMergeTags, textToHtml } from "@/lib/email/merge-tags";
 import { CRM_ACTION_LABELS } from "@/lib/sequences";
 import { requireUser } from "@/lib/session";
 import {
   type SequenceEnrollmentValues,
   type SequenceBuilderStepValues,
   type SequenceBuilderValues,
+  type SequenceStepTestValues,
   sequenceBuilderSchema,
   sequenceEnrollmentSchema,
   sequenceIdSchema,
+  sequenceStepTestSchema,
 } from "@/lib/validations/sequence";
 import { db } from "@/server/db";
 import {
+  type SequenceStatus,
   type SequenceStepVariant,
   enrollments,
   persons,
@@ -30,7 +33,16 @@ import {
   resolveSegmentPersonsForOwner,
 } from "@/server/queries/segments";
 import { sanitizeEmailHtml } from "@/server/services/email-html";
-import { normalizeEmail } from "@/server/services/gmail-auth";
+import {
+  GmailServiceError,
+  normalizeEmail,
+} from "@/server/services/gmail-auth";
+import { sendGmailEmail } from "@/server/services/gmail";
+import {
+  getDefaultCampaignFrom,
+  isResendConfigured,
+  sendResendEmail,
+} from "@/server/services/resend";
 import { emitAutomationEventsSafely } from "@/server/services/automation-runner";
 import { SEQUENCE_RUN_EVENT } from "@/server/services/sequence-runner";
 
@@ -656,4 +668,231 @@ export async function deleteSequence(id: string) {
     .where(and(eq(sequences.id, sequenceId), eq(sequences.ownerId, user.id)));
   revalidateSequences();
   return { id: sequenceId };
+}
+
+/** Nombre libre para una copia (respeta el único por dueño+nombre). */
+async function uniqueSequenceName(ownerId: string, base: string) {
+  for (let i = 0; i < 50; i++) {
+    const candidate = i === 0 ? base : `${base} ${i + 1}`;
+    const [existing] = await db
+      .select({ id: sequences.id })
+      .from(sequences)
+      .where(and(eq(sequences.ownerId, ownerId), eq(sequences.name, candidate)))
+      .limit(1);
+    if (!existing) return candidate;
+  }
+  return `${base} ${Date.now()}`;
+}
+
+/** Duplica una secuencia (con sus pasos) como nuevo borrador (Fase T.5). */
+export async function duplicateSequence(id: string) {
+  const user = await requireUser();
+  const sequenceId = sequenceIdSchema.parse(id);
+
+  const [original] = await db
+    .select()
+    .from(sequences)
+    .where(and(eq(sequences.id, sequenceId), eq(sequences.ownerId, user.id)))
+    .limit(1);
+  if (!original) throw new Error("Secuencia no encontrada");
+
+  const steps = await db
+    .select()
+    .from(sequenceSteps)
+    .where(
+      and(
+        eq(sequenceSteps.sequenceId, sequenceId),
+        eq(sequenceSteps.ownerId, user.id),
+      ),
+    )
+    .orderBy(sequenceSteps.position);
+
+  const name = await uniqueSequenceName(user.id, `${original.name} (copia)`);
+  const now = new Date();
+
+  const newId = await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(sequences)
+      .values({
+        channel: original.channel,
+        createdAt: now,
+        dailyLimit: original.dailyLimit,
+        description: original.description,
+        name,
+        ownerId: user.id,
+        settings: original.settings,
+        status: "draft",
+        stopOnReply: original.stopOnReply,
+        timeZone: original.timeZone,
+        updatedAt: now,
+        windowEnd: original.windowEnd,
+        windowStart: original.windowStart,
+      })
+      .returning({ id: sequences.id });
+    if (!created) throw new Error("No se pudo duplicar la secuencia");
+
+    if (steps.length > 0) {
+      await tx.insert(sequenceSteps).values(
+        steps.map((step) => ({
+          bodyHtml: step.bodyHtml,
+          bodyText: step.bodyText,
+          channel: step.channel,
+          condition: step.condition,
+          createdAt: now,
+          name: step.name,
+          ownerId: user.id,
+          position: step.position,
+          preheader: step.preheader,
+          sequenceId: created.id,
+          settings: step.settings,
+          subject: step.subject,
+          templateId: step.templateId,
+          type: step.type,
+          updatedAt: now,
+          variants: step.variants,
+          waitDays: step.waitDays,
+          waitHours: step.waitHours,
+        })),
+      );
+    }
+    return created.id;
+  });
+
+  revalidateSequences();
+  return { id: newId };
+}
+
+/**
+ * Activa o pausa una secuencia (Fase T.5). Pausar es seguro: el runner devuelve noop si
+ * la secuencia no está activa, así que ningún paso pendiente se envía. Al reanudar
+ * (paused → active) se re-encolan las inscripciones activas para que continúen donde
+ * estaban (su run duradero terminó como noop al pausar).
+ */
+export async function setSequenceStatus(id: string, status: SequenceStatus) {
+  const user = await requireUser();
+  const sequenceId = sequenceIdSchema.parse(id);
+  if (status !== "active" && status !== "paused") {
+    throw new Error("Estado de secuencia no válido.");
+  }
+  const next: SequenceStatus = status;
+
+  const [original] = await db
+    .select({ status: sequences.status })
+    .from(sequences)
+    .where(and(eq(sequences.id, sequenceId), eq(sequences.ownerId, user.id)))
+    .limit(1);
+  if (!original) throw new Error("Secuencia no encontrada");
+  if (original.status === "archived") {
+    throw new Error("No se puede activar o pausar una secuencia archivada.");
+  }
+
+  if (next === "active") {
+    const stepCount = await db.$count(
+      sequenceSteps,
+      and(
+        eq(sequenceSteps.sequenceId, sequenceId),
+        eq(sequenceSteps.ownerId, user.id),
+      ),
+    );
+    if (stepCount === 0) {
+      throw new Error("La secuencia necesita al menos un paso para activarse.");
+    }
+  }
+
+  await db
+    .update(sequences)
+    .set({ status: next, updatedAt: new Date() })
+    .where(and(eq(sequences.id, sequenceId), eq(sequences.ownerId, user.id)));
+
+  if (next === "active" && original.status !== "active") {
+    const active = await db
+      .select({ id: enrollments.id, personId: enrollments.personId })
+      .from(enrollments)
+      .where(
+        and(
+          eq(enrollments.ownerId, user.id),
+          eq(enrollments.sequenceId, sequenceId),
+          eq(enrollments.status, "active"),
+        ),
+      );
+    if (active.length > 0) {
+      try {
+        await inngest.send(
+          active.map((enrollment) => ({
+            data: {
+              enrollmentId: enrollment.id,
+              personId: enrollment.personId,
+              sequenceId,
+            },
+            name: SEQUENCE_RUN_EVENT,
+          })),
+        );
+      } catch (error) {
+        console.error("No se pudo reanudar la secuencia en Inngest", error);
+      }
+    }
+  }
+
+  revalidateSequences();
+  return { id: sequenceId, status: next };
+}
+
+/** Envía una prueba del contenido (paso o variante) a tu propio correo (Fase T.5). */
+export async function sendSequenceStepTest(raw: SequenceStepTestValues) {
+  const user = await requireUser();
+  const data = sequenceStepTestSchema.parse(raw);
+
+  const to = clean(user.email);
+  if (!to) {
+    throw new Error("Tu usuario no tiene email para enviar la prueba.");
+  }
+
+  const ctx: Record<string, string> = {
+    email: to,
+    nombre: user.name?.split(" ")[0] ?? "Nombre",
+    nombre_completo: user.name ?? "Contacto de prueba",
+  };
+  const subject = renderMergeTags(data.subject, ctx) || data.subject;
+  const htmlSource = data.bodyHtml.trim() || textToHtml(data.bodyText);
+  const bodyHtml = sanitizeEmailHtml(
+    renderMergeTags(htmlSource, ctx, { escapeValues: true }),
+  );
+  const bodyText = data.bodyText
+    ? renderMergeTags(data.bodyText, ctx)
+    : undefined;
+  const testSubject = `[Prueba] ${subject}`;
+
+  if (data.channel === "resend") {
+    if (!isResendConfigured()) {
+      throw new Error("Configura RESEND_API_KEY para probar por Resend.");
+    }
+    const from = getDefaultCampaignFrom();
+    if (!from) {
+      throw new Error("Configura CAMPAIGN_FROM_EMAIL para probar por Resend.");
+    }
+    await sendResendEmail({
+      from,
+      html: bodyHtml,
+      subject: testSubject,
+      tags: [{ name: "type", value: "sequence_test" }],
+      text: bodyText,
+      to,
+    });
+    return { channel: "resend" as const, to };
+  }
+
+  try {
+    await sendGmailEmail(user.id, {
+      bodyHtml,
+      subject: testSubject,
+      to: [{ email: to }],
+      ...(bodyText ? { bodyText } : {}),
+    });
+  } catch (error) {
+    if (error instanceof GmailServiceError) {
+      throw new Error(`No se pudo enviar la prueba: ${error.message}`);
+    }
+    throw error;
+  }
+  return { channel: "gmail_1to1" as const, to };
 }
