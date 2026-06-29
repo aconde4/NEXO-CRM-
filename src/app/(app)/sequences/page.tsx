@@ -8,6 +8,7 @@ import { listEmailTemplates } from "@/server/queries/email-templates";
 import { listSegmentOptions } from "@/server/queries/segments";
 import { getAISettingsStatus } from "@/server/queries/ai";
 import {
+  listSequenceCrmActionOptions,
   listSequencePersonOptions,
   listSequences,
 } from "@/server/queries/sequences";
@@ -15,15 +16,23 @@ import {
 export const metadata: Metadata = { title: "Secuencias" };
 
 export default async function SequencesPage() {
-  const [sequences, templates, defs, personOptions, segmentOptions, aiStatus] =
-    await Promise.all([
-      listSequences(),
-      listEmailTemplates(),
-      listAllCustomFieldDefs(),
-      listSequencePersonOptions(),
-      listSegmentOptions(),
-      getAISettingsStatus(),
-    ]);
+  const [
+    sequences,
+    templates,
+    defs,
+    personOptions,
+    segmentOptions,
+    aiStatus,
+    crmOptions,
+  ] = await Promise.all([
+    listSequences(),
+    listEmailTemplates(),
+    listAllCustomFieldDefs(),
+    listSequencePersonOptions(),
+    listSegmentOptions(),
+    getAISettingsStatus(),
+    listSequenceCrmActionOptions(),
+  ]);
 
   return (
     <>
@@ -38,6 +47,7 @@ export default async function SequencesPage() {
         personOptions={personOptions}
         segmentOptions={segmentOptions}
         aiStatus={aiStatus}
+        crmOptions={crmOptions}
       />
     </>
   );

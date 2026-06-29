@@ -127,11 +127,95 @@ export const sequenceTaskStepSchema = sequenceStepBaseSchema.extend({
     .default(0),
 });
 
+/**
+ * Acción CRM dentro de una secuencia (Fase T.3). Cada `kind` es una acción interna
+ * ejecutable hoy por el motor. Unión discriminada por `kind` para validar la config
+ * propia de cada acción. Se guarda en `sequence_steps.settings.action`.
+ */
+const requiredUuid = z.string().uuid("Selecciona una opción");
+
+export const crmActionMoveStageSchema = z.object({
+  kind: z.literal("move_stage"),
+  pipelineId: requiredUuid,
+  stageId: requiredUuid,
+  /**
+   * Si el contacto aún no tiene negocio en el embudo destino: `true` crea la entrada
+   * (etapa inicial) y la mueve; `false` omite la acción y lo registra (decisión de
+   * producto documentada en docs/08, recomendado = crear).
+   */
+  createIfMissing: z.boolean().default(true),
+});
+
+export const crmActionAddLabelSchema = z.object({
+  kind: z.literal("add_label"),
+  labelId: requiredUuid,
+});
+
+export const crmActionRemoveLabelSchema = z.object({
+  kind: z.literal("remove_label"),
+  labelId: requiredUuid,
+});
+
+export const crmActionUpdateFieldSchema = z.object({
+  kind: z.literal("update_field"),
+  scope: z.enum(["person", "organization", "deal"]).default("person"),
+  field: z.string().trim().min(1, "Indica el campo").max(120),
+  value: z.string().trim().max(500).default(""),
+});
+
+export const crmActionCreateTaskSchema = z.object({
+  kind: z.literal("create_task"),
+  taskSubject: z.string().trim().min(1, "La tarea necesita asunto").max(180),
+  taskNotes: z.string().trim().max(2_000).default(""),
+});
+
+export const crmActionEnrollSequenceSchema = z.object({
+  kind: z.literal("enroll_sequence"),
+  sequenceId: requiredUuid,
+});
+
+export const crmActionStopSequenceSchema = z.object({
+  kind: z.literal("stop_sequence"),
+  sequenceId: requiredUuid,
+});
+
+export const crmActionNotifySchema = z.object({
+  kind: z.literal("notify"),
+  message: z.string().trim().min(1, "Escribe el aviso").max(500),
+});
+
+export const crmActionWebhookSchema = z.object({
+  kind: z.literal("webhook"),
+  url: z
+    .string()
+    .trim()
+    .max(2_000)
+    .refine((value) => /^https?:\/\//i.test(value), "Usa una URL http(s) válida"),
+});
+
+export const crmActionConfigSchema = z.discriminatedUnion("kind", [
+  crmActionMoveStageSchema,
+  crmActionAddLabelSchema,
+  crmActionRemoveLabelSchema,
+  crmActionUpdateFieldSchema,
+  crmActionCreateTaskSchema,
+  crmActionEnrollSequenceSchema,
+  crmActionStopSequenceSchema,
+  crmActionNotifySchema,
+  crmActionWebhookSchema,
+]);
+
+export const sequenceCrmActionStepSchema = sequenceStepBaseSchema.extend({
+  type: z.literal("crm_action"),
+  action: crmActionConfigSchema,
+});
+
 export const sequenceStepSchema = z.discriminatedUnion("type", [
   sequenceEmailStepSchema,
   sequenceWaitStepSchema,
   sequenceConditionStepSchema,
   sequenceTaskStepSchema,
+  sequenceCrmActionStepSchema,
 ]);
 
 export const sequenceBuilderSchema = z
@@ -208,4 +292,9 @@ export type SequenceConditionStepValues = z.infer<
   typeof sequenceConditionStepSchema
 >;
 export type SequenceTaskStepValues = z.infer<typeof sequenceTaskStepSchema>;
+export type SequenceCrmActionStepValues = z.infer<
+  typeof sequenceCrmActionStepSchema
+>;
+export type CrmActionConfig = z.infer<typeof crmActionConfigSchema>;
+export type CrmActionKind = CrmActionConfig["kind"];
 export type SequenceEnrollmentValues = z.infer<typeof sequenceEnrollmentSchema>;

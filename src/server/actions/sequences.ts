@@ -4,6 +4,7 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { textToHtml } from "@/lib/email/merge-tags";
+import { CRM_ACTION_LABELS } from "@/lib/sequences";
 import { requireUser } from "@/lib/session";
 import {
   type SequenceEnrollmentValues,
@@ -187,6 +188,23 @@ function valuesForStep(
       variants: [],
       waitDays: 0,
       waitHours: 0,
+    };
+  }
+
+  if (step.type === "crm_action") {
+    return {
+      ...base,
+      bodyHtml: null,
+      bodyText: null,
+      channel: null,
+      name: clean(step.name) ?? CRM_ACTION_LABELS[step.action.kind],
+      preheader: null,
+      subject: null,
+      templateId: null,
+      variants: [],
+      waitDays: 0,
+      waitHours: 0,
+      settings: { action: step.action },
     };
   }
 

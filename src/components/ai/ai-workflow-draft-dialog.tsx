@@ -56,6 +56,7 @@ function stepLabel(step: SequenceBuilderValues["steps"][number]): string {
     return `Espera: ${parts.join(" ") || "1 d"}`;
   }
   if (step.type === "condition") return `Condicion: ${step.condition.kind}`;
+  if (step.type === "crm_action") return `Accion CRM: ${step.action.kind}`;
   return `Tarea: ${step.taskSubject}`;
 }
 

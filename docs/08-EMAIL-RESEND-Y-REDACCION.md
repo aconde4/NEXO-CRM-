@@ -201,3 +201,21 @@ producto:
 
 La recomendada encaja mejor con el uso real de prospección, pero debe quedar visible en el
 dry-run para que el usuario no se lleve sorpresas.
+
+### Estado implementado en T.3
+
+El paso **Acción CRM** existe en el builder de secuencias y ejecuta, sobre el contacto de
+la inscripción (y su empresa/negocio si los hay): mover de etapa/embudo, añadir/quitar
+etiqueta, actualizar campo (contacto/empresa/negocio), crear tarea, inscribir o parar otra
+secuencia, notificar y webhook. No requiere migración: el tipo `crm_action` guarda su
+config en `sequence_steps.settings.action` (validada con Zod). La lógica vive en el servicio
+reutilizable `src/server/services/crm-actions.ts` (`executeCrmAction`) y se cablea en el
+workflow Inngest `run-sequence` vía `runSequenceCrmActionStep`.
+
+**Decisión de producto tomada (mover a otro embudo):** se aplica la **opción recomendada**
+(crear la entrada en la etapa inicial del embudo destino y moverla a la etapa elegida),
+expuesta como un toggle **"Crear la entrada si no existe"** (`createIfMissing`, por defecto
+activado) en el editor del paso. Si se desactiva y el contacto no tiene negocio en ese
+embudo, la acción se **omite** y lo deja escrito en el resultado del paso. Como las
+secuencias no tienen prueba en seco propia, la decisión queda visible mediante el texto del
+toggle en el builder.

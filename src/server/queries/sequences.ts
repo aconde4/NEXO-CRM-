@@ -4,6 +4,7 @@ import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { fullName } from "@/lib/format";
 import { requireUser } from "@/lib/session";
+import type { CrmActionConfig } from "@/lib/validations/sequence";
 import { db } from "@/server/db";
 import {
   type MarketingStatus,
@@ -15,10 +16,14 @@ import {
   type SequenceStepVariant,
   emailEvents,
   enrollments,
+  labels,
   persons,
+  pipelines,
   sequenceSteps,
   sequences,
+  stages,
 } from "@/server/db/schema";
+import { ensureDefaultPipeline } from "@/server/queries/deals";
 
 export type SequenceStepListItem = {
   id: string;
@@ -38,6 +43,7 @@ export type SequenceStepListItem = {
   variants: SequenceStepVariant[];
   taskSubject: string;
   taskNotes: string;
+  action: CrmActionConfig | null;
 };
 
 export type SequenceEnrollmentSummary = {
@@ -203,6 +209,12 @@ export async function listSequences(): Promise<SequenceListItem[]> {
   for (const step of stepRows) {
     const settings = step.settings;
     const item: SequenceStepListItem = {
+      action:
+        settings.action &&
+        typeof settings.action === "object" &&
+        !Array.isArray(settings.action)
+          ? (settings.action as CrmActionConfig)
+          : null,
       bodyHtml: step.bodyHtml ?? "",
       bodyText: step.bodyText ?? "",
       channel: step.channel,
@@ -300,6 +312,75 @@ export async function listSequencePersonOptions(): Promise<
     marketingStatus: person.marketingStatus,
     name: fullName(person.firstName, person.lastName),
   }));
+}
+
+// --- Opciones del paso "Acción CRM" (Fase T.3) ------------------------------
+export type SequenceCrmActionOptions = {
+  pipelines: { id: string; name: string; stages: { id: string; name: string }[] }[];
+  labels: { id: string; name: string; color: string }[];
+  sequences: { id: string; name: string; canEnroll: boolean }[];
+};
+
+/** Opciones owner-aware para configurar un paso de acción CRM en el builder. */
+export async function listSequenceCrmActionOptions(): Promise<SequenceCrmActionOptions> {
+  const user = await requireUser();
+  await ensureDefaultPipeline(user.id);
+
+  const [pipelineRows, stageRows, labelRows, sequenceRows] = await Promise.all([
+    db
+      .select({ id: pipelines.id, name: pipelines.name })
+      .from(pipelines)
+      .where(eq(pipelines.ownerId, user.id))
+      .orderBy(asc(pipelines.position), asc(pipelines.createdAt)),
+    db
+      .select({
+        id: stages.id,
+        name: stages.name,
+        pipelineId: stages.pipelineId,
+      })
+      .from(stages)
+      .where(eq(stages.ownerId, user.id))
+      .orderBy(asc(stages.position), asc(stages.createdAt)),
+    db
+      .select({ id: labels.id, name: labels.name, color: labels.color })
+      .from(labels)
+      .where(eq(labels.ownerId, user.id))
+      .orderBy(asc(labels.name)),
+    db
+      .select({
+        id: sequences.id,
+        name: sequences.name,
+        status: sequences.status,
+        stepCount: sql<number>`count(${sequenceSteps.id})::int`,
+      })
+      .from(sequences)
+      .leftJoin(sequenceSteps, eq(sequenceSteps.sequenceId, sequences.id))
+      .where(eq(sequences.ownerId, user.id))
+      .groupBy(sequences.id)
+      .orderBy(asc(sequences.name))
+      .limit(500),
+  ]);
+
+  const stagesByPipeline = new Map<string, { id: string; name: string }[]>();
+  for (const stage of stageRows) {
+    const list = stagesByPipeline.get(stage.pipelineId) ?? [];
+    list.push({ id: stage.id, name: stage.name });
+    stagesByPipeline.set(stage.pipelineId, list);
+  }
+
+  return {
+    labels: labelRows,
+    pipelines: pipelineRows.map((pipeline) => ({
+      id: pipeline.id,
+      name: pipeline.name,
+      stages: stagesByPipeline.get(pipeline.id) ?? [],
+    })),
+    sequences: sequenceRows.map((row) => ({
+      canEnroll: row.status === "active" && row.stepCount > 0,
+      id: row.id,
+      name: row.name,
+    })),
+  };
 }
 
 // --- Panel de la secuencia (Fase 5.8) ---------------------------------------

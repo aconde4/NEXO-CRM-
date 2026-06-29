@@ -9,21 +9,25 @@
 ## 📍 Dónde estamos
 
 - **Fase T · Transversal de comunicación comercial:** **activa por decisión del usuario
-  (2026-06-29). T.2 HECHA.** Antes de seguir construyendo reporting, hay que cerrar una
+  (2026-06-29). T.1–T.3 HECHAS.** Antes de seguir construyendo reporting, hay que cerrar una
   experiencia profesional de comunicación: pantalla global para redactar/enviar emails
   desde el CRM, plantillas comerciales base, acciones CRM dentro de secuencias (incluido
   mover de etapa/embudo al avanzar un paso), preparación visible de Resend para contacto
   masivo y auditoría de entregabilidad/RGPD. La pantalla `/emails/compose` ya reutiliza
   el compositor real de Gmail 1:1 con plantillas, merge tags, preview, IA opcional,
   vínculo a negocio/hilo y redirección al hilo enviado. Las 5 plantillas comerciales
-  base ya viven en `email_templates` con restauración idempotente desde Ajustes. Plan y
-  plantilla en `docs/08-EMAIL-RESEND-Y-REDACCION.md`.
+  base ya viven en `email_templates` con restauración idempotente desde Ajustes. **T.3**
+  añade el paso **Acción CRM** en secuencias (mover de etapa/embudo creando la entrada si
+  falta —toggle `createIfMissing`—, etiqueta, campo, tarea, inscribir/parar otra secuencia,
+  notificar y webhook), con lógica reutilizable en `src/server/services/crm-actions.ts`.
+  Plan y plantilla en `docs/08-EMAIL-RESEND-Y-REDACCION.md`.
 
-- **Fase 9 · Analítica y reporting:** **pendiente; 9.1 está iniciada pero sin commit.**
-  Claude dejó WIP en `src/app/(app)/analytics/page.tsx`, `src/components/analytics/`,
-  `src/server/queries/analytics.ts` y `src/lib/navigation.ts`. No se debe borrar ni
-  mezclar con esta replanificación. Se retomará después de la fase transversal, salvo
-  orden explícita del usuario.
+- **Fase 9 · Analítica y reporting:** **pendiente; 9.1 iniciada y aparcada en `git stash`.**
+  El WIP de Claude (dashboard `/analytics` con barras CSS/SVG: `analytics/page.tsx`,
+  `src/components/analytics/`, `src/server/queries/analytics.ts`, `navigation.ts`) está
+  guardado en **`stash@{0}`** ("WIP Fase 9.1 dashboard analitica (CSS/SVG, gates verdes)")
+  para mantener el árbol limpio durante la Fase T. Al retomar la Fase 9: `git stash pop`.
+  No se debe borrar.
 
 - **Fase 8 · IA agnóstica:** **completa (8.1–8.7).** La base de IA ya no depende de un
   proveedor concreto: `ai_runs` está migrada, `src/server/ai` define `AIProvider`, el
@@ -356,17 +360,19 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase T.3 · Acciones CRM dentro de secuencias**.
-Debe añadir un paso "Acción CRM" para mover etapa/embudo, añadir etiqueta, actualizar
-campo, crear tarea, inscribir/parar otra secuencia, notificar y webhook. Caso clave:
-cuando una secuencia avance por un paso concreto, debe poder mover el contacto/negocio a
-otra etapa de otro embudo.
+**Siguiente tarea de desarrollo:** **Fase T.4 · Preparación de contacto masivo
+profesional**. Checklist visible de Resend (dominio verificado, `RESEND_API_KEY`,
+remitente, webhook, datos RGPD), estado de supresiones, límites por lote/ventana y
+degradación clara cuando falte algo. Reutiliza `isResendConfigured`, los datos RGPD de
+4.10 y la lógica de supresiones existente.
 
-**Después de T.3:** T.4 checklist Resend para contacto masivo profesional, T.5 mejoras
-de escala en campañas/secuencias y T.6 auditoría de entregabilidad/RGPD.
+**Después de T.4:** T.5 mejoras de escala en campañas/secuencias (duplicar, prueba por
+variante, pausa/reanudación, anti-duplicados) y T.6 auditoría de entregabilidad/RGPD.
+Tras cerrar la Fase T se retoma la **Fase 9** (analítica).
 
-**WIP a respetar:** Claude dejó 9.1 iniciada sin commit en `/analytics`; no mezclarla en
-commits de la fase transversal salvo que el usuario pida retomar analítica.
+**WIP a respetar:** el dashboard de analítica 9.1 (Claude) está en **`git stash` →
+`stash@{0}`** ("WIP Fase 9.1 dashboard analitica (CSS/SVG, gates verdes)"), no en el árbol.
+Al retomar la Fase 9: `git stash pop`. No mezclar con commits de la Fase T.
 
 **Resend para el usuario:** para enviar masivamente hace falta cuenta de Resend, dominio o
 subdominio verificado con SPF/DKIM/MX/DMARC, `RESEND_API_KEY`, remitente del dominio
@@ -497,6 +503,32 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-29 (85) — Fase T.3: acciones CRM dentro de secuencias
+- **Nuevo paso `crm_action`** en el builder de secuencias: mover de etapa/embudo, añadir/
+  quitar etiqueta, actualizar campo (contacto/empresa/negocio), crear tarea, inscribir o
+  parar otra secuencia, notificar y llamar a webhook. **Sin migración**: el tipo es texto y
+  la config se guarda en `sequence_steps.settings.action` (validada con Zod en
+  `src/lib/validations/sequence.ts`, unión discriminada por `kind`).
+- **Servicio reutilizable** `src/server/services/crm-actions.ts` (`executeCrmAction`) con la
+  lógica de cada acción; cableado en el workflow Inngest `run-sequence` mediante
+  `runSequenceCrmActionStep` (carga la inscripción, parsea la config y ejecuta sobre el
+  contacto/empresa/negocio de la inscripción). Catálogo de etiquetas/orden y `defaultCrmAction`
+  en `src/lib/sequences.ts`; opciones del builder (embudos+etapas, etiquetas, secuencias) en
+  `listSequenceCrmActionOptions`.
+- **Caso clave (mover a otro embudo):** si el contacto no tiene negocio en el embudo destino
+  se **crea la entrada** en su etapa inicial y se mueve (recomendado), con toggle visible
+  **`createIfMissing`** (por defecto activo). Si se desactiva y no existe, se **omite** y se
+  registra en el resultado del paso.
+- **UI:** botón "Acción CRM" en el editor, selector de acción y campos por tipo, con errores
+  por campo y degradación si faltan etiquetas/secuencias.
+- **Verificado:** `tsx` contra BD real (datos QA borrados) — `executeCrmAction`: mover a otro
+  embudo crea la entrada (1 negocio en etapa destino, 2 eventos de etapa), `createIfMissing=false`
+  sin negocio se omite, etiqueta añadida, campo actualizado, parar secuencia deja la inscripción
+  en `stopped`. Render real `/sequences` HTTP 200. `pnpm typecheck`, `pnpm lint` (a cero) y
+  `pnpm build` en verde.
+- **Nota de relevo:** el WIP de la Fase 9.1 (dashboard de analítica) queda aparcado en
+  `git stash` (`stash@{0}`) para no mezclarlo con la Fase T; se retoma con `git stash pop`.
 
 ### 2026-06-29 (84) — Fase T.2: plantillas comerciales base
 - **Catálogo comercial:** nuevo `src/lib/email/sales-templates.ts` con 5 plantillas listas

@@ -40,6 +40,7 @@ import {
   parseAutomationEvent,
 } from "@/server/services/automation-runner";
 import { executeAutomationRun } from "@/server/services/automation-executor";
+import { runSequenceCrmActionStep } from "@/server/services/crm-actions";
 
 /**
  * Función de prueba para validar que Inngest está conectado (tarea 0.13).
@@ -339,6 +340,21 @@ export const runSequence = inngest.createFunction(
         if (!task.ok) return task;
         if (isSequenceNoopResult(task.result)) {
           return { ok: true, result: task.result };
+        }
+      }
+
+      if (current.type === "crm_action") {
+        const action = await step.run(`accion-crm-${stepNumber}`, () =>
+          runSequenceWork(enrollmentId, () =>
+            runSequenceCrmActionStep({
+              enrollmentId,
+              stepId: current.id,
+            }),
+          ),
+        );
+        if (!action.ok) return action;
+        if (isSequenceNoopResult(action.result)) {
+          return { ok: true, result: action.result };
         }
       }
 

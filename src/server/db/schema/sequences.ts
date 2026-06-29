@@ -22,7 +22,12 @@ import { emailMessages, emailTemplates } from "./email";
 
 export type SequenceStatus = "draft" | "active" | "paused" | "archived";
 export type SequenceChannel = "gmail_1to1" | "resend";
-export type SequenceStepType = "email" | "wait" | "condition" | "task";
+export type SequenceStepType =
+  | "email"
+  | "wait"
+  | "condition"
+  | "task"
+  | "crm_action";
 export type SequenceEnrollmentStatus =
   | "active"
   | "paused"

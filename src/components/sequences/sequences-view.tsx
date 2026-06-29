@@ -20,11 +20,19 @@ import {
   Save,
   Trash2,
   UserPlus,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import type { MergeTag } from "@/lib/email/merge-tags";
 import {
+  CRM_ACTION_KINDS,
+  CRM_ACTION_LABELS,
+  defaultCrmAction,
+} from "@/lib/sequences";
+import {
+  type CrmActionConfig,
+  type CrmActionKind,
   type SequenceBuilderStepValues,
   type SequenceBuilderValues,
   type SequenceVariantValues,
@@ -33,6 +41,7 @@ import {
 import { deleteSequence, saveSequence } from "@/server/actions/sequences";
 import type { EmailTemplateItem } from "@/server/queries/email-templates";
 import type {
+  SequenceCrmActionOptions,
   SequenceEnrollmentPersonOption,
   SequenceEnrollmentSequenceOption,
   SequenceListItem,
@@ -186,6 +195,7 @@ function StepTypeIcon({
   if (type === "email") return <Mail className={className} />;
   if (type === "wait") return <Clock3 className={className} />;
   if (type === "condition") return <GitBranch className={className} />;
+  if (type === "crm_action") return <Zap className={className} />;
   return <CheckSquare className={className} />;
 }
 
@@ -223,6 +233,14 @@ function createStep(
       localId,
       name: "Condición",
       type: "condition",
+    };
+  }
+  if (type === "crm_action") {
+    return {
+      action: defaultCrmAction(),
+      localId,
+      name: "Acción CRM",
+      type: "crm_action",
     };
   }
   return {
@@ -287,6 +305,15 @@ function stepFromRow(step: SequenceStepListItem): SequenceBuilderStepValues {
       type: "condition",
     };
   }
+  if (step.type === "crm_action") {
+    return {
+      action: step.action ?? defaultCrmAction(),
+      id: step.id,
+      localId: step.localId,
+      name: step.name || "Acción CRM",
+      type: "crm_action",
+    };
+  }
   return {
     id: step.id,
     localId: step.localId,
@@ -347,6 +374,9 @@ function stepTitle(step: SequenceBuilderStepValues, index: number): string {
   if (step.type === "condition") {
     return CONDITION_LABELS[step.condition.kind];
   }
+  if (step.type === "crm_action") {
+    return CRM_ACTION_LABELS[step.action.kind];
+  }
   return step.taskSubject.trim() || "Tarea";
 }
 
@@ -354,6 +384,7 @@ function stepCaption(step: SequenceBuilderStepValues): string {
   if (step.type === "email") return CHANNEL_LABELS[step.channel];
   if (step.type === "wait") return "Pausa antes del siguiente paso";
   if (step.type === "condition") return "Rama lógica para el workflow";
+  if (step.type === "crm_action") return "Acción interna del CRM";
   return "Actividad comercial";
 }
 
@@ -413,6 +444,7 @@ export function SequencesView({
   catalog,
   personOptions,
   segmentOptions,
+  crmOptions,
 }: {
   aiStatus: AIStatus;
   sequences: SequenceListItem[];
@@ -420,6 +452,7 @@ export function SequencesView({
   catalog: MergeTag[];
   personOptions: SequenceEnrollmentPersonOption[];
   segmentOptions: Pick<SegmentListItem, "id" | "name">[];
+  crmOptions: SequenceCrmActionOptions;
 }) {
   const [dialog, setDialog] = React.useState<DialogState | null>(null);
   const [deleting, setDeleting] = React.useState<SequenceListItem | null>(null);
@@ -506,6 +539,7 @@ export function SequencesView({
           state={dialog}
           templates={templates}
           catalog={catalog}
+          crmOptions={crmOptions}
           onClose={() => setDialog(null)}
         />
       ) : null}
@@ -669,11 +703,13 @@ function SequenceEditorDialog({
   state,
   templates,
   catalog,
+  crmOptions,
   onClose,
 }: {
   state: DialogState;
   templates: EmailTemplateItem[];
   catalog: MergeTag[];
+  crmOptions: SequenceCrmActionOptions;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -940,6 +976,15 @@ function SequenceEditorDialog({
                     <CheckSquare />
                     Tarea
                   </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addStep("crm_action")}
+                  >
+                    <Zap />
+                    Acción CRM
+                  </Button>
                 </div>
                 <MergeTagMenu
                   catalog={catalog}
@@ -962,6 +1007,7 @@ function SequenceEditorDialog({
                     index={index}
                     total={steps.length}
                     templates={templates}
+                    crmOptions={crmOptions}
                     stepErrors={errors.steps}
                     onApplyTemplate={applyTemplate}
                     onChange={replaceStep}
@@ -1006,6 +1052,7 @@ function SequenceStepEditor({
   index,
   total,
   templates,
+  crmOptions,
   stepErrors,
   onApplyTemplate,
   onChange,
@@ -1019,6 +1066,7 @@ function SequenceStepEditor({
   index: number;
   total: number;
   templates: EmailTemplateItem[];
+  crmOptions: SequenceCrmActionOptions;
   stepErrors: unknown;
   onApplyTemplate: (localId: string, templateId: string) => void;
   onChange: (step: SequenceBuilderStepValues) => void;
@@ -1113,6 +1161,16 @@ function SequenceStepEditor({
           step={step}
           index={index}
           stepErrors={stepErrors}
+          onChange={onChange}
+        />
+      ) : null}
+
+      {step.type === "crm_action" ? (
+        <CrmActionStepFields
+          step={step}
+          index={index}
+          stepErrors={stepErrors}
+          options={crmOptions}
           onChange={onChange}
         />
       ) : null}
@@ -1544,6 +1602,308 @@ function TaskStepFields({
           placeholder="Contexto para la actividad"
         />
       </div>
+    </div>
+  );
+}
+
+function getActionError(
+  errors: unknown,
+  index: number,
+  field: string,
+): string | null {
+  if (!Array.isArray(errors)) return null;
+  const item = errors[index];
+  if (!item || typeof item !== "object") return null;
+  const action = (item as Record<string, unknown>).action;
+  if (!action || typeof action !== "object") return null;
+  const value = (action as Record<string, unknown>)[field];
+  if (!value || typeof value !== "object") return null;
+  const message = (value as { message?: unknown }).message;
+  return typeof message === "string" ? message : null;
+}
+
+function ActionError({ message }: { message: string | null }) {
+  if (!message) return null;
+  return <p className="text-destructive text-xs">{message}</p>;
+}
+
+function CrmActionStepFields({
+  step,
+  index,
+  stepErrors,
+  options,
+  onChange,
+}: {
+  step: Extract<SequenceBuilderStepValues, { type: "crm_action" }>;
+  index: number;
+  stepErrors: unknown;
+  options: SequenceCrmActionOptions;
+  onChange: (step: SequenceBuilderStepValues) => void;
+}) {
+  const action = step.action;
+
+  function setAction(next: CrmActionConfig) {
+    onChange({ ...step, action: next });
+  }
+
+  return (
+    <div className="grid gap-3">
+      <div className="grid gap-1.5">
+        <Label>Acción</Label>
+        <select
+          className={selectClass}
+          value={action.kind}
+          onChange={(event) =>
+            setAction(defaultCrmAction(event.target.value as CrmActionKind))
+          }
+        >
+          {CRM_ACTION_KINDS.map((kind) => (
+            <option key={kind} value={kind}>
+              {CRM_ACTION_LABELS[kind]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {action.kind === "move_stage" ? (
+        <div className="grid gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label>Embudo destino</Label>
+              <select
+                className={selectClass}
+                value={action.pipelineId}
+                onChange={(event) =>
+                  setAction({
+                    ...action,
+                    pipelineId: event.target.value,
+                    stageId: "",
+                  })
+                }
+              >
+                <option value="">Elige un embudo…</option>
+                {options.pipelines.map((pipeline) => (
+                  <option key={pipeline.id} value={pipeline.id}>
+                    {pipeline.name}
+                  </option>
+                ))}
+              </select>
+              <ActionError
+                message={getActionError(stepErrors, index, "pipelineId")}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Etapa destino</Label>
+              <select
+                className={selectClass}
+                value={action.stageId}
+                disabled={!action.pipelineId}
+                onChange={(event) =>
+                  setAction({ ...action, stageId: event.target.value })
+                }
+              >
+                <option value="">Elige una etapa…</option>
+                {(
+                  options.pipelines.find((p) => p.id === action.pipelineId)
+                    ?.stages ?? []
+                ).map((stage) => (
+                  <option key={stage.id} value={stage.id}>
+                    {stage.name}
+                  </option>
+                ))}
+              </select>
+              <ActionError
+                message={getActionError(stepErrors, index, "stageId")}
+              />
+            </div>
+          </div>
+          <label className="flex items-start gap-2 text-sm">
+            <Checkbox
+              checked={action.createIfMissing}
+              onCheckedChange={(checked) =>
+                setAction({ ...action, createIfMissing: Boolean(checked) })
+              }
+            />
+            <span>
+              Crear la entrada en el embudo si el contacto aún no tiene un
+              negocio ahí.
+              <span className="text-muted-foreground block text-xs">
+                Si lo desmarcas y no existe, el paso se omite y se registra.
+              </span>
+            </span>
+          </label>
+        </div>
+      ) : null}
+
+      {action.kind === "add_label" || action.kind === "remove_label" ? (
+        <div className="grid gap-1.5">
+          <Label>Etiqueta</Label>
+          <select
+            className={selectClass}
+            value={action.labelId}
+            onChange={(event) =>
+              setAction({ ...action, labelId: event.target.value })
+            }
+          >
+            <option value="">Elige una etiqueta…</option>
+            {options.labels.map((label) => (
+              <option key={label.id} value={label.id}>
+                {label.name}
+              </option>
+            ))}
+          </select>
+          <ActionError message={getActionError(stepErrors, index, "labelId")} />
+          {options.labels.length === 0 ? (
+            <p className="text-muted-foreground text-xs">
+              No tienes etiquetas todavía. Créalas desde un contacto.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {action.kind === "update_field" ? (
+        <div className="grid gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label>Sobre</Label>
+              <select
+                className={selectClass}
+                value={action.scope}
+                onChange={(event) =>
+                  setAction({
+                    ...action,
+                    scope: event.target.value as typeof action.scope,
+                  })
+                }
+              >
+                <option value="person">Contacto</option>
+                <option value="organization">Empresa</option>
+                <option value="deal">Negocio</option>
+              </select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>
+                Campo personalizado<span className="text-destructive"> *</span>
+              </Label>
+              <Input
+                value={action.field}
+                onChange={(event) =>
+                  setAction({ ...action, field: event.target.value })
+                }
+                placeholder="p. ej. estado_comercial"
+              />
+              <ActionError
+                message={getActionError(stepErrors, index, "field")}
+              />
+            </div>
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Valor</Label>
+            <Input
+              value={action.value}
+              onChange={(event) =>
+                setAction({ ...action, value: event.target.value })
+              }
+              placeholder="Valor a guardar"
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {action.kind === "create_task" ? (
+        <div className="grid gap-3">
+          <div className="grid gap-1.5">
+            <Label>
+              Asunto de la tarea<span className="text-destructive"> *</span>
+            </Label>
+            <Input
+              value={action.taskSubject}
+              onChange={(event) =>
+                setAction({ ...action, taskSubject: event.target.value })
+              }
+              placeholder="Llamar al contacto"
+            />
+            <ActionError
+              message={getActionError(stepErrors, index, "taskSubject")}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Notas</Label>
+            <Textarea
+              value={action.taskNotes}
+              rows={3}
+              onChange={(event) =>
+                setAction({ ...action, taskNotes: event.target.value })
+              }
+              placeholder="Contexto para la actividad"
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {action.kind === "enroll_sequence" || action.kind === "stop_sequence" ? (
+        <div className="grid gap-1.5">
+          <Label>Secuencia</Label>
+          <select
+            className={selectClass}
+            value={action.sequenceId}
+            onChange={(event) =>
+              setAction({ ...action, sequenceId: event.target.value })
+            }
+          >
+            <option value="">Elige una secuencia…</option>
+            {options.sequences
+              .filter((sequence) =>
+                action.kind === "enroll_sequence" ? sequence.canEnroll : true,
+              )
+              .map((sequence) => (
+                <option key={sequence.id} value={sequence.id}>
+                  {sequence.name}
+                </option>
+              ))}
+          </select>
+          <ActionError
+            message={getActionError(stepErrors, index, "sequenceId")}
+          />
+          {action.kind === "enroll_sequence" ? (
+            <p className="text-muted-foreground text-xs">
+              Solo se listan secuencias activas y con pasos.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {action.kind === "notify" ? (
+        <div className="grid gap-1.5">
+          <Label>
+            Aviso<span className="text-destructive"> *</span>
+          </Label>
+          <Input
+            value={action.message}
+            onChange={(event) =>
+              setAction({ ...action, message: event.target.value })
+            }
+            placeholder="Qué quieres recordar"
+          />
+          <ActionError message={getActionError(stepErrors, index, "message")} />
+        </div>
+      ) : null}
+
+      {action.kind === "webhook" ? (
+        <div className="grid gap-1.5">
+          <Label>
+            URL del webhook<span className="text-destructive"> *</span>
+          </Label>
+          <Input
+            value={action.url}
+            onChange={(event) =>
+              setAction({ ...action, url: event.target.value })
+            }
+            placeholder="https://…"
+          />
+          <ActionError message={getActionError(stepErrors, index, "url")} />
+        </div>
+      ) : null}
     </div>
   );
 }

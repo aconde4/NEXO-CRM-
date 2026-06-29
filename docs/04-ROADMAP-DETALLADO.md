@@ -607,12 +607,19 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
       preview por contacto y no enviar automáticamente. **HECHA:** catálogo versionado
       de 5 plantillas comerciales, migración de datos para usuarios existentes, seed
       para entornos nuevos y acción idempotente "Instalar comerciales" en Ajustes.
-- [ ] **T.3** Acciones CRM dentro de secuencias: nuevo paso **Acción CRM** para mover
+- [x] **T.3** Acciones CRM dentro de secuencias: nuevo paso **Acción CRM** para mover
       etapa/embudo, añadir etiqueta, actualizar campo, crear tarea, inscribir/parar otra
       secuencia, notificar y webhook. En particular: cuando una secuencia pase por un
       paso determinado, debe poder mover el contacto/negocio a otra etapa de otro embudo.
       Si no existe entrada en embudo para ese contacto, el producto debe decidir y
-      documentar si la crea automáticamente o si marca el paso como omitido.
+      documentar si la crea automáticamente o si marca el paso como omitido. **HECHA:**
+      tipo de paso `crm_action` (sin migración: config en `settings.action`), servicio
+      reutilizable `crm-actions.ts` (`executeCrmAction`) cableado en el runner Inngest
+      (`runSequenceCrmActionStep`), builder con selector de acción y campos por tipo, y
+      validación Zod. **Decisión de producto:** al mover a otro embudo se crea la entrada
+      en su etapa inicial y se mueve (recomendado), con toggle visible **createIfMissing**
+      (si se desmarca y no existe, se omite y se registra). Verificado con `tsx` contra BD
+      real.
 - [ ] **T.4** Preparación de contacto masivo profesional: checklist visible de Resend
       (dominio verificado, `RESEND_API_KEY`, remitente, webhook, datos RGPD), estado de
       supresiones, límites por lote/ventana y degradación clara cuando falte algo.

@@ -98,6 +98,7 @@ const stepTypeLabel: Record<StepType, string> = {
   wait: "Espera",
   condition: "Condición",
   task: "Tarea",
+  crm_action: "Acción CRM",
 };
 
 export default async function SequencePanelPage({
