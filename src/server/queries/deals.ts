@@ -440,6 +440,10 @@ export type FunnelMetrics = {
     stalled: number;
     won: number;
     lost: number;
+    closed: number;
+    winRate: number | null;
+    wonValue: number;
+    lostValue: number;
   };
   byCampaign: FunnelCampaignMetric[];
   hasMoreCampaigns: boolean;
@@ -474,7 +478,18 @@ export async function getFunnelMetrics(
     pipelines: pipelineList,
     activePipelineId: active?.id ?? null,
     stages: [],
-    totals: { open: 0, value: 0, forecast: 0, stalled: 0, won: 0, lost: 0 },
+    totals: {
+      open: 0,
+      value: 0,
+      forecast: 0,
+      stalled: 0,
+      won: 0,
+      lost: 0,
+      closed: 0,
+      winRate: null,
+      wonValue: 0,
+      lostValue: 0,
+    },
     byCampaign: [],
     hasMoreCampaigns: false,
   };
@@ -510,7 +525,12 @@ export async function getFunnelMetrics(
       ),
     );
 
-  const metrics = computeFunnelMetrics(pipelineList, active, stageRows, dealRows);
+  const metrics = computeFunnelMetrics(
+    pipelineList,
+    active,
+    stageRows,
+    dealRows,
+  );
 
   // Conversión temporal real (6.4i): negocios distintos que entraron en cada etapa,
   // según el historial `deal_stage_events`.
@@ -520,10 +540,14 @@ export async function getFunnelMetrics(
       count: sql<number>`count(distinct ${dealStageEvents.dealId})::int`,
     })
     .from(dealStageEvents)
+    .innerJoin(deals, eq(dealStageEvents.dealId, deals.id))
     .where(
       and(
         eq(dealStageEvents.ownerId, user.id),
         eq(dealStageEvents.pipelineId, active.id),
+        eq(deals.ownerId, user.id),
+        isNull(deals.deletedAt),
+        personIdsFilter(opts.personIds),
       ),
     )
     .groupBy(dealStageEvents.toStageId);
@@ -576,7 +600,18 @@ export function computeFunnelMetrics(
   const base: Omit<FunnelMetrics, "activePipelineId"> = {
     pipelines: pipelineList,
     stages: [],
-    totals: { open: 0, value: 0, forecast: 0, stalled: 0, won: 0, lost: 0 },
+    totals: {
+      open: 0,
+      value: 0,
+      forecast: 0,
+      stalled: 0,
+      won: 0,
+      lost: 0,
+      closed: 0,
+      winRate: null,
+      wonValue: 0,
+      lostValue: 0,
+    },
     byCampaign: [],
     hasMoreCampaigns: false,
   };
@@ -586,20 +621,28 @@ export function computeFunnelMetrics(
     string,
     { count: number; value: number; stalled: number }
   >();
-  for (const s of stageRows) perStage.set(s.id, { count: 0, value: 0, stalled: 0 });
+  for (const s of stageRows)
+    perStage.set(s.id, { count: 0, value: 0, stalled: 0 });
   const rottingByStage = new Map(stageRows.map((s) => [s.id, s.rottingDays]));
-  const campaignMap = new Map<string | null, { count: number; value: number }>();
+  const campaignMap = new Map<
+    string | null,
+    { count: number; value: number }
+  >();
 
   let won = 0;
   let lost = 0;
+  let wonValue = 0;
+  let lostValue = 0;
 
   for (const d of dealRows) {
     if (d.status === "won") {
       won += 1;
+      wonValue += d.value;
       continue;
     }
     if (d.status === "lost") {
       lost += 1;
+      lostValue += d.value;
       continue;
     }
     // Abierto: cuenta por etapa, estancamiento y campaña.
@@ -669,12 +712,25 @@ export function computeFunnelMetrics(
   const allCampaigns = [...campaignMap.entries()]
     .map(([campaign, v]) => ({ campaign, count: v.count, value: v.value }))
     .sort((a, b) => b.count - a.count || b.value - a.value);
+  const closed = won + lost;
+  const winRate = closed > 0 ? Math.round((won / closed) * 100) : null;
 
   return {
     pipelines: pipelineList,
     activePipelineId: active.id,
     stages: stagesOut,
-    totals: { open, value, forecast, stalled, won, lost },
+    totals: {
+      open,
+      value,
+      forecast,
+      stalled,
+      won,
+      lost,
+      closed,
+      winRate,
+      wonValue,
+      lostValue,
+    },
     byCampaign: allCampaigns.slice(0, FUNNEL_CAMPAIGN_LIMIT),
     hasMoreCampaigns: allCampaigns.length > FUNNEL_CAMPAIGN_LIMIT,
   };

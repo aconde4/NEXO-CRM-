@@ -18,13 +18,15 @@ export function FunnelSnapshot({ metrics }: { metrics: FunnelMetrics }) {
       title="Embudo por etapa"
       description={`${pipelineName} · ${totals.open} ${
         totals.open === 1 ? "negocio abierto" : "negocios abiertos"
-      } · ${formatMoney(Math.round(totals.value))}`}
+      } · ${formatMoney(Math.round(totals.value))}${
+        totals.winRate == null ? "" : ` · ${totals.winRate}% victoria`
+      }`}
       action={
         <Link
-          href="/deals?view=metrics"
+          href="/analytics/funnel"
           className="text-primary inline-flex items-center gap-1 text-xs font-medium hover:underline"
         >
-          Ver detalle
+          Ver informe
           <ArrowRight className="size-3" />
         </Link>
       }

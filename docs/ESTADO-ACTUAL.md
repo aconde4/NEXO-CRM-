@@ -32,12 +32,12 @@
   plantilla y checklist operativo en `docs/08-EMAIL-RESEND-Y-REDACCION.md` y
   `docs/SETUP.md`.
 
-- **Fase 9 · Analítica y reporting:** **activa; 9.1 HECHA.** `/analytics` muestra el
+- **Fase 9 · Analítica y reporting:** **activa; 9.1–9.2 HECHAS.** `/analytics` muestra el
   dashboard principal con KPIs de negocio, previsión ponderada, actividad reciente,
-  ganados por mes y snapshot del embudo. Se retomó el WIP de Claude desde `git stash`,
-  se corrigió navegación/etiquetado y quedó integrado en el árbol. La siguiente tarea es
-  **9.2 Embudo de conversión por etapa y tasa de victoria**, aprovechando la base
-  existente de `getFunnelMetrics` y `deal_stage_events`.
+  ganados por mes y snapshot del embudo. `/analytics/funnel` añade el informe dedicado
+  de conversión por etapa con selector de embudo, entradas históricas desde
+  `deal_stage_events`, conversión completa y tasa de victoria por embudo. La siguiente
+  tarea es **9.3 Rendimiento de email (aperturas/clics/respuestas/bajas)**.
 
 - **Fase 8 · IA agnóstica:** **completa (8.1–8.7).** La base de IA ya no depende de un
   proveedor concreto: `ai_runs` está migrada, `src/server/ai` define `AIProvider`, el
@@ -370,10 +370,10 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 9.2 · Embudo de conversión por etapa y tasa de
-victoria.** Base ya disponible: `getFunnelMetrics` calcula conversión histórica por etapa
-desde `deal_stage_events`; falta completar vista/consulta dedicada con tasa de victoria por
-embudo y una lectura ejecutiva más profunda.
+**Siguiente tarea de desarrollo:** **Fase 9.3 · Rendimiento de email
+(aperturas/clics/respuestas/bajas).** La base de tracking ya existe en `email_events`,
+`email_messages` y los paneles de Gmail/Resend; falta llevarlo a analítica con lectura
+ejecutiva.
 
 **Resend para el usuario:** para enviar masivamente hace falta cuenta de Resend, dominio o
 subdominio verificado con SPF/DKIM/MX/DMARC, `RESEND_API_KEY`, remitente del dominio
@@ -460,9 +460,9 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > comerciales base, acciones CRM dentro de secuencias, preparación visible de Resend para
 > envío masivo y auditoría de entregabilidad/RGPD.
 >
-> **Hecho en la última sesión técnica cerrada:** Fase 9.1 cerrada: dashboard principal
-> `/analytics` con pipeline, previsión, actividad y navegación activa.
-> **Siguiente:** Fase 9.2, embudo de conversión por etapa y tasa de victoria.
+> **Hecho en la última sesión técnica cerrada:** Fase 9.2 cerrada: informe
+> `/analytics/funnel` con conversión por etapa y tasa de victoria por embudo.
+> **Siguiente:** Fase 9.3, rendimiento de email.
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -503,6 +503,22 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-30 (90) — Fase 9.2: embudo de conversión y tasa de victoria
+- **Informe dedicado:** nueva ruta `/analytics/funnel` con selector de embudo, KPIs de
+  conversión completa, tasa de victoria, valor en juego y perdidos. La vista muestra la
+  conversión histórica por etapa a partir de `deal_stage_events` y enlaza con la vista de
+  métricas de Negocios para el embudo activo.
+- **Métricas:** `getFunnelMetrics` añade `closed`, `winRate`, `wonValue` y `lostValue` por
+  embudo. La consulta histórica de entradas por etapa ahora respeta también `personIds`,
+  para que los filtros de contactos no mezclen datos ajenos al subconjunto activo.
+- **Dashboard:** el snapshot de `/analytics` enlaza al informe nuevo y muestra `% victoria`
+  cuando hay negocios cerrados.
+- **Documentación:** roadmap marcado en 9.2 y siguiente paso actualizado a 9.3
+  (rendimiento de email).
+- **Verificado:** `pnpm typecheck`, `pnpm lint`, `pnpm build` y render real de
+  `/analytics/funnel` tras `/api/dev-login` (HTTP 200, contenido esperado y sin overlay de
+  Next).
 
 ### 2026-06-29 (89) — Fase 9.1: dashboard principal de analítica
 - **Dashboard `/analytics`:** retomado el WIP de Claude desde `git stash` e integrado en

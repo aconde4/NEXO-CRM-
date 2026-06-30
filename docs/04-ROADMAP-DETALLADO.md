@@ -671,9 +671,12 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
       al detalle de métricas de `/deals?view=metrics`. Query owner-aware
       `getAnalyticsOverview` con agregación pura `computeAnalyticsOverview` y navegación
       "Análisis → Analítica" activa.
-- [ ] **9.2** Embudo de conversión por etapa y tasa de victoria. *(Base lista: `getFunnelMetrics`
-      ya da conversión histórica por etapa desde `deal_stage_events` —6.4i v2—; falta tasa de
-      victoria por embudo y vista dedicada.)*
+- [x] **9.2** Embudo de conversión por etapa y tasa de victoria. **HECHA:** nueva vista
+      dedicada `/analytics/funnel` con selector de embudo, KPIs de conversión completa,
+      tasa de victoria, valor en juego y perdidos. `getFunnelMetrics` añade `winRate`,
+      cerrados y valor ganado/perdido por embudo, y la conversión histórica desde
+      `deal_stage_events` respeta también el filtro `personIds`. El snapshot del dashboard
+      enlaza al informe.
 - [ ] **9.3** Rendimiento de email (aperturas/clics/respuestas/bajas).
 - [ ] **9.4** Métricas de secuencias y campañas.
 - [ ] **9.5** Objetivos (goals) y seguimiento.
