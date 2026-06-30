@@ -379,8 +379,8 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 10 · Extras y pulido.** 10.1 (documentos y firma)
-**HECHA**; siguiente **10.2 productos y presupuestos (PDF)**. Resto: 10.3 PWA/responsive,
+**Siguiente tarea de desarrollo:** **Fase 10 · Extras y pulido.** 10.1 y 10.2 **HECHAS**;
+siguiente **10.3 PWA: instalable y responsive en móvil**. Resto: 10.3 PWA/responsive,
 10.3 PWA/responsive en móvil, 10.4 copias de seguridad programadas, 10.5 hora de envío
 óptima por contacto, 10.6 WhatsApp/SMS (opcional) y 10.7 auditoría de seguridad/rendimiento
 + tests e2e de los flujos críticos.
@@ -514,6 +514,23 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-30 (96) — Fase 10.2: productos y presupuestos (PDF)
+- **Modelo:** `products`, `quotes`, `quote_items` — migración `0020`, aplicada.
+- **Productos:** `/products` (catálogo CRUD owner-aware con Zod).
+- **Presupuestos:** `/quotes` (lista con total y estado) + editor `/quotes/[id]` con líneas
+  (concepto libre o desde producto), cantidades/precios, **totales en vivo** (subtotal, IVA
+  %, total), estado y notas. Número secuencial por dueño. Acciones `createQuote`/`saveQuote`
+  (reemplazo de líneas en transacción)/`deleteQuote` + productos.
+- **PDF:** vista imprimible `/print/quote/[id]` (fuera del layout con barra lateral) con
+  `print:hidden` en los controles → "Imprimir / Guardar PDF" del navegador, **sin
+  dependencias**. Totales puros en `src/lib/quotes.ts` (`computeQuoteTotals`).
+- **Nav:** "Productos" y "Presupuestos".
+- **Verificado:** `tsx` contra BD (datos QA borrados) — 2 líneas → subtotal 250, IVA 21%
+  52,5, total 302,5; el total puro y la suma SQL de `listQuotes` coinciden; cascada al
+  borrar OK. `typecheck`, `lint` (a cero) y `build` en verde (rutas `/products`, `/quotes`,
+  `/quotes/[id]`, `/print/quote/[id]`). El dev render quedó bloqueado por el `.next`
+  compartido con el dev de Codex (entorno), no por el código.
 
 ### 2026-06-30 (95) — Fase 10.1: documentos y firma electrónica
 - **Modelo:** tabla `documents` (owner, negocio/persona opcional, título, cuerpo, estado

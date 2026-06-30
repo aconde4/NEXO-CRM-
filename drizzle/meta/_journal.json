@@ -141,6 +141,13 @@
       "when": 1782819379185,
       "tag": "0019_jittery_nico_minoru",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1782821717424,
+      "tag": "0020_steady_giant_girl",
+      "breakpoints": true
     }
   ]
 }
