@@ -707,7 +707,10 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
 **Objetivo:** funcionalidades premium de Pipedrive (incluidas aquí) y refinamiento.
 
 ### Tareas
-- [ ] **10.1** Documentos y firma electrónica (Smart Docs equivalente).
+- [x] **10.1** Documentos y firma electrónica (Smart Docs equivalente). *(HECHA: tabla
+      `documents` —migración 0019—, `/documents` para redactar/enviar/copiar enlace, firma
+      pública "type-to-sign" en `/sign/[token]` (registra firmante y fecha). Migración
+      aplicada; typecheck/lint/build verdes.)*
 - [ ] **10.2** Productos y presupuestos (líneas de negocio, PDF).
 - [ ] **10.3** PWA: instalable y responsive en móvil.
 - [ ] **10.4** Copias de seguridad / exportación completa programada.

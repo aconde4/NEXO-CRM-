@@ -2,6 +2,7 @@ import {
   BarChart3,
   Building2,
   ClipboardList,
+  FileSignature,
   FileText,
   Goal,
   Handshake,
@@ -43,6 +44,7 @@ export const navGroups: NavGroup[] = [
       { title: "Empresas", href: "/organizations", icon: Building2 },
       { title: "Actividades", href: "/activities", icon: ListChecks },
       { title: "Negocios", href: "/deals", icon: Handshake },
+      { title: "Documentos", href: "/documents", icon: FileSignature },
     ],
   },
   {

@@ -379,8 +379,8 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 10 · Extras y pulido.** Con la Fase 9 cerrada,
-empieza la Fase 10: 10.1 documentos y firma electrónica, 10.2 productos y presupuestos,
+**Siguiente tarea de desarrollo:** **Fase 10 · Extras y pulido.** 10.1 (documentos y firma)
+**HECHA**; siguiente **10.2 productos y presupuestos (PDF)**. Resto: 10.3 PWA/responsive,
 10.3 PWA/responsive en móvil, 10.4 copias de seguridad programadas, 10.5 hora de envío
 óptima por contacto, 10.6 WhatsApp/SMS (opcional) y 10.7 auditoría de seguridad/rendimiento
 + tests e2e de los flujos críticos.
@@ -514,6 +514,18 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-30 (95) — Fase 10.1: documentos y firma electrónica
+- **Modelo:** tabla `documents` (owner, negocio/persona opcional, título, cuerpo, estado
+  draft/sent/signed, token único, firmante y fecha) — migración `0019`, aplicada.
+- **App:** `/documents` redacta documentos (título, cuerpo, negocio y email del firmante
+  opcionales), genera enlace público y copia al portapapeles; estado e info del firmante por
+  tarjeta. Acciones owner-aware con Zod (`saveDocument`/`sendDocument`/`deleteDocument`).
+- **Firma pública:** `/sign/[token]` (exenta de auth en `proxy.ts`) muestra el documento y
+  permite firmar escribiendo el nombre ("type-to-sign", no criptográfica); `signDocument`
+  registra firmante + fecha y pasa a `signed`. Idempotente (no refirmar).
+- **Nav:** ítem "Documentos". `typecheck`, `lint` (a cero) y `build` en verde (rutas
+  `/documents` y `/sign/[token]` compiladas).
 
 ### 2026-06-30 (94) — Fase 9.6: informes personalizados con filtros y exportación · Fase 9 COMPLETA
 - **Informe de negocios** en `/analytics/reports`: filtros por estado, embudo y rango de

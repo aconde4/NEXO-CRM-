@@ -16,6 +16,7 @@ const PUBLIC_PREFIXES = [
   "/api/campaigns/unsubscribe",
   "/api/webhooks/resend",
   "/unsubscribe",
+  "/sign/",
   "/f/",
   "/api/forms",
 ];
