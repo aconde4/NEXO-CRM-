@@ -89,6 +89,35 @@ igual pero el panel "Archivos" aparece desactivado. Para activarlo:
 
 > En producción (Vercel) añade `SUPABASE_SERVICE_ROLE_KEY` como variable de entorno.
 
+## 2 quater. Copias de seguridad (Fase 10.4) — recomendado
+
+La descarga manual funciona desde **Ajustes → Copias de seguridad** sin configurar nada
+extra. Para activar la copia programada diaria en Vercel:
+
+1. En Supabase → **Storage** → **New bucket**: nombre **`backups`**, privado.
+2. Mantén `SUPABASE_SERVICE_ROLE_KEY` en `.env.local` y en Vercel. Si quieres otro
+   bucket, define `BACKUP_STORAGE_BUCKET`.
+3. Define el propietario que debe exportarse:
+   ```env
+   BACKUP_OWNER_EMAIL="tu@email.com"
+   ```
+   Si no lo defines, se usa el primer correo de `ALLOWED_EMAILS`.
+4. Define en Vercel y local un secreto largo para el cron:
+   ```env
+   CRON_SECRET="un-secreto-largo-y-aleatorio"
+   ```
+5. El repo incluye `vercel.json` con una ejecución diaria a las 03:00 UTC:
+   `/api/backups/scheduled`. Vercel envía `Authorization: Bearer $CRON_SECRET`.
+
+Prueba local:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/backups/scheduled
+```
+
+Cada ejecución queda registrada en `backup_exports` con tamaño, checksum SHA-256 y ruta
+del objeto. El JSON exporta datos del CRM y omite tokens OAuth, sesiones y credenciales.
+
 ## 3. GitHub (repositorio) — recomendado
 
 1. Crea un repositorio **privado** vacío en https://github.com/new (p. ej. `nexo-crm`).

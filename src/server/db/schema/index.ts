@@ -12,3 +12,4 @@ export * from "./ai";
 export * from "./goals";
 export * from "./documents";
 export * from "./quotes";
+export * from "./backups";

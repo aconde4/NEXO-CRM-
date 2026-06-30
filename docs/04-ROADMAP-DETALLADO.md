@@ -721,7 +721,10 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
       offline básico de navegaciones, icono `public/icon.svg`, meta `appleWebApp` y
       theme-color. La app ya era responsive (sidebar shadcn con sheet móvil + utilidades
       `sm/lg`). Build emite `/manifest.webmanifest`.)*
-- [ ] **10.4** Copias de seguridad / exportación completa programada.
+- [x] **10.4** Copias de seguridad / exportación completa programada. *(HECHA: exportación
+      JSON completa desde Ajustes, historial `backup_exports`, cron diario
+      `/api/backups/scheduled` protegido con `CRON_SECRET` y subida a bucket privado
+      `backups` en Supabase Storage.)*
 - [ ] **10.5** Optimización de hora de envío por contacto.
 - [ ] **10.6** Canal extra: WhatsApp/SMS (opcional).
 - [ ] **10.7** Auditoría de seguridad y rendimiento; tests e2e de los flujos críticos.

@@ -48,6 +48,12 @@
   `/analytics/reports`: informe de negocios con filtros (estado, embudo, rango de fechas),
   agrupación (etapa/estado/mes/campaña) y exportación CSV. **Con esto la Fase 9 queda cerrada.**
 
+- **Fase 10 · Extras y pulido:** **en curso (10.1–10.4 hechas).** Ya están listos
+  documentos/firma electrónica, productos/presupuestos con vista imprimible, PWA
+  instalable/responsive y **10.4 copias de seguridad**: exportación JSON completa desde
+  Ajustes, historial `backup_exports`, cron diario `/api/backups/scheduled` protegido con
+  `CRON_SECRET`, subida a Supabase Storage privado y descarga firmada de copias programadas.
+
 - **Fase 8 · IA agnóstica:** **completa (8.1–8.7).** La base de IA ya no depende de un
   proveedor concreto: `ai_runs` está migrada, `src/server/ai` define `AIProvider`, el
   adaptador `openai-compatible` permite probar con Groq/Ollama/OpenRouter/etc., y
@@ -379,11 +385,10 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 10 · Extras y pulido.** 10.1–10.3 **HECHAS**;
-siguiente **10.4 copias de seguridad / exportación completa programada**. Resto:
-10.3 PWA/responsive en móvil, 10.4 copias de seguridad programadas, 10.5 hora de envío
-óptima por contacto, 10.6 WhatsApp/SMS (opcional) y 10.7 auditoría de seguridad/rendimiento
-+ tests e2e de los flujos críticos.
+**Siguiente tarea de desarrollo:** **Fase 10 · Extras y pulido.** 10.1–10.4 **HECHAS**;
+siguiente **10.5 optimización de hora de envío por contacto**. Resto:
+10.6 WhatsApp/SMS (opcional) y 10.7 auditoría de seguridad/rendimiento
+y tests e2e de los flujos críticos.
 
 **Resend para el usuario:** para enviar masivamente hace falta cuenta de Resend, dominio o
 subdominio verificado con SPF/DKIM/MX/DMARC, `RESEND_API_KEY`, remitente del dominio
@@ -514,6 +519,26 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-30 (98) — Fase 10.4: copias de seguridad / exportación programada
+- **Modelo:** tabla `backup_exports` (owner, tipo manual/programada, estado, nombre/ruta,
+  tamaño, checksum SHA-256, conteos por tabla y error) — migración `0021`, aplicada.
+- **Exportación manual:** `/api/backups/export` devuelve un JSON versionado descargable
+  desde Ajustes, con `schemaVersion`, propietario, datos owner-aware y `excludedTables`
+  para dejar fuera `account`, `session`, `verificationToken` y `authenticator` (tokens
+  OAuth/sesiones/credenciales).
+- **Programada:** `vercel.json` añade cron diario `0 3 * * *` hacia
+  `/api/backups/scheduled`; la ruta queda exenta del proxy pero exige
+  `Authorization: Bearer $CRON_SECRET` (alias compatible `BACKUP_CRON_SECRET`), resuelve
+  el usuario por `BACKUP_OWNER_EMAIL` o primer `ALLOWED_EMAILS`, sube el JSON al bucket
+  privado `BACKUP_STORAGE_BUCKET`/`backups` y registra éxito/error.
+- **UI/operación:** panel **Ajustes → Copias de seguridad** con descarga manual, estado de
+  Storage/cron/propietario, últimas exportaciones, checksum corto y descarga firmada para
+  copias programadas (`/api/backups/[id]/download`). `SETUP.md` documenta bucket,
+  variables y prueba local.
+- **Verificado:** `pnpm db:migrate`; dev login → `/settings` HTTP 200 con panel;
+  `/api/backups/export` HTTP 200 JSON descargable con schema; `/api/backups/scheduled`
+  sin secreto HTTP 401; `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-30 (97) — Fase 10.3: PWA instalable + responsive
 - **PWA:** `src/app/manifest.ts` (instalable, `display: standalone`, start_url `/dashboard`,

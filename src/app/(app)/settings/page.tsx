@@ -7,11 +7,13 @@ import { listEmailTemplates } from "@/server/queries/email-templates";
 import { getMailboxSettings } from "@/server/queries/gmail";
 import { getAISettingsStatus, listRecentAIRuns } from "@/server/queries/ai";
 import { AISettingsPanel } from "@/components/ai/ai-settings-panel";
+import { BackupSettingsPanel } from "@/components/backups/backup-settings-panel";
 import { CustomFieldsManager } from "@/components/custom-fields/custom-fields-manager";
 import { PipelinesManager } from "@/components/deals/pipelines-manager";
 import { EmailTemplatesManager } from "@/components/email/email-templates-manager";
 import { MailboxSettings } from "@/components/email/mailbox-settings";
 import { PageHeader } from "@/components/page-header";
+import { getBackupSettingsData } from "@/server/queries/backups";
 
 export const metadata: Metadata = { title: "Ajustes" };
 
@@ -23,6 +25,7 @@ export default async function SettingsPage() {
     mailboxSettings,
     aiStatus,
     aiRuns,
+    backupSettings,
   ] = await Promise.all([
     listAllCustomFieldDefs(),
     listPipelinesWithStages(),
@@ -30,6 +33,7 @@ export default async function SettingsPage() {
     getMailboxSettings(),
     getAISettingsStatus(),
     listRecentAIRuns(),
+    getBackupSettingsData(),
   ]);
 
   return (
@@ -39,6 +43,10 @@ export default async function SettingsPage() {
         description="Configura tus embudos, plantillas y campos personalizados."
       />
       <AISettingsPanel status={aiStatus} runs={aiRuns} />
+      <BackupSettingsPanel
+        exports={backupSettings.exports}
+        runtime={backupSettings.runtime}
+      />
       <PipelinesManager pipelines={pipelines} />
       <MailboxSettings settings={mailboxSettings} />
       <EmailTemplatesManager

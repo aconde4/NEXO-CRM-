@@ -11,6 +11,9 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 export const STORAGE_BUCKET =
   process.env.SUPABASE_STORAGE_BUCKET?.trim() || "attachments";
 
+export const BACKUP_STORAGE_BUCKET =
+  process.env.BACKUP_STORAGE_BUCKET?.trim() || "backups";
+
 /** Deriva la URL del proyecto Supabase a partir de la cadena de conexión. */
 function deriveSupabaseUrl(): string | null {
   const explicit = process.env.SUPABASE_URL?.trim();
@@ -43,7 +46,7 @@ export function isStorageConfigured(): boolean {
 
 let client: SupabaseClient | null = null;
 
-function bucket() {
+function bucket(bucketName = STORAGE_BUCKET) {
   if (!supabaseUrl || !serviceKey) {
     throw new Error(
       "Supabase Storage no está configurado. Añade SUPABASE_SERVICE_ROLE_KEY (y SUPABASE_URL si hace falta) en .env.local.",
@@ -52,7 +55,7 @@ function bucket() {
   client ??= createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  return client.storage.from(STORAGE_BUCKET);
+  return client.storage.from(bucketName);
 }
 
 export async function uploadObject(
@@ -67,6 +70,18 @@ export async function uploadObject(
   if (error) throw new Error(`No se pudo subir el archivo: ${error.message}`);
 }
 
+export async function uploadBackupObject(
+  path: string,
+  body: ArrayBuffer | Uint8Array | Blob,
+  contentType = "application/json; charset=utf-8",
+) {
+  const { error } = await bucket(BACKUP_STORAGE_BUCKET).upload(path, body, {
+    contentType,
+    upsert: false,
+  });
+  if (error) throw new Error(`No se pudo subir la copia: ${error.message}`);
+}
+
 export async function createSignedDownloadUrl(
   path: string,
   fileName: string,
@@ -75,6 +90,22 @@ export async function createSignedDownloadUrl(
   const { data, error } = await bucket().createSignedUrl(path, expiresIn, {
     download: fileName,
   });
+  if (error || !data) {
+    throw new Error(`No se pudo generar el enlace: ${error?.message ?? ""}`);
+  }
+  return data.signedUrl;
+}
+
+export async function createSignedBackupDownloadUrl(
+  path: string,
+  fileName: string,
+  expiresIn = 120,
+): Promise<string> {
+  const { data, error } = await bucket(BACKUP_STORAGE_BUCKET).createSignedUrl(
+    path,
+    expiresIn,
+    { download: fileName },
+  );
   if (error || !data) {
     throw new Error(`No se pudo generar el enlace: ${error?.message ?? ""}`);
   }
