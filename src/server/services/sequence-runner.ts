@@ -44,6 +44,7 @@ import {
   ResendServiceError,
   sendResendEmail,
 } from "@/server/services/resend";
+import { getOptimizedSendTimeWait } from "@/server/services/send-time-optimization";
 
 export const SEQUENCE_RUN_EVENT = "sequence/run.requested";
 export const SEQUENCE_SIGNAL_EVENT = "sequence/signal.received";
@@ -914,7 +915,15 @@ export async function sendSequenceEmailStep(input: {
 
 export type SequenceSendDecision =
   | { action: "send" }
-  | { action: "wait"; reason: "window" | "daily_limit"; until: string };
+  | { action: "wait"; reason: "daily_limit" | "window"; until: string }
+  | {
+      action: "wait";
+      confidence: "high" | "medium";
+      label: string;
+      reason: "best_time";
+      source: "contact" | "global";
+      until: string;
+    };
 
 export type SequenceSendGate =
   | { reason: string; state: "noop" }
@@ -950,6 +959,7 @@ export async function getSequenceEmailSendDecision(input: {
   dailyLimit: number;
   now?: Date;
   ownerId: string;
+  personId?: string;
   sequenceId: string;
   window: SendWindow;
 }): Promise<SequenceSendDecision> {
@@ -979,6 +989,25 @@ export async function getSequenceEmailSendDecision(input: {
     }
   }
 
+  if (input.personId) {
+    const optimized = await getOptimizedSendTimeWait({
+      now,
+      ownerId: input.ownerId,
+      personId: input.personId,
+      window: input.window,
+    });
+    if (optimized) {
+      return {
+        action: "wait",
+        confidence: optimized.advice.confidence === "high" ? "high" : "medium",
+        label: optimized.effectiveLabel,
+        reason: "best_time",
+        source: optimized.advice.source === "contact" ? "contact" : "global",
+        until: optimized.until.toISOString(),
+      };
+    }
+  }
+
   return { action: "send" };
 }
 
@@ -991,6 +1020,7 @@ export async function gateSequenceEmailSend(
   const decision = await getSequenceEmailSendDecision({
     dailyLimit: state.sequence.dailyLimit,
     ownerId: state.ownerId,
+    personId: state.person.id,
     sequenceId: state.sequence.id,
     window: {
       timeZone: state.sequence.timeZone,

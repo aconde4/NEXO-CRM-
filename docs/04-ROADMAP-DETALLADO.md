@@ -725,7 +725,10 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
       JSON completa desde Ajustes, historial `backup_exports`, cron diario
       `/api/backups/scheduled` protegido con `CRON_SECRET` y subida a bucket privado
       `backups` en Supabase Storage.)*
-- [ ] **10.5** Optimización de hora de envío por contacto.
+- [x] **10.5** Optimización de hora de envío por contacto. *(HECHA: heurística
+      owner-aware desde `email_events` positivos —respuestas, clics y aperturas—,
+      panel "Hora óptima" en la ficha del contacto y espera automática en secuencias
+      cuando hay confianza media/alta, respetando antes ventana horaria y límite diario.)*
 - [ ] **10.6** Canal extra: WhatsApp/SMS (opcional).
 - [ ] **10.7** Auditoría de seguridad y rendimiento; tests e2e de los flujos críticos.
 

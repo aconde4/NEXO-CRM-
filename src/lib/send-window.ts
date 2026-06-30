@@ -120,11 +120,52 @@ export function isWithinSendWindow(date: Date, window: SendWindow): boolean {
   );
 }
 
+/** Minuto local del dia (0-1439) para `date` en `timeZone`. */
+export function localMinutesOfDay(date: Date, timeZone: string): number {
+  const parts = getTimeParts(date, timeZone);
+  return parts.hour * 60 + parts.minute;
+}
+
+/** Siguiente ocurrencia local de una hora/minuto concreta, como instante UTC. */
+export function nextLocalTimeAtOrAfter(input: {
+  date: Date;
+  hour: number;
+  minute?: number;
+  timeZone: string;
+}): Date {
+  const parts = getTimeParts(input.date, input.timeZone);
+  const targetMinute = input.minute ?? 0;
+  const target = {
+    day: parts.day,
+    hour: input.hour,
+    minute: targetMinute,
+    month: parts.month,
+    year: parts.year,
+  };
+  const today = zonedTimeToUtc(target, input.timeZone);
+  if (today.getTime() > input.date.getTime()) return today;
+
+  return zonedTimeToUtc(
+    {
+      ...nextLocalDay(parts),
+      hour: input.hour,
+      minute: targetMinute,
+    },
+    input.timeZone,
+  );
+}
+
 /** Inicio del día local (en `timeZone`) que contiene `date`, como instante UTC. */
 export function startOfLocalDayUtc(date: Date, timeZone: string): Date {
   const parts = getTimeParts(date, timeZone);
   return zonedTimeToUtc(
-    { day: parts.day, hour: 0, minute: 0, month: parts.month, year: parts.year },
+    {
+      day: parts.day,
+      hour: 0,
+      minute: 0,
+      month: parts.month,
+      year: parts.year,
+    },
     timeZone,
   );
 }

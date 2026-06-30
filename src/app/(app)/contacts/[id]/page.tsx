@@ -24,6 +24,7 @@ import { listFilesFor } from "@/server/queries/files";
 import { getGmailConnectionStatus } from "@/server/queries/gmail";
 import { getLabelsForPerson, listLabels } from "@/server/queries/labels";
 import { listSequenceEnrollmentOptions } from "@/server/queries/sequences";
+import { getPersonSendTimeAdvice } from "@/server/queries/send-time-optimization";
 import { isStorageConfigured } from "@/server/storage";
 import { ActivitiesPanel } from "@/components/activities/activities-panel";
 import { AIHistorySummaryPanel } from "@/components/ai/ai-history-summary-panel";
@@ -35,6 +36,7 @@ import { CustomFieldsList } from "@/components/custom-fields/custom-fields-list"
 import { EntityAvatar } from "@/components/entity-avatar";
 import { LabelPicker } from "@/components/contacts/label-picker";
 import { NoteComposer } from "@/components/note-composer";
+import { SendTimeAdviceCard } from "@/components/contacts/send-time-advice-card";
 import { SequenceEnrollmentButton } from "@/components/sequences/sequence-enrollment-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -66,6 +68,7 @@ export default async function ContactDetailPage({
     gmailStatus,
     aiStatus,
     sequenceOptions,
+    sendTimeAdvice,
   ] = await Promise.all([
     getPerson(id),
     listOrganizationOptions(),
@@ -77,6 +80,7 @@ export default async function ContactDetailPage({
     getGmailConnectionStatus(),
     getAISettingsStatus(),
     listSequenceEnrollmentOptions(),
+    getPersonSendTimeAdvice(id),
   ]);
 
   if (!person) notFound();
@@ -178,64 +182,68 @@ export default async function ContactDetailPage({
       />
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-base">Detalles</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <InfoRow icon={Mail} label="Email">
-              {person.email ? (
-                <a
-                  className="hover:text-foreground break-all underline-offset-2 hover:underline"
-                  href={`mailto:${person.email}`}
-                >
-                  {person.email}
-                </a>
-              ) : (
-                "—"
-              )}
-            </InfoRow>
-            <InfoRow icon={Phone} label="Teléfono">
-              {person.phone ?? "—"}
-            </InfoRow>
-            <InfoRow icon={Building2} label="Empresa">
-              {person.organization ? (
-                <Link
-                  className="hover:text-foreground underline-offset-2 hover:underline"
-                  href={`/organizations/${person.organization.id}`}
-                >
-                  {person.organization.name}
-                </Link>
-              ) : (
-                "—"
-              )}
-            </InfoRow>
-            <InfoRow icon={Tag} label="Origen">
-              {person.source ?? "—"}
-            </InfoRow>
-            <InfoRow icon={Megaphone} label="Campaña">
-              {person.campaign ?? "—"}
-            </InfoRow>
-            <InfoRow icon={MessageSquare} label="Marketing">
-              <Badge variant="secondary">
-                {marketingLabels[person.marketingStatus] ??
-                  person.marketingStatus}
-              </Badge>
-            </InfoRow>
-            <InfoRow icon={CalendarDays} label="Creado">
-              {formatDate(person.createdAt)}
-            </InfoRow>
+        <div className="space-y-4 lg:col-span-1">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Detalles</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <InfoRow icon={Mail} label="Email">
+                {person.email ? (
+                  <a
+                    className="hover:text-foreground break-all underline-offset-2 hover:underline"
+                    href={`mailto:${person.email}`}
+                  >
+                    {person.email}
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </InfoRow>
+              <InfoRow icon={Phone} label="Teléfono">
+                {person.phone ?? "—"}
+              </InfoRow>
+              <InfoRow icon={Building2} label="Empresa">
+                {person.organization ? (
+                  <Link
+                    className="hover:text-foreground underline-offset-2 hover:underline"
+                    href={`/organizations/${person.organization.id}`}
+                  >
+                    {person.organization.name}
+                  </Link>
+                ) : (
+                  "—"
+                )}
+              </InfoRow>
+              <InfoRow icon={Tag} label="Origen">
+                {person.source ?? "—"}
+              </InfoRow>
+              <InfoRow icon={Megaphone} label="Campaña">
+                {person.campaign ?? "—"}
+              </InfoRow>
+              <InfoRow icon={MessageSquare} label="Marketing">
+                <Badge variant="secondary">
+                  {marketingLabels[person.marketingStatus] ??
+                    person.marketingStatus}
+                </Badge>
+              </InfoRow>
+              <InfoRow icon={CalendarDays} label="Creado">
+                {formatDate(person.createdAt)}
+              </InfoRow>
 
-            {personCustomFieldDefs.length > 0 ? (
-              <div className="space-y-3 border-t pt-3">
-                <CustomFieldsList
-                  defs={personCustomFieldDefs}
-                  values={person.customFields}
-                />
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
+              {personCustomFieldDefs.length > 0 ? (
+                <div className="space-y-3 border-t pt-3">
+                  <CustomFieldsList
+                    defs={personCustomFieldDefs}
+                    values={person.customFields}
+                  />
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <SendTimeAdviceCard advice={sendTimeAdvice} />
+        </div>
 
         <div className="space-y-4 lg:col-span-2">
           <AIHistorySummaryPanel

@@ -48,11 +48,13 @@
   `/analytics/reports`: informe de negocios con filtros (estado, embudo, rango de fechas),
   agrupación (etapa/estado/mes/campaña) y exportación CSV. **Con esto la Fase 9 queda cerrada.**
 
-- **Fase 10 · Extras y pulido:** **en curso (10.1–10.4 hechas).** Ya están listos
+- **Fase 10 · Extras y pulido:** **en curso (10.1–10.5 hechas).** Ya están listos
   documentos/firma electrónica, productos/presupuestos con vista imprimible, PWA
   instalable/responsive y **10.4 copias de seguridad**: exportación JSON completa desde
   Ajustes, historial `backup_exports`, cron diario `/api/backups/scheduled` protegido con
   `CRON_SECRET`, subida a Supabase Storage privado y descarga firmada de copias programadas.
+  **10.5** añade optimización de hora de envío por contacto desde señales reales de
+  interacción (`email_events`) y la aplica a secuencias cuando hay confianza suficiente.
 
 - **Fase 8 · IA agnóstica:** **completa (8.1–8.7).** La base de IA ya no depende de un
   proveedor concreto: `ai_runs` está migrada, `src/server/ai` define `AIProvider`, el
@@ -385,10 +387,9 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 10 · Extras y pulido.** 10.1–10.4 **HECHAS**;
-siguiente **10.5 optimización de hora de envío por contacto**. Resto:
-10.6 WhatsApp/SMS (opcional) y 10.7 auditoría de seguridad/rendimiento
-y tests e2e de los flujos críticos.
+**Siguiente tarea de desarrollo:** **Fase 10 · Extras y pulido.** 10.1–10.5 **HECHAS**;
+siguiente **10.6 canal extra: WhatsApp/SMS (opcional)**. Resto: 10.7 auditoría de
+seguridad/rendimiento y tests e2e de los flujos críticos.
 
 **Resend para el usuario:** para enviar masivamente hace falta cuenta de Resend, dominio o
 subdominio verificado con SPF/DKIM/MX/DMARC, `RESEND_API_KEY`, remitente del dominio
@@ -519,6 +520,22 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-30 (99) — Fase 10.5: optimización de hora de envío por contacto
+- **Heurística:** nuevo módulo puro `src/lib/send-time-optimization.ts` que pondera
+  señales positivas (`reply` > `click` > `open`), recencia y confianza para recomendar
+  una hora local por contacto, con fallback conservador si aún no hay historial.
+- **Datos:** `src/server/services/send-time-optimization.ts` calcula recomendaciones
+  owner-aware desde `email_events`, uniendo hilos, secuencias y `recipient_email`; usa
+  patrón global del propietario si el contacto aún no tiene señales suficientes.
+- **Secuencias:** `gateSequenceEmailSend` aplica la hora óptima tras validar ventana
+  horaria y límite diario. Si hay confianza media/alta, el workflow espera con
+  `step.sleepUntil` hasta la hora recomendada efectiva dentro de la ventana.
+- **UI:** la ficha de contacto muestra el panel "Hora óptima" con fuente, confianza,
+  desglose de respuestas/clics/aperturas y mini distribución por horas.
+- **Verificado:** query runtime contra BD real (incluido cast JSON text ↔ UUID corregido),
+  Chrome headless en `/contacts/984c1661-3446-499e-92a7-f17a004c70ba` renderizando
+  "Detalles" + "Hora óptima"; `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-30 (98) — Fase 10.4: copias de seguridad / exportación programada
 - **Modelo:** tabla `backup_exports` (owner, tipo manual/programada, estado, nombre/ruta,

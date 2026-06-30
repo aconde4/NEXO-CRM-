@@ -232,7 +232,7 @@ export const runSequence = inngest.createFunction(
       }
 
       if (current.type === "email") {
-        // 5.6: respetar la ventana de envío y el límite diario de la secuencia.
+        // 5.6/10.5: respetar ventana, límite diario y hora óptima del contacto.
         let canSend = false;
         for (let attempt = 0; attempt < 3; attempt += 1) {
           const gate = await step.run(
