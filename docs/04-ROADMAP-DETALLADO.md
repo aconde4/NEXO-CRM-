@@ -677,7 +677,12 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
       cerrados y valor ganado/perdido por embudo, y la conversión histórica desde
       `deal_stage_events` respeta también el filtro `personIds`. El snapshot del dashboard
       enlaza al informe.
-- [ ] **9.3** Rendimiento de email (aperturas/clics/respuestas/bajas).
+- [x] **9.3** Rendimiento de email (aperturas/clics/respuestas/bajas). **HECHA:**
+      `/analytics/email` añade el informe transversal de email sobre `email_events`,
+      con KPIs de enviados, aperturas, clics, respuestas, bajas y rebotes/quejas,
+      conteos únicos para no inflar señales repetidas, desglose por canal (Gmail 1:1,
+      secuencias, campañas y otros envíos), actividad diaria, enlaces más clicados y
+      señales recientes. `/analytics` incorpora un snapshot con enlace al informe.
 - [ ] **9.4** Métricas de secuencias y campañas.
 - [ ] **9.5** Objetivos (goals) y seguimiento.
 - [ ] **9.6** Informes personalizados con filtros y exportación.

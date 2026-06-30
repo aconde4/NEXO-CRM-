@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 
-import { getAnalyticsOverview } from "@/server/queries/analytics";
+import {
+  getAnalyticsOverview,
+  getEmailPerformance,
+} from "@/server/queries/analytics";
 import { getFunnelMetrics } from "@/server/queries/deals";
 import { ActivityChart } from "@/components/analytics/activity-chart";
 import { AnalyticsKpis } from "@/components/analytics/analytics-kpis";
+import { EmailPerformanceSnapshot } from "@/components/analytics/email-performance-snapshot";
 import { ForecastChart } from "@/components/analytics/forecast-chart";
 import { FunnelSnapshot } from "@/components/analytics/funnel-snapshot";
 import { WonChart } from "@/components/analytics/won-chart";
@@ -12,9 +16,10 @@ import { PageHeader } from "@/components/page-header";
 export const metadata: Metadata = { title: "Analítica" };
 
 export default async function AnalyticsPage() {
-  const [overview, funnel] = await Promise.all([
+  const [overview, funnel, emailPerformance] = await Promise.all([
     getAnalyticsOverview(),
     getFunnelMetrics(),
+    getEmailPerformance(),
   ]);
 
   // El mes/día actual se deriva de los propios datos (sin recomputar fechas):
@@ -41,7 +46,11 @@ export default async function AnalyticsPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
+        <EmailPerformanceSnapshot performance={emailPerformance} />
         <ActivityChart data={overview.activityByDay} currentKey={todayKey} />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
         <WonChart data={overview.wonByMonth} currentKey={currentMonthKey} />
       </div>
     </>
