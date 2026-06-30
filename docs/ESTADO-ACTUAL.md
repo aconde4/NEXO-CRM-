@@ -32,7 +32,7 @@
   plantilla y checklist operativo en `docs/08-EMAIL-RESEND-Y-REDACCION.md` y
   `docs/SETUP.md`.
 
-- **Fase 9 · Analítica y reporting:** **activa; 9.1–9.4 HECHAS.** `/analytics` muestra el
+- **Fase 9 · Analítica y reporting:** **activa; 9.1–9.5 HECHAS.** `/analytics` muestra el
   dashboard principal con KPIs de negocio, previsión ponderada, snapshot del embudo,
   snapshot de rendimiento de email, snapshot de secuencias/campañas, actividad reciente
   y ganados por mes.
@@ -42,8 +42,10 @@
   (aperturas/clics/respuestas/bajas) desde `email_events`, con conteos únicos, desglose
   por canal, actividad diaria, enlaces más clicados y señales recientes.
   `/analytics/outreach` añade métricas específicas de secuencias y campañas: KPIs,
-  comparativa de canales, estados, tablas top enlazadas y variantes A/B. La siguiente
-  tarea es **9.5 Objetivos (goals) y seguimiento**.
+  comparativa de canales, estados, tablas top enlazadas y variantes A/B. **9.5** añade
+  `/analytics/goals`: objetivos medibles por periodo (ingresos, pipeline, actividad,
+  comunicación) con progreso calculado desde los datos reales (tabla `goals`). La siguiente
+  tarea es **9.6 Informes personalizados con filtros y exportación**.
 
 - **Fase 8 · IA agnóstica:** **completa (8.1–8.7).** La base de IA ya no depende de un
   proveedor concreto: `ai_runs` está migrada, `src/server/ai` define `AIProvider`, el
@@ -376,9 +378,10 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 9.5 · Objetivos (goals) y seguimiento.**
-9.4 ya dejó `/analytics/outreach` para secuencias y campañas; ahora toca definir objetivos
-medibles (pipeline, actividad, ingresos y/o comunicación) y su seguimiento en reporting.
+**Siguiente tarea de desarrollo:** **Fase 9.6 · Informes personalizados con filtros y
+exportación.** Última tarea de la Fase 9: construir informes a medida (filtros por
+entidad/fecha/etiqueta/campaña) y exportarlos (CSV). Reutiliza el motor de filtros (6.4b),
+las queries de analítica y los export CSV existentes (`/api/contacts/export`, etc.).
 
 **Resend para el usuario:** para enviar masivamente hace falta cuenta de Resend, dominio o
 subdominio verificado con SPF/DKIM/MX/DMARC, `RESEND_API_KEY`, remitente del dominio
@@ -509,6 +512,24 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-30 (93) — Fase 9.5: objetivos (goals) y seguimiento
+- **Modelo:** nueva tabla `goals` (owner, métrica, periodo, objetivo) — migración
+  `0018_yielding_runaways`. **Fix de meta drizzle:** `0017_snapshot.json` tenía `id`
+  duplicado (igual al de 0016) y `prevId` apuntando a 0015 (corrupción de la fase T
+  concurrente); corregidos `id` (nuevo) y `prevId` (→0016) para poder generar 0018. La 0017
+  es data-only, su esquema ya era idéntico al de 0016.
+- **Métricas** (owner-aware, periodo en curso mes/trimestre): ingresos ganados, negocios
+  ganados, negocios creados, actividades completadas y emails enviados. Catálogo y helper de
+  periodo en `src/lib/goals.ts`; progreso en `src/server/queries/goals.ts`
+  (`listGoalsWithProgress(ForOwner)`), CRUD en `src/server/actions/goals.ts` (Zod).
+- **UI:** ruta `/analytics/goals` + ítem de navegación "Objetivos". `GoalsView` lista los
+  objetivos con barra de progreso (CSS), % y estado conseguido, y un diálogo crear/editar/
+  eliminar. Estado vacío cuidado.
+- **Verificado:** `tsx` contra BD real (datos QA borrados) — insertados 2 objetivos para el
+  usuario dev: `deals_won` actual=1/target=3 → 33%, `activities_completed` actual=5/target=5
+  → 100%, ambos coinciden con conteos independientes. Migración aplicada (`pnpm db:migrate`).
+  `pnpm typecheck`, `pnpm lint` (a cero) y `pnpm build` en verde.
 
 ### 2026-06-30 (92) — Fase 9.4: métricas de secuencias y campañas
 - **Datos:** nueva query `getOutreachMetrics` (`src/server/queries/analytics-outreach.ts`)

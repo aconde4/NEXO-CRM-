@@ -688,7 +688,9 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
       de canales, distribución de estados, tablas top enlazadas a los paneles existentes
       (`/sequences/[id]` y `/campaigns/[id]`) y rendimiento agregado de variantes A/B.
       `/analytics` incorpora un snapshot de secuencias/campañas con enlace al informe.
-- [ ] **9.5** Objetivos (goals) y seguimiento.
+- [x] **9.5** Objetivos (goals) y seguimiento. *(HECHA: tabla `goals` —migración 0018—,
+      objetivos por periodo (ingresos/pipeline/actividad/comunicación) con progreso calculado
+      desde datos reales; ruta `/analytics/goals` + nav. Verificado con `tsx`.)*
 - [ ] **9.6** Informes personalizados con filtros y exportación.
 
 ### Criterios de aceptación

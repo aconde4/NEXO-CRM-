@@ -9,3 +9,4 @@ export * from "./sequences";
 export * from "./automations";
 export * from "./forms";
 export * from "./ai";
+export * from "./goals";

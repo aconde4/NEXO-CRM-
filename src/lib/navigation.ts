@@ -2,6 +2,7 @@ import {
   BarChart3,
   Building2,
   ClipboardList,
+  Goal,
   Handshake,
   Inbox,
   LayoutDashboard,
@@ -61,7 +62,10 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: "Análisis",
-    items: [{ title: "Analítica", href: "/analytics", icon: BarChart3 }],
+    items: [
+      { title: "Analítica", href: "/analytics", icon: BarChart3 },
+      { title: "Objetivos", href: "/analytics/goals", icon: Goal },
+    ],
   },
 ];
 
