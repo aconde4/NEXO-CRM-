@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+import { PwaRegister } from "@/components/pwa-register";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
@@ -26,6 +27,11 @@ export const metadata: Metadata = {
   description:
     "CRM personal: contactos, embudos de ventas, email, secuencias y automatizaciones con IA.",
   applicationName: "Nexo CRM",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Nexo CRM",
+  },
 };
 
 export const viewport: Viewport = {
@@ -55,6 +61,7 @@ export default function RootLayout({
         >
           <TooltipProvider delay={200}>{children}</TooltipProvider>
           <Toaster richColors closeButton position="bottom-right" />
+          <PwaRegister />
         </ThemeProvider>
       </body>
     </html>

@@ -379,8 +379,8 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 10 · Extras y pulido.** 10.1 y 10.2 **HECHAS**;
-siguiente **10.3 PWA: instalable y responsive en móvil**. Resto: 10.3 PWA/responsive,
+**Siguiente tarea de desarrollo:** **Fase 10 · Extras y pulido.** 10.1–10.3 **HECHAS**;
+siguiente **10.4 copias de seguridad / exportación completa programada**. Resto:
 10.3 PWA/responsive en móvil, 10.4 copias de seguridad programadas, 10.5 hora de envío
 óptima por contacto, 10.6 WhatsApp/SMS (opcional) y 10.7 auditoría de seguridad/rendimiento
 + tests e2e de los flujos críticos.
@@ -514,6 +514,20 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-30 (97) — Fase 10.3: PWA instalable + responsive
+- **PWA:** `src/app/manifest.ts` (instalable, `display: standalone`, start_url `/dashboard`,
+  theme/background color, iconos), `public/icon.svg` (logo N), service worker
+  `public/sw.js` (skipWaiting/claim + fetch network-first solo para navegaciones, con caché
+  de respaldo offline; no cachea agresivamente). Registro en `PwaRegister` (cliente, **solo
+  en producción**), cableado en el layout raíz junto con meta `appleWebApp` y el theme-color
+  ya existente.
+- **Responsive:** ya estaba cubierto — `AppTopbar` tiene `SidebarTrigger` y búsqueda
+  adaptada, el `AppSidebar` (shadcn) usa sheet en móvil, y las páginas usan utilidades
+  `sm/lg`. No hizo falta refactor.
+- **Verificado:** `typecheck`, `lint` (a cero) y `build` en verde; el build emite
+  `/manifest.webmanifest` (estático). La instalabilidad real (Lighthouse/Chrome) se comprueba
+  en producción, ya que el service worker solo se registra en `NODE_ENV=production`.
 
 ### 2026-06-30 (96) — Fase 10.2: productos y presupuestos (PDF)
 - **Modelo:** `products`, `quotes`, `quote_items` — migración `0020`, aplicada.

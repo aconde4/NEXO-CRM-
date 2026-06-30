@@ -716,7 +716,11 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
       `/quotes` + editor `/quotes/[id]` con líneas, totales (subtotal/IVA/total) y estados;
       "PDF" vía vista imprimible `/print/quote/[id]` (print-to-PDF, sin dependencias).
       Totales verificados con `tsx`.)*
-- [ ] **10.3** PWA: instalable y responsive en móvil.
+- [x] **10.3** PWA: instalable y responsive en móvil. *(HECHA: `app/manifest.ts`
+      (instalable, standalone), service worker `public/sw.js` (registrado en prod) con
+      offline básico de navegaciones, icono `public/icon.svg`, meta `appleWebApp` y
+      theme-color. La app ya era responsive (sidebar shadcn con sheet móvil + utilidades
+      `sm/lg`). Build emite `/manifest.webmanifest`.)*
 - [ ] **10.4** Copias de seguridad / exportación completa programada.
 - [ ] **10.5** Optimización de hora de envío por contacto.
 - [ ] **10.6** Canal extra: WhatsApp/SMS (opcional).
