@@ -4,22 +4,25 @@ import {
   getAnalyticsOverview,
   getEmailPerformance,
 } from "@/server/queries/analytics";
+import { getOutreachMetrics } from "@/server/queries/analytics-outreach";
 import { getFunnelMetrics } from "@/server/queries/deals";
 import { ActivityChart } from "@/components/analytics/activity-chart";
 import { AnalyticsKpis } from "@/components/analytics/analytics-kpis";
 import { EmailPerformanceSnapshot } from "@/components/analytics/email-performance-snapshot";
 import { ForecastChart } from "@/components/analytics/forecast-chart";
 import { FunnelSnapshot } from "@/components/analytics/funnel-snapshot";
+import { OutreachSnapshot } from "@/components/analytics/outreach-snapshot";
 import { WonChart } from "@/components/analytics/won-chart";
 import { PageHeader } from "@/components/page-header";
 
 export const metadata: Metadata = { title: "Analítica" };
 
 export default async function AnalyticsPage() {
-  const [overview, funnel, emailPerformance] = await Promise.all([
+  const [overview, funnel, emailPerformance, outreach] = await Promise.all([
     getAnalyticsOverview(),
     getFunnelMetrics(),
     getEmailPerformance(),
+    getOutreachMetrics(),
   ]);
 
   // El mes/día actual se deriva de los propios datos (sin recomputar fechas):
@@ -47,10 +50,11 @@ export default async function AnalyticsPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <EmailPerformanceSnapshot performance={emailPerformance} />
-        <ActivityChart data={overview.activityByDay} currentKey={todayKey} />
+        <OutreachSnapshot metrics={outreach} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
+        <ActivityChart data={overview.activityByDay} currentKey={todayKey} />
         <WonChart data={overview.wonByMonth} currentKey={currentMonthKey} />
       </div>
     </>

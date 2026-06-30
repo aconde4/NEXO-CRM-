@@ -32,15 +32,18 @@
   plantilla y checklist operativo en `docs/08-EMAIL-RESEND-Y-REDACCION.md` y
   `docs/SETUP.md`.
 
-- **Fase 9 · Analítica y reporting:** **activa; 9.1–9.3 HECHAS.** `/analytics` muestra el
+- **Fase 9 · Analítica y reporting:** **activa; 9.1–9.4 HECHAS.** `/analytics` muestra el
   dashboard principal con KPIs de negocio, previsión ponderada, snapshot del embudo,
-  snapshot de rendimiento de email, actividad reciente y ganados por mes.
+  snapshot de rendimiento de email, snapshot de secuencias/campañas, actividad reciente
+  y ganados por mes.
   `/analytics/funnel` añade el informe dedicado de conversión por etapa con selector de
   embudo, entradas históricas desde `deal_stage_events`, conversión completa y tasa de
   victoria por embudo. `/analytics/email` añade el informe transversal de email
   (aperturas/clics/respuestas/bajas) desde `email_events`, con conteos únicos, desglose
-  por canal, actividad diaria, enlaces más clicados y señales recientes. La siguiente
-  tarea es **9.4 Métricas de secuencias y campañas**.
+  por canal, actividad diaria, enlaces más clicados y señales recientes.
+  `/analytics/outreach` añade métricas específicas de secuencias y campañas: KPIs,
+  comparativa de canales, estados, tablas top enlazadas y variantes A/B. La siguiente
+  tarea es **9.5 Objetivos (goals) y seguimiento**.
 
 - **Fase 8 · IA agnóstica:** **completa (8.1–8.7).** La base de IA ya no depende de un
   proveedor concreto: `ai_runs` está migrada, `src/server/ai` define `AIProvider`, el
@@ -373,10 +376,9 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 9.4 · Métricas de secuencias y campañas.**
-9.3 ya dejó una lectura transversal de rendimiento de email en `/analytics/email`; ahora
-toca profundizar en paneles específicos de secuencias y campañas reutilizando sus métricas
-propias, variantes y resultados por audiencia.
+**Siguiente tarea de desarrollo:** **Fase 9.5 · Objetivos (goals) y seguimiento.**
+9.4 ya dejó `/analytics/outreach` para secuencias y campañas; ahora toca definir objetivos
+medibles (pipeline, actividad, ingresos y/o comunicación) y su seguimiento en reporting.
 
 **Resend para el usuario:** para enviar masivamente hace falta cuenta de Resend, dominio o
 subdominio verificado con SPF/DKIM/MX/DMARC, `RESEND_API_KEY`, remitente del dominio
@@ -463,10 +465,10 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 > comerciales base, acciones CRM dentro de secuencias, preparación visible de Resend para
 > envío masivo y auditoría de entregabilidad/RGPD.
 >
-> **Hecho en la última sesión técnica cerrada:** Fase 9.3 cerrada: informe
-> `/analytics/email` con rendimiento transversal de email (aperturas, clics, respuestas,
-> bajas e incidencias), snapshot en `/analytics` y conteos únicos por señal/canal.
-> **Siguiente:** Fase 9.4, métricas específicas de secuencias y campañas.
+> **Hecho en la última sesión técnica cerrada:** Fase 9.4 cerrada: informe
+> `/analytics/outreach` con métricas específicas de secuencias y campañas, snapshot en
+> `/analytics`, comparativa de canales, tablas top y variantes A/B agregadas.
+> **Siguiente:** Fase 9.5, objetivos (goals) y seguimiento.
 
 > **Cómo probar sin Google:** `pnpm dev`, abre http://localhost:3000/api/dev-login
 > (entra como usuario de prueba) o usa el enlace "Entrar como desarrollador" en
@@ -507,6 +509,19 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-30 (92) — Fase 9.4: métricas de secuencias y campañas
+- **Datos:** nueva query `getOutreachMetrics` (`src/server/queries/analytics-outreach.ts`)
+  que agrega secuencias, inscripciones, eventos `email_events.meta.sequence`, campañas y
+  `campaign_recipients` en una lectura owner-aware. Calcula estados, volumen enviado,
+  apertura, clic, respuesta, bajas, rebotes/quejas, audiencia, entrega y variantes A/B.
+- **UI:** nueva ruta `/analytics/outreach` con KPIs ejecutivos, comparativa de canales,
+  estado operativo, tablas top de secuencias/campañas enlazadas a sus paneles y
+  rendimiento agregado de variantes A/B. `/analytics` incorpora el snapshot
+  "Secuencias y campañas".
+- **Documentación:** roadmap marcado en 9.4 y siguiente paso actualizado a 9.5
+  (objetivos y seguimiento).
+- `pnpm typecheck`, `pnpm lint` y `pnpm build` en verde.
 
 ### 2026-06-30 (91) — Fase 9.3: rendimiento transversal de email
 - **Datos:** `getEmailPerformance`/`computeEmailPerformance` agregan `email_events` de

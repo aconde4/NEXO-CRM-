@@ -683,7 +683,11 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
       conteos únicos para no inflar señales repetidas, desglose por canal (Gmail 1:1,
       secuencias, campañas y otros envíos), actividad diaria, enlaces más clicados y
       señales recientes. `/analytics` incorpora un snapshot con enlace al informe.
-- [ ] **9.4** Métricas de secuencias y campañas.
+- [x] **9.4** Métricas de secuencias y campañas. **HECHA:** nueva vista
+      `/analytics/outreach` con KPIs ejecutivos de secuencias y campañas, comparativa
+      de canales, distribución de estados, tablas top enlazadas a los paneles existentes
+      (`/sequences/[id]` y `/campaigns/[id]`) y rendimiento agregado de variantes A/B.
+      `/analytics` incorpora un snapshot de secuencias/campañas con enlace al informe.
 - [ ] **9.5** Objetivos (goals) y seguimiento.
 - [ ] **9.6** Informes personalizados con filtros y exportación.
 
