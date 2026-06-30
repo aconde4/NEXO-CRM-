@@ -691,7 +691,10 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
 - [x] **9.5** Objetivos (goals) y seguimiento. *(HECHA: tabla `goals` —migración 0018—,
       objetivos por periodo (ingresos/pipeline/actividad/comunicación) con progreso calculado
       desde datos reales; ruta `/analytics/goals` + nav. Verificado con `tsx`.)*
-- [ ] **9.6** Informes personalizados con filtros y exportación.
+- [x] **9.6** Informes personalizados con filtros y exportación. *(HECHA: informe de
+      negocios en `/analytics/reports` con filtros (estado, embudo, rango de fechas por
+      creación/cierre), agrupación (etapa/estado/mes/campaña) y exportación CSV
+      (`/api/analytics/reports/deals/export`). Verificado por render + CSV vía dev login.)*
 
 ### Criterios de aceptación
 - Un dashboard muestra estado del pipeline, previsión y rendimiento de email de un

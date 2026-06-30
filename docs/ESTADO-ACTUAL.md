@@ -32,7 +32,7 @@
   plantilla y checklist operativo en `docs/08-EMAIL-RESEND-Y-REDACCION.md` y
   `docs/SETUP.md`.
 
-- **Fase 9 · Analítica y reporting:** **activa; 9.1–9.5 HECHAS.** `/analytics` muestra el
+- **Fase 9 · Analítica y reporting:** **COMPLETA (9.1–9.6).** `/analytics` muestra el
   dashboard principal con KPIs de negocio, previsión ponderada, snapshot del embudo,
   snapshot de rendimiento de email, snapshot de secuencias/campañas, actividad reciente
   y ganados por mes.
@@ -44,8 +44,9 @@
   `/analytics/outreach` añade métricas específicas de secuencias y campañas: KPIs,
   comparativa de canales, estados, tablas top enlazadas y variantes A/B. **9.5** añade
   `/analytics/goals`: objetivos medibles por periodo (ingresos, pipeline, actividad,
-  comunicación) con progreso calculado desde los datos reales (tabla `goals`). La siguiente
-  tarea es **9.6 Informes personalizados con filtros y exportación**.
+  comunicación) con progreso calculado desde los datos reales (tabla `goals`). **9.6** añade
+  `/analytics/reports`: informe de negocios con filtros (estado, embudo, rango de fechas),
+  agrupación (etapa/estado/mes/campaña) y exportación CSV. **Con esto la Fase 9 queda cerrada.**
 
 - **Fase 8 · IA agnóstica:** **completa (8.1–8.7).** La base de IA ya no depende de un
   proveedor concreto: `ai_runs` está migrada, `src/server/ai` define `AIProvider`, el
@@ -378,10 +379,11 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 9.6 · Informes personalizados con filtros y
-exportación.** Última tarea de la Fase 9: construir informes a medida (filtros por
-entidad/fecha/etiqueta/campaña) y exportarlos (CSV). Reutiliza el motor de filtros (6.4b),
-las queries de analítica y los export CSV existentes (`/api/contacts/export`, etc.).
+**Siguiente tarea de desarrollo:** **Fase 10 · Extras y pulido.** Con la Fase 9 cerrada,
+empieza la Fase 10: 10.1 documentos y firma electrónica, 10.2 productos y presupuestos,
+10.3 PWA/responsive en móvil, 10.4 copias de seguridad programadas, 10.5 hora de envío
+óptima por contacto, 10.6 WhatsApp/SMS (opcional) y 10.7 auditoría de seguridad/rendimiento
++ tests e2e de los flujos críticos.
 
 **Resend para el usuario:** para enviar masivamente hace falta cuenta de Resend, dominio o
 subdominio verificado con SPF/DKIM/MX/DMARC, `RESEND_API_KEY`, remitente del dominio
@@ -512,6 +514,24 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-06-30 (94) — Fase 9.6: informes personalizados con filtros y exportación · Fase 9 COMPLETA
+- **Informe de negocios** en `/analytics/reports`: filtros por estado, embudo y rango de
+  fechas (sobre creación o cierre), agrupación por etapa/estado/mes/campaña, resumen
+  (negocios, valor total, ganados, valor ganado) y tabla agrupada o de detalle. Todo
+  dirigido por URL (patrón de `/deals`), con barra de filtros cliente y resultados server.
+- **Exportación CSV** en `/api/analytics/reports/deals/export` (auth, reutiliza `lib/csv`),
+  respetando los filtros activos; BOM UTF-8 para Excel.
+- **Código:** catálogo+parseo compartido en `src/lib/reports.ts`; fetch owner-aware +
+  agregación pura testeable en `src/server/queries/reports.ts` (`fetchDealsReportRows` +
+  `buildDealsReport`); `ReportFilters` (cliente) y `DealsReportResults` (server); ítem de
+  navegación "Informes".
+- **Verificado:** dev login → `/analytics/reports?groupBy=status` HTTP 200 con filtros y
+  resumen; CSV HTTP 200 (`text/csv`, BOM, cabecera correcta); **cross-check**: 18 negocios en
+  el resumen = 18 filas de datos del CSV. `pnpm typecheck`, `pnpm lint` (a cero) y
+  `pnpm build` en verde.
+- **Fase 9 (Analítica y reporting) COMPLETA:** 9.1 dashboard · 9.2 embudo/victoria · 9.3
+  rendimiento de email · 9.4 secuencias/campañas · 9.5 objetivos · 9.6 informes+export.
 
 ### 2026-06-30 (93) — Fase 9.5: objetivos (goals) y seguimiento
 - **Modelo:** nueva tabla `goals` (owner, métrica, periodo, objetivo) — migración
