@@ -48,13 +48,12 @@
   `/analytics/reports`: informe de negocios con filtros (estado, embudo, rango de fechas),
   agrupación (etapa/estado/mes/campaña) y exportación CSV. **Con esto la Fase 9 queda cerrada.**
 
-- **Fase 10 · Extras y pulido:** **en curso (10.1–10.5 hechas).** Ya están listos
-  documentos/firma electrónica, productos/presupuestos con vista imprimible, PWA
-  instalable/responsive y **10.4 copias de seguridad**: exportación JSON completa desde
-  Ajustes, historial `backup_exports`, cron diario `/api/backups/scheduled` protegido con
-  `CRON_SECRET`, subida a Supabase Storage privado y descarga firmada de copias programadas.
-  **10.5** añade optimización de hora de envío por contacto desde señales reales de
-  interacción (`email_events`) y la aplica a secuencias cuando hay confianza suficiente.
+- **Fase 10 · Extras y pulido:** **COMPLETA.** 10.1–10.5 están hechas (documentos/firma,
+  productos/presupuestos, PWA/responsive, copias de seguridad y optimización de hora de
+  envío). **10.6 WhatsApp/SMS queda descartada** por decisión del usuario (2026-07-01).
+  **10.7** cierra la fase con auditoría de seguridad/rendimiento y tests e2e críticos:
+  cabeceras defensivas, `postcss` seguro, DB lazy, revisión de rutas/actions y Playwright
+  para auth, headers, CSV, smoke de páginas principales y lista de negocios.
 
 - **Fase 8 · IA agnóstica:** **completa (8.1–8.7).** La base de IA ya no depende de un
   proveedor concreto: `ai_runs` está migrada, `src/server/ai` define `AIProvider`, el
@@ -387,13 +386,9 @@
 
 ## ⏭️ Siguiente paso concreto
 
-**Siguiente tarea de desarrollo:** **Fase 10 · Extras y pulido.** 10.1–10.5 **HECHAS**;
-siguiente **10.6 canal extra: WhatsApp/SMS (opcional)**. Resto: 10.7 auditoría de
-seguridad/rendimiento y tests e2e de los flujos críticos.
-
-**Último trabajo fuera de roadmap:** corregida la inscripción masiva de contactos en
-secuencias desde negocios y añadida selección masiva en la vista lista de `/deals`. La
-siguiente tarea del roadmap no cambia: 10.6.
+**Siguiente tarea de desarrollo:** el roadmap actual queda **cerrado hasta Fase 10**. Antes
+de construir una nueva fase, decidir el siguiente bloque: despliegue/operación real,
+endurecimiento CSP/RLS/rotación de credenciales, o nuevas funcionalidades.
 
 **Resend para el usuario:** para enviar masivamente hace falta cuenta de Resend, dominio o
 subdominio verificado con SPF/DKIM/MX/DMARC, `RESEND_API_KEY`, remitente del dominio
@@ -524,6 +519,23 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-07-01 (101) — Fase 10.7: auditoría final, seguridad y e2e
+- **Decisión de producto:** **10.6 WhatsApp/SMS descartada** por el usuario; no se
+  implementa. El roadmap continúa y cierra con 10.7.
+- **Seguridad:** `next.config.ts` añade HSTS, `X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy` y `Permissions-Policy`. `pnpm audit --prod` queda limpio tras fijar
+  `postcss@8.5.15` en `pnpm-workspace.yaml`.
+- **Rendimiento/build-safety:** `src/server/db/index.ts` inicializa Drizzle/Postgres de
+  forma lazy; Auth.js usa `getDb()` porque su adapter necesita una instancia Drizzle real.
+- **E2E:** añadida suite Playwright (`playwright.config.ts`, `tests/e2e/*`) para auth/proxy,
+  cabeceras, export CSV autenticado, smoke de páginas críticas y selección de contactos en
+  lista de negocios. Se ejecuta contra `pnpm dev` usando `PLAYWRIGHT_BASE_URL`.
+- **Revisión global:** rutas públicas/privadas, Server Actions/queries, secretos trackeados
+  y dependencias revisadas. Riesgos residuales documentados: CSP estricta, RLS Supabase y
+  rotación operativa de credenciales.
+- **Verificado:** `pnpm audit --prod`, `pnpm typecheck`, `pnpm lint`, `pnpm build` y
+  `PLAYWRIGHT_BASE_URL=http://localhost:3000 pnpm e2e` (5/5) en verde.
 
 ### 2026-07-01 (100) — Fix inscripción de contactos en secuencias desde negocios
 - **Backend:** `bulkEnrollDeals` deja de insertar en `enrollments` directamente y delega en

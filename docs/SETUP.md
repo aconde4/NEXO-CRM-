@@ -287,6 +287,22 @@ otros endpoints OpenAI-compatible.
 
 ---
 
+## 8. Tests e2e (Fase 10.7)
+
+La suite e2e usa Playwright y el login local sin Google (`/api/dev-login`), así que se
+ejecuta contra `pnpm dev`:
+
+```bash
+pnpm e2e:install
+pnpm dev
+PLAYWRIGHT_BASE_URL=http://localhost:3000 pnpm e2e
+```
+
+En Windows/entorno Codex, si Chrome ya está instalado, `playwright.config.ts` lo reutiliza.
+En CI, instala Chromium con `pnpm e2e:install`.
+
+---
+
 ## Cuando termines
 
 Dime **“ya tengo Supabase y Google”** y haré:

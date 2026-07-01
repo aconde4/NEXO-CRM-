@@ -729,8 +729,12 @@ para trabajar desde el CRM sin cambios de contexto innecesarios.
       owner-aware desde `email_events` positivos —respuestas, clics y aperturas—,
       panel "Hora óptima" en la ficha del contacto y espera automática en secuencias
       cuando hay confianza media/alta, respetando antes ventana horaria y límite diario.)*
-- [ ] **10.6** Canal extra: WhatsApp/SMS (opcional).
-- [ ] **10.7** Auditoría de seguridad y rendimiento; tests e2e de los flujos críticos.
+- [x] **10.6** Canal extra: WhatsApp/SMS (opcional). *(DESCARTADA por decisión del
+  usuario el 2026-07-01; no se implementa en esta fase.)*
+- [x] **10.7** Auditoría de seguridad y rendimiento; tests e2e de los flujos críticos.
+      *(HECHA: cabeceras defensivas, audit de dependencias sin vulnerabilidades,
+      override seguro de `postcss`, DB lazy, revisión de rutas/actions y suite
+      Playwright para auth, headers, CSV, smoke de páginas críticas y lista de negocios.)*
 
 ### Criterios de aceptación
 - Las funciones premium de Pipedrive están cubiertas o conscientemente descartadas;

@@ -9,16 +9,32 @@ import postgres from "postgres";
 
 import * as schema from "./schema";
 
-const connectionString = process.env.DATABASE_URL;
+function createDatabase() {
+  const connectionString = process.env.DATABASE_URL;
 
-if (!connectionString) {
-  throw new Error(
-    "Falta DATABASE_URL. Copia .env.example a .env.local y rellena la conexión de Supabase.",
-  );
+  if (!connectionString) {
+    throw new Error(
+      "Falta DATABASE_URL. Copia .env.example a .env.local y rellena la conexión de Supabase.",
+    );
+  }
+
+  const client = postgres(connectionString, { prepare: false });
+  return drizzle(client, { schema });
 }
 
-const client = postgres(connectionString, { prepare: false });
+export type Database = ReturnType<typeof createDatabase>;
 
-export const db = drizzle(client, { schema });
+let dbInstance: Database | null = null;
 
-export type Database = typeof db;
+export function getDb(): Database {
+  dbInstance ??= createDatabase();
+  return dbInstance;
+}
+
+export const db = new Proxy({} as Database, {
+  get(_target, prop, receiver) {
+    const database = getDb();
+    const value = Reflect.get(database, prop, receiver);
+    return typeof value === "function" ? value.bind(database) : value;
+  },
+});

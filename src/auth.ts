@@ -5,7 +5,7 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 
 import { GOOGLE_OAUTH_AUTHORIZATION_PARAMS } from "@/lib/google-oauth";
-import { db } from "@/server/db";
+import { getDb } from "@/server/db";
 import {
   accounts,
   authenticators,
@@ -13,6 +13,8 @@ import {
   users,
   verificationTokens,
 } from "@/server/db/schema";
+
+const db = getDb();
 
 /** Allowlist monousuario: solo estos correos pueden iniciar sesión. */
 const allowedEmails = (process.env.ALLOWED_EMAILS ?? "")

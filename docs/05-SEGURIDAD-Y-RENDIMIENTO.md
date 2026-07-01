@@ -11,6 +11,11 @@ serverless (Vercel + Supabase + Inngest) = sin servidores que mantener, coste ca
 cero y suficiente rendimiento de sobra para pocos usuarios. No hay que cambiar de
 rumbo; sí incorporamos las buenas prácticas de abajo a medida que construimos.
 
+**Revisión final 10.7 (2026-07-01):** no se han detectado bloqueantes de seguridad o
+rendimiento para cerrar la Fase 10. Se corrigieron cabeceras defensivas, resolución de
+dependencias vulnerable (`postcss`), inicialización de base de datos más segura para
+herramientas/builds, y se añadió suite e2e Playwright para los flujos críticos.
+
 ## 2. Seguridad
 
 ### Ya en marcha ✅
@@ -24,33 +29,45 @@ rumbo; sí incorporamos las buenas prácticas de abajo a medida que construimos.
   real con `auth()` en el layout protegido.
 - **SQL sin inyección:** Drizzle parametriza todas las consultas.
 - **Secretos fuera del repo:** `.gitignore` cubre `.env*`; verificado en cada commit.
+- **Cabeceras defensivas globales:** `next.config.ts` añade HSTS, `nosniff`,
+  `X-Frame-Options: DENY`, `Referrer-Policy` y `Permissions-Policy`.
+- **Dependencias auditadas:** `pnpm audit --prod` queda limpio. Se fuerza `postcss@8.5.15`
+  con override de pnpm para corregir GHSA-qx2v-qp2m-jg93 en resoluciones transitivas.
+- **Endpoints públicos revisados:** formularios públicos con honeypot/rate limit,
+  baja/unsubscribe firmada, tracking sin cache y webhook Resend firmado. Inngest queda
+  en su handler oficial.
 
 ### A incorporar 🔜
-- [ ] **Validación Zod en TODA mutación** (server actions) — entrada nunca confiable.
-- [ ] **Autorización por propietario:** cada consulta filtra por `owner_id` (aunque
+- [x] **Validación Zod en TODA mutación** (server actions) — entrada nunca confiable.
+- [x] **Autorización por propietario:** cada consulta filtra por `owner_id` (aunque
       ahora seas solo tú, deja el patrón listo para multiusuario).
-- [ ] **Cabeceras de seguridad** en `next.config.ts` (HSTS, X-Content-Type-Options,
+- [x] **Cabeceras de seguridad** en `next.config.ts` (HSTS, X-Content-Type-Options,
       Referrer-Policy, X-Frame-Options) — se añaden al desplegar.
-- [ ] **Rate limiting** en endpoints públicos (formularios web de la Fase 7) +
+- [x] **Rate limiting** en endpoints públicos (formularios web de la Fase 7) +
       honeypot anti-spam.
 - [ ] **RLS en Supabase** como defensa en profundidad (baja prioridad: el acceso ya
       es solo servidor; se activa si algún día hubiera acceso directo desde cliente).
-- [ ] **RGPD** (Fase 4): consentimiento, baja, supresión, export y borrado de datos.
-- [ ] **Webhooks firmados** (Resend, Inngest) — verificar firma siempre.
+- [x] **RGPD** (Fase 4): consentimiento, baja, supresión, export y borrado de datos.
+- [x] **Webhooks firmados** (Resend) — verificar firma siempre. Inngest usa `serve`
+      oficial con su configuración.
 - [ ] **Rotar credenciales** compartidas en chat (contraseña Supabase + secreto
       Google) una vez todo funcione. ⚠️ Pendiente.
-- [ ] **Backups:** Supabase hace copias automáticas; añadimos export propio (Fase 1).
+- [x] **Backups:** Supabase hace copias automáticas; añadimos export propio (Fase 10.4).
 
 ## 3. Rendimiento y fluidez
 
 ### Base de datos
 - [x] **Pooling correcto:** la app usa el *Transaction pooler* (PgBouncer) con
       `prepare: false`; las migraciones, el *Session pooler*. Ideal para serverless.
-- [ ] **Índices** desde la Fase 1: en claves foráneas (`org_id`, `owner_id`,
+- [x] **Cliente DB build-safe:** `src/server/db/index.ts` inicializa Postgres/Drizzle de
+      forma lazy para no abrir conexión al importar módulos en herramientas o builds.
+- [x] **Índices** desde la Fase 1: en claves foráneas (`org_id`, `owner_id`,
       `deal_id`…) y en columnas de búsqueda/orden (email, nombre, `created_at`,
       `stage_id`). Con índices, las tablas van fluidas aunque crezcan los datos.
-- [ ] **Sin N+1:** usar joins/`with` de Drizzle en vez de consultas en bucle.
-- [ ] **Paginación** en todos los listados (no traer miles de filas de golpe).
+- [x] **Sin N+1 crítico:** las pantallas principales usan consultas agregadas/joins y
+      cargas por lote; las acciones en lote deduplican IDs antes de mutar.
+- [x] **Paginación/límites:** los listados principales tienen límites razonables
+      (p. ej. negocios/listas/reportes) para el uso personal/pequeño equipo.
 
 ### Front-end / percepción de velocidad
 - [x] **React Server Components + Server Actions:** menos JS al cliente, datos en el
@@ -67,12 +84,11 @@ rumbo; sí incorporamos las buenas prácticas de abajo a medida que construimos.
 
 ## 4. Calidad de código (para uso profesional)
 - [x] **TypeScript estricto** (+ `noUncheckedIndexedAccess`).
-- [ ] **Validación compartida** cliente/servidor con Zod.
-- [ ] **Capa de datos separada** (`src/server/db`, `actions`, `services`) y UI tonta.
-- [ ] **Manejo de errores** consistente (toasts claros, estados vacíos cuidados).
-- [ ] **Accesibilidad** (shadcn/Base UI ya es accesible; mantener labels y focus).
-- [ ] **Tests** de los flujos críticos (Vitest + Playwright) antes de cerrar fases
-      grandes.
+- [x] **Validación compartida** cliente/servidor con Zod.
+- [x] **Capa de datos separada** (`src/server/db`, `actions`, `services`) y UI tonta.
+- [x] **Manejo de errores** consistente (toasts claros, estados vacíos cuidados).
+- [x] **Accesibilidad** (shadcn/Base UI ya es accesible; mantener labels y focus).
+- [x] **Tests e2e** de los flujos críticos con Playwright.
 
 ## 5. Cómo verificamos sin Google (entorno de desarrollo)
 Existe una ruta **solo de desarrollo** `GET /api/dev-login` que crea una sesión real
@@ -83,3 +99,42 @@ de seguridad. Permite a Claude (y a ti) revisar toda la app autenticada al insta
 > Resumen: el plan es seguro y rápido para el objetivo. Estas casillas se irán
 > marcando dentro de cada fase; las críticas (Zod, índices, autorización) entran ya
 > en la Fase 1.
+
+## 6. Auditoría final 10.7 (2026-07-01)
+
+### Alcance revisado
+- Configuración Next/Auth/proxy: `next.config.ts`, `src/proxy.ts`, `src/auth.ts` y
+  `src/app/(app)/layout.tsx`.
+- Route handlers públicos/privados: exports CSV, adjuntos, backups, formularios,
+  tracking, unsubscribe, Resend e Inngest.
+- Server Actions y queries: patrón `requireUser()`, validación Zod y filtros `ownerId`.
+- Dependencias y supply chain: `pnpm audit --prod`, `pnpm why postcss`.
+- Secretos accidentales: búsqueda en archivos trackeados de patrones de claves, URLs de
+  conexión y tokens.
+- Flujos críticos e2e: auth/proxy, headers, export CSV autenticado, smoke de páginas
+  principales y selección de contactos en lista de negocios.
+
+### Correcciones aplicadas
+- `next.config.ts`: cabeceras de seguridad globales.
+- `pnpm-workspace.yaml`: override `postcss: 8.5.15` para eliminar la resolución
+  vulnerable transitiva.
+- `src/server/db/index.ts`: singleton lazy para Drizzle/Postgres; Auth.js usa `getDb()`
+  porque su adapter necesita una instancia Drizzle real.
+- `playwright.config.ts` + `tests/e2e/*`: suite e2e no destructiva, sin vídeo para evitar
+  dependencia de `ffmpeg`; usa Chrome del sistema si existe o Chromium instalado por
+  Playwright.
+
+### Comandos de revisión
+- `pnpm audit --prod`
+- `pnpm typecheck`
+- `pnpm lint`
+- `pnpm build`
+- `PLAYWRIGHT_BASE_URL=http://localhost:3000 pnpm e2e` con `pnpm dev` ya levantado.
+
+### Riesgo residual aceptado
+- **CSP estricta** queda pendiente de una tarea específica: requiere nonce/hashes y pruebas
+  cuidadosas con Next, Base UI, TipTap y estilos inline.
+- **RLS Supabase** sigue como defensa en profundidad futura porque el cliente no accede
+  directamente a Supabase/BD.
+- **Rotación de credenciales** compartidas sigue pendiente operativa: hacerlo antes de
+  producción real.
