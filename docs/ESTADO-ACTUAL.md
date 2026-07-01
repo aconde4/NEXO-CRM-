@@ -391,6 +391,10 @@
 siguiente **10.6 canal extra: WhatsApp/SMS (opcional)**. Resto: 10.7 auditoría de
 seguridad/rendimiento y tests e2e de los flujos críticos.
 
+**Último trabajo fuera de roadmap:** corregida la inscripción masiva de contactos en
+secuencias desde negocios y añadida selección masiva en la vista lista de `/deals`. La
+siguiente tarea del roadmap no cambia: 10.6.
+
 **Resend para el usuario:** para enviar masivamente hace falta cuenta de Resend, dominio o
 subdominio verificado con SPF/DKIM/MX/DMARC, `RESEND_API_KEY`, remitente del dominio
 verificado, webhook `/api/webhooks/resend`, `RESEND_WEBHOOK_SECRET`, datos legales/RGPD y
@@ -520,6 +524,19 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 ---
 
 ## 🗒️ Changelog por sesión
+
+### 2026-07-01 (100) — Fix inscripción de contactos en secuencias desde negocios
+- **Backend:** `bulkEnrollDeals` deja de insertar en `enrollments` directamente y delega en
+  `enrollInSequence` con una nueva fuente `persons`, deduplicando contactos y respetando
+  secuencia activa con pasos, email válido, consentimiento, supresiones, duplicados,
+  encolado Inngest y eventos de automatización.
+- **Lista de negocios:** `/deals?view=list` carga secuencias inscribibles, añade checkbox
+  por fila con contacto, checkbox global para todos los contactos visibles/filtrados y
+  barra contextual con desplegable **Añadir a secuencia**.
+- **Verificado:** Playwright/Chrome headless con login dev: lista con 17 negocios, filtro
+  a 1 resultado, selección global visible y desplegable con secuencia activa `Prueba 1`
+  sin ejecutar inscripción destructiva. `pnpm typecheck`, `pnpm lint` y `pnpm build` en
+  verde.
 
 ### 2026-06-30 (99) — Fase 10.5: optimización de hora de envío por contacto
 - **Heurística:** nuevo módulo puro `src/lib/send-time-optimization.ts` que pondera

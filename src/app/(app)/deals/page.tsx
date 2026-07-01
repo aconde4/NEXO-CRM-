@@ -67,7 +67,11 @@ export default async function DealsPage({
   const params = await searchParams;
   const viewParam = firstParam(params.view);
   const view =
-    viewParam === "list" ? "list" : viewParam === "metrics" ? "metrics" : "board";
+    viewParam === "list"
+      ? "list"
+      : viewParam === "metrics"
+        ? "metrics"
+        : "board";
   const pipelineParam = firstParam(params.pipeline);
   const stageParam = firstParam(params.stage);
   const query = firstParam(params.q) ?? "";
@@ -85,14 +89,19 @@ export default async function DealsPage({
     pipelines[0]?.id ??
     "";
 
-  const [stagesByPipeline, persons, organizations, customFieldDefs, savedViews] =
-    await Promise.all([
-      listStagesByPipeline(),
-      listPersonOptions(),
-      listOrganizationOptions(),
-      listCustomFieldDefs("person"),
-      listSavedViews("deal"),
-    ]);
+  const [
+    stagesByPipeline,
+    persons,
+    organizations,
+    customFieldDefs,
+    savedViews,
+  ] = await Promise.all([
+    listStagesByPipeline(),
+    listPersonOptions(),
+    listOrganizationOptions(),
+    listCustomFieldDefs("person"),
+    listSavedViews("deal"),
+  ]);
 
   const activeStages = stagesByPipeline[activePipelineId] ?? [];
   const activeStageId =
@@ -125,14 +134,20 @@ export default async function DealsPage({
   }
 
   if (view === "list") {
-    const deals = await listDeals({
-      pipelineId: activePipelineId || undefined,
-      stageId: activeStageId || undefined,
-      status,
-      query,
-      sort,
-      personIds,
-    });
+    const [deals, sequenceOptions] = await Promise.all([
+      listDeals({
+        pipelineId: activePipelineId || undefined,
+        stageId: activeStageId || undefined,
+        status,
+        query,
+        sort,
+        personIds,
+      }),
+      listSequenceEnrollmentOptions(),
+    ]);
+    const enrollableSequences = sequenceOptions
+      .filter((s) => s.canEnroll)
+      .map((s) => ({ id: s.id, name: s.name }));
 
     return (
       <>
@@ -158,6 +173,7 @@ export default async function DealsPage({
           conditions={conditions}
           customFieldDefs={customFieldDefs}
           savedViews={savedViews}
+          sequenceOptions={enrollableSequences}
         />
       </>
     );

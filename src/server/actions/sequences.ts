@@ -278,6 +278,16 @@ async function resolveEnrollmentSource(
     return { personIds: data.personId ? [data.personId] : [], requested: 1 };
   }
 
+  if (data.source === "persons") {
+    const personIds = [...new Set(data.personIds ?? [])];
+    if (personIds.length > MAX_MANUAL_SEQUENCE_ENROLLMENTS) {
+      throw new Error(
+        `Selecciona como máximo ${MAX_MANUAL_SEQUENCE_ENROLLMENTS} contactos para una inscripción manual.`,
+      );
+    }
+    return { personIds, requested: personIds.length };
+  }
+
   if (!data.segmentId) return { personIds: [], requested: 0 };
   const [segment] = await db
     .select({ definition: segments.definition, id: segments.id })
@@ -371,7 +381,7 @@ async function queueSequenceRuns(
       data: {
         enrollmentId: enrollment.id,
         personId: enrollment.personId,
-        segmentId: input.segmentId,
+        segmentId: input.source === "segment" ? input.segmentId : null,
         sequenceId: input.sequenceId,
         source: input.source,
       },

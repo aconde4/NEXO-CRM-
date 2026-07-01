@@ -17,6 +17,7 @@ import {
   Trash2,
   Trophy,
   User,
+  UserPlus,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -26,6 +27,7 @@ import type { CustomFieldDef } from "@/lib/custom-fields";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { DealStatus } from "@/server/db/schema";
 import {
+  bulkEnrollDeals,
   deleteDeal,
   reopenDeal,
   setDealLost,
@@ -45,6 +47,7 @@ import {
 } from "@/components/deals/deal-form-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -111,6 +114,7 @@ export function DealsListView({
   conditions,
   customFieldDefs,
   savedViews,
+  sequenceOptions,
 }: {
   deals: DealListItem[];
   filters: DealListFilters;
@@ -121,6 +125,7 @@ export function DealsListView({
   conditions: ContactFilterCondition[];
   customFieldDefs: CustomFieldDef[];
   savedViews: SavedView[];
+  sequenceOptions: Option[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -130,6 +135,8 @@ export function DealsListView({
   const [lost, setLost] = React.useState<DealListItem | null>(null);
   const [deleting, setDeleting] = React.useState<DealListItem | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [selected, setSelected] = React.useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = React.useState(false);
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeStages = stagesByPipeline[filters.pipelineId] ?? [];
@@ -141,6 +148,27 @@ export function DealsListView({
         : sum,
     0,
   );
+  const selectableIds = React.useMemo(
+    () => deals.filter((deal) => deal.personId).map((deal) => deal.id),
+    [deals],
+  );
+  const selectableIdSet = React.useMemo(
+    () => new Set(selectableIds),
+    [selectableIds],
+  );
+  const selectedVisibleIds = React.useMemo(
+    () => selectableIds.filter((id) => selected.has(id)),
+    [selectableIds, selected],
+  );
+  const selectedContactCount = React.useMemo(() => {
+    const ids = new Set<string>();
+    for (const deal of deals) {
+      if (selected.has(deal.id) && deal.personId) ids.add(deal.personId);
+    }
+    return ids.size;
+  }, [deals, selected]);
+  const allVisibleSelected =
+    selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
 
   const boardHref = React.useMemo(() => {
     // Preserva el filtro (y demás parámetros) al cambiar a Kanban; solo quita `view`.
@@ -190,6 +218,56 @@ export function DealsListView({
     setSearch(value);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => replaceParams({ q: value }), 300);
+  }
+
+  function toggleSelect(id: string) {
+    if (!selectableIdSet.has(id) || bulkBusy) return;
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllVisible() {
+    if (selectableIds.length === 0 || bulkBusy) return;
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const shouldClear = selectableIds.every((id) => next.has(id));
+      for (const id of selectableIds) {
+        if (shouldClear) next.delete(id);
+        else next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelected(new Set());
+  }
+
+  async function enrollSelected(sequenceId: string) {
+    if (bulkBusy) return;
+    const dealIds = selectedVisibleIds;
+    if (dealIds.length === 0) {
+      toast.error("Selecciona al menos un contacto visible.");
+      return;
+    }
+
+    setBulkBusy(true);
+    try {
+      const result = await bulkEnrollDeals(dealIds, sequenceId);
+      toast.success(enrollmentMessage(result));
+      clearSelection();
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo inscribir",
+      );
+    } finally {
+      setBulkBusy(false);
+    }
   }
 
   async function win(id: string) {
@@ -354,6 +432,46 @@ export function DealsListView({
         </span>
       </div>
 
+      {selectedVisibleIds.length > 0 ? (
+        <div className="bg-card sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-lg border p-2 shadow-xs">
+          <span className="inline-flex items-center gap-2 text-sm font-medium">
+            <UserPlus className="size-4" />
+            {selectedContactCount} contacto
+            {selectedContactCount === 1 ? "" : "s"} seleccionado
+            {selectedContactCount === 1 ? "" : "s"}
+          </span>
+          <select
+            className={`${selectClass} h-8`}
+            value=""
+            disabled={bulkBusy || sequenceOptions.length === 0}
+            aria-label="Añadir contactos seleccionados a secuencia"
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value) void enrollSelected(value);
+            }}
+          >
+            <option value="">
+              {sequenceOptions.length > 0
+                ? "Añadir a secuencia…"
+                : "Sin secuencias activas"}
+            </option>
+            {sequenceOptions.map((sequence) => (
+              <option key={sequence.id} value={sequence.id}>
+                {sequence.name}
+              </option>
+            ))}
+          </select>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={bulkBusy}
+            onClick={clearSelection}
+          >
+            Limpiar
+          </Button>
+        </div>
+      ) : null}
+
       {deals.length === 0 ? (
         <EmptyState
           hasFilter={Boolean(
@@ -368,9 +486,17 @@ export function DealsListView({
       ) : (
         <div className="overflow-hidden rounded-xl border">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-sm">
+            <table className="w-full min-w-[920px] text-sm">
               <thead>
                 <tr className="bg-muted/40 text-muted-foreground border-b text-left text-xs">
+                  <th className="w-10 px-4 py-2.5">
+                    <Checkbox
+                      checked={allVisibleSelected}
+                      disabled={selectableIds.length === 0 || bulkBusy}
+                      aria-label="Seleccionar todos los contactos visibles"
+                      onCheckedChange={toggleAllVisible}
+                    />
+                  </th>
                   <th className="px-4 py-2.5 font-medium">Negocio</th>
                   <th className="px-4 py-2.5 font-medium">Estado</th>
                   <th className="px-4 py-2.5 font-medium">Etapa</th>
@@ -387,6 +513,18 @@ export function DealsListView({
                     key={deal.id}
                     className="hover:bg-muted/30 border-b transition-colors last:border-0"
                   >
+                    <td className="px-4 py-2.5">
+                      <Checkbox
+                        checked={selected.has(deal.id)}
+                        disabled={!deal.personId || bulkBusy}
+                        aria-label={
+                          deal.person?.name
+                            ? `Seleccionar ${deal.person.name}`
+                            : "Seleccionar contacto del negocio"
+                        }
+                        onCheckedChange={() => toggleSelect(deal.id)}
+                      />
+                    </td>
                     <td className="px-4 py-2.5">
                       <Link
                         prefetch={false}
@@ -520,6 +658,24 @@ export function DealsListView({
       </Dialog>
     </>
   );
+}
+
+function enrollmentMessage(
+  result: Awaited<ReturnType<typeof bulkEnrollDeals>>,
+) {
+  if (result.enrolled > 0) {
+    return `${result.enrolled} contacto${result.enrolled === 1 ? "" : "s"} inscrito${result.enrolled === 1 ? "" : "s"} en la secuencia`;
+  }
+  if (result.alreadyEnrolled > 0) {
+    return "Los contactos seleccionados ya estaban en la secuencia";
+  }
+  if (result.skippedNoEmail > 0) {
+    return "Ningún contacto seleccionable tiene email válido";
+  }
+  if (result.skippedNotSubscribed > 0 || result.skippedSuppressed > 0) {
+    return "Los contactos seleccionados no cumplen consentimiento o supresión";
+  }
+  return "No se pudo inscribir ningún contacto";
 }
 
 function StatusBadge({ status }: { status: DealStatus }) {

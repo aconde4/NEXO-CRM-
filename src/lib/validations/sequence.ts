@@ -269,6 +269,8 @@ export const sequenceStepTestSchema = z
 
 export const sequenceIdSchema = z.string().uuid("Secuencia no válida");
 
+const MAX_SEQUENCE_ENROLLMENT_PERSON_IDS = 5_000;
+
 const enrollmentOptionalUuidSchema = z
   .union([z.string(), z.null(), z.undefined()])
   .transform((value) => (typeof value === "string" ? value.trim() : ""))
@@ -281,9 +283,16 @@ const enrollmentOptionalUuidSchema = z
 export const sequenceEnrollmentSchema = z
   .object({
     personId: enrollmentOptionalUuidSchema,
+    personIds: z
+      .array(z.string().uuid("Contacto no válido"))
+      .max(
+        MAX_SEQUENCE_ENROLLMENT_PERSON_IDS,
+        `Selecciona como máximo ${MAX_SEQUENCE_ENROLLMENT_PERSON_IDS} contactos.`,
+      )
+      .optional(),
     segmentId: enrollmentOptionalUuidSchema,
     sequenceId: sequenceIdSchema,
-    source: z.enum(["person", "segment"]),
+    source: z.enum(["person", "persons", "segment"]),
   })
   .superRefine((data, ctx) => {
     if (data.source === "person" && !data.personId) {
@@ -291,6 +300,13 @@ export const sequenceEnrollmentSchema = z
         code: "custom",
         message: "Elige un contacto.",
         path: ["personId"],
+      });
+    }
+    if (data.source === "persons" && (data.personIds ?? []).length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Selecciona al menos un contacto.",
+        path: ["personIds"],
       });
     }
     if (data.source === "segment" && !data.segmentId) {

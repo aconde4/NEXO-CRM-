@@ -14,11 +14,8 @@ import { db } from "@/server/db";
 import {
   activityLog,
   deals,
-  enrollments,
   entityLabels,
   labels,
-  sequenceSteps,
-  sequences,
   stages,
 } from "@/server/db/schema";
 import {
@@ -34,8 +31,7 @@ import { backfillContactsIntoFunnel } from "@/server/services/contact-funnel";
 import { recordStageChangeSafely } from "@/server/services/deal-stage-events";
 import { listPersonIdsByFilters } from "@/server/queries/contacts";
 import { listCustomFieldDefs } from "@/server/queries/custom-fields";
-import { inngest } from "@/server/inngest/client";
-import { SEQUENCE_RUN_EVENT } from "@/server/services/sequence-runner";
+import { enrollInSequence } from "@/server/actions/sequences";
 
 const dealIdsSchema = z.array(z.string().uuid()).min(1).max(500);
 
@@ -165,55 +161,26 @@ export async function bulkAddLabelToDeals(dealIds: string[], labelId: string) {
 export async function bulkEnrollDeals(dealIds: string[], sequenceId: string) {
   const user = await requireUser();
   const ids = dealIdsSchema.parse(dealIds);
-  const [seq] = await db
-    .select({ status: sequences.status })
-    .from(sequences)
-    .where(and(eq(sequences.id, sequenceId), eq(sequences.ownerId, user.id)))
-    .limit(1);
-  if (!seq) throw new Error("Secuencia no encontrada");
-  if (seq.status !== "active") throw new Error("La secuencia no está activa");
-  const stepCount = await db.$count(
-    sequenceSteps,
-    and(
-      eq(sequenceSteps.sequenceId, sequenceId),
-      eq(sequenceSteps.ownerId, user.id),
-    ),
-  );
-  if (stepCount === 0) throw new Error("La secuencia no tiene pasos");
-
   const rows = await ownedDealRows(user.id, ids);
-  const now = new Date();
-  let enrolled = 0;
-  for (const row of rows) {
-    if (!row.personId) continue;
-    const [ins] = await db
-      .insert(enrollments)
-      .values({
-        context: { enrolledBy: "bulk" },
-        currentStepPosition: 0,
-        enrolledAt: now,
-        nextRunAt: now,
-        orgId: row.orgId,
-        ownerId: user.id,
-        personId: row.personId,
-        sequenceId,
-        status: "active",
-      })
-      .onConflictDoNothing({
-        target: [enrollments.sequenceId, enrollments.personId],
-      })
-      .returning({ id: enrollments.id });
-    if (ins) {
-      enrolled += 1;
-      await inngest.send({
-        data: { enrollmentId: ins.id, sequenceId },
-        name: SEQUENCE_RUN_EVENT,
-      });
-    }
+  const personIds = [
+    ...new Set(
+      rows.map((row) => row.personId).filter((id): id is string => !!id),
+    ),
+  ];
+  if (personIds.length === 0) {
+    throw new Error("Selecciona negocios con contacto para inscribirlos.");
   }
+
+  const result = await enrollInSequence({
+    personId: null,
+    personIds,
+    segmentId: null,
+    sequenceId,
+    source: "persons",
+  });
   revalidatePath("/deals");
   revalidatePath("/sequences");
-  return { enrolled };
+  return result;
 }
 
 type AutomationRecord = Record<string, unknown>;
