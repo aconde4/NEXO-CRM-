@@ -18,7 +18,7 @@ superior en tres ejes:
    disparadores, condiciones, esperas y ramificaciones, construido sobre un
    ejecutor de workflows duraderos (Inngest). Más potente que la lista lineal de
    Pipedrive.
-3. **IA integrada (Claude) en todo:** redactar correos, resumir el historial de un
+3. **IA integrada y agnóstica en todo:** redactar correos, resumir el historial de un
    contacto, crear secuencias/automatizaciones a partir de una frase, puntuar
    leads, sugerir la siguiente acción y analizar el sentimiento de las respuestas.
 
@@ -30,7 +30,7 @@ fácil a 100+ €/mes).
 
 | Decisión | Elección | Implicación |
 |---|---|---|
-| Modo de trabajo | Mixto con apoyo | Claude escribe el código y explica lo esencial de cada parte. |
+| Modo de trabajo | Mixto con apoyo | El usuario dirige; los asistentes construyen y explican lo esencial. |
 | Estrategia de email | Ambas por igual | Arquitectura de email doble: Gmail API (1:1) + Resend (masivo). |
 | Hosting | En la nube | Vercel + Supabase + Inngest. Las automatizaciones corren 24/7. |
 | Primer MVP | Contactos + Pipeline | Fases 1 y 2 son la prioridad tras las fundaciones. |
@@ -44,7 +44,7 @@ fácil a 100+ €/mes).
    (datos → API → UI) en vez de "primero toda la base de datos, luego toda la UI".
 3. **Commits pequeños y frecuentes.** Cada tarea con checkbox ≈ 1 commit. Así, si
    se corta, se pierde como mucho una tarea.
-4. **El estado vive en disco, no en la memoria de Claude.** La fuente de verdad de
+4. **El estado vive en disco, no en la memoria del asistente.** La fuente de verdad de
    "dónde estamos" es [`ESTADO-ACTUAL.md`](ESTADO-ACTUAL.md), no la conversación.
 5. **Seguridad y RGPD transversales,** no una fase al final.
 
@@ -53,12 +53,12 @@ fácil a 100+ €/mes).
 Esto resuelve tu preocupación: **cómo seguir construyendo justo por donde ibas.**
 
 ### Si eres tú (el usuario) volviendo en una sesión nueva
-Pega esto a Claude:
+Pega esto al asistente que entre:
 
 > «Retomamos el CRM. Lee `docs/ESTADO-ACTUAL.md` y `docs/04-ROADMAP-DETALLADO.md`,
 > dime en qué fase y tarea estamos y continúa por la siguiente tarea sin terminar.»
 
-### Si eres Claude empezando una sesión sobre este proyecto
+### Si eres un asistente empezando una sesión sobre este proyecto
 Haz **siempre** esto antes de tocar nada:
 
 1. **Lee** [`docs/ESTADO-ACTUAL.md`](ESTADO-ACTUAL.md) → te dice fase actual, última
@@ -94,7 +94,7 @@ Haz **siempre** esto antes de tocar nada:
 | **5** | Secuencias / Drip | Inscribir contactos en secuencias multi-paso con esperas y parada al responder. |
 | **6** | Motor de automatizaciones | Constructor visual: disparadores, condiciones, esperas y acciones. |
 | **7** | Captación (formularios web) | Formularios embebibles, bandeja de leads y conversión a negocio. |
-| **8** | IA integrada (Claude) | Redacción de correos, resúmenes, secuencias por lenguaje natural, lead scoring. |
+| **8** | IA integrada agnóstica | Redacción de correos, resúmenes, secuencias por lenguaje natural, lead scoring. |
 | **9** | Analítica y reporting | Paneles de conversión, previsión, actividad y rendimiento de email. |
 | **10** | Extras y pulido | Documentos/firma, productos y presupuestos, PWA móvil, canales extra (WhatsApp/SMS). |
 

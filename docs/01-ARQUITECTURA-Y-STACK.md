@@ -3,7 +3,7 @@
 ## 1. Filosofía técnica
 
 - **Una sola base de código full-stack** (Next.js): menos piezas, despliegue
-  trivial, ideal para un proyecto personal mantenido por una persona + Claude.
+  simple, ideal para un proyecto personal mantenido por una persona con asistentes.
 - **Serverless por defecto** (Vercel + Supabase + Inngest): cero servidores que
   administrar, escala a cero (no pagas si no se usa), planes gratuitos generosos.
 - **Tipado de extremo a extremo** (TypeScript + Drizzle + Zod): el tipo de la base
@@ -15,25 +15,25 @@
 
 | Capa | Elección | Por qué esta y no otra |
 |---|---|---|
-| **Framework** | **Next.js 15** (App Router, RSC, Server Actions) + **TypeScript** | Front + back en un repo, despliegue en Vercel en 1 clic, gran ecosistema. |
-| **UI** | **Tailwind CSS** + **shadcn/ui** (Radix) | Componentes accesibles que copias a tu repo (los controlas tú), look moderno, rápido de iterar. |
-| **Tablas** | **TanStack Table** | Listados de contactos/negocios con orden, filtros y paginación a medida. |
+| **Framework** | **Next.js 16** (App Router, RSC, Server Actions) + **TypeScript** | Front + back en un repo, despliegue en Vercel en 1 clic, gran ecosistema. |
+| **UI** | **Tailwind CSS v4** + **shadcn/ui sobre Base UI** | Componentes accesibles que copias a tu repo (los controlas tú), look moderno, rápido de iterar. |
+| **Tablas** | **Tablas propias** | Listados de contactos/negocios con orden, filtros, acciones en lote y control fino sin añadir TanStack todavía. |
 | **Drag & drop** | **dnd-kit** | Kanban del pipeline fluido y accesible. |
-| **Gráficas** | **Recharts** (+ **Tremor** para dashboards) | Paneles de analítica sin reinventar nada. |
+| **Gráficas** | **CSS/SVG server-rendered** | Paneles de analítica rápidos, sin dependencia pesada de gráficas. |
 | **Base de datos** | **PostgreSQL** en **Supabase** | Postgres serio (relaciones, JSONB para campos personalizados), free tier con auth y storage incluidos. |
 | **ORM / migraciones** | **Drizzle ORM** + drizzle-kit | Tipado total, migraciones SQL legibles (las puedes leer tú), excelente en serverless. *(Alternativa: Prisma.)* |
-| **Auth** | **Auth.js (NextAuth) v5** con **Google** | Inicias sesión con tu Gmail **y** reutilizamos ese OAuth para la Gmail API (matar dos pájaros). Monousuario con allowlist de tu email. |
+| **Auth** | **Auth.js (NextAuth) v5** con **Google** | Login con Google y reutilización segura del OAuth para Gmail API. Monousuario con allowlist de email. |
 | **Cola / workflows / cron** | **Inngest** | `step.sleep`, `waitForEvent` y reintentos nativos = secuencias y "esperar respuesta" casi gratis. Corre sobre Vercel. |
 | **Email 1:1** | **Gmail API** (OAuth) | Envía desde tu buzón real → hilos, firma y máxima entregabilidad. Detecta respuestas para parar secuencias. |
 | **Email masivo** | **Resend** (escala futura: **Amazon SES**) | API limpia, plantillas con React Email, free tier 3.000/mes. SES cuando haya gran volumen ($0,10/1.000). |
 | **Plantillas de email** | **React Email** | Diseñas correos como componentes React, render fiable en clientes de correo. |
 | **Editor de texto** | **Tiptap** | Redactor de correos y notas WYSIWYG. |
 | **Validación / formularios** | **Zod** + **react-hook-form** | Validación compartida cliente/servidor. |
-| **Datos en cliente** | **TanStack Query** | Caché, refetch e invalidación de las llamadas a la API. |
+| **Datos en cliente** | **Server Components + Server Actions** | Datos cerca del servidor y cliente solo donde hay interacción real. |
 | **Import CSV** | **papaparse** | Importación de contactos con mapeo de columnas. |
-| **Fechas** | **date-fns** + **date-fns-tz** | Manejo de zonas horarias para envíos programados. |
-| **IA** | **Claude API** (`@anthropic-ai/sdk`, modelos `claude-opus-4-8` / `claude-sonnet-4-6`) | Redacción, resúmenes, scoring, automatizaciones por lenguaje natural. |
-| **Tests** | **Vitest** (unit) + **Playwright** (e2e) | Confianza al refactorizar. |
+| **Fechas** | **Intl + utilidades propias** | Manejo suficiente de zonas horarias para envíos programados sin dependencia extra. |
+| **IA** | **Capa `AIProvider` + adaptador OpenAI-compatible** | Redacción, resúmenes, scoring y automatizaciones por lenguaje natural con proveedor configurable (`AI_PROVIDER`). |
+| **Tests** | **Playwright e2e + gates typecheck/lint/build** | Confianza al refactorizar y validar flujos críticos. |
 | **Hosting** | **Vercel** (app) + **Supabase** (BD) + **Inngest** (jobs) | Todo free al inicio, push-to-deploy. |
 | **Gestor de paquetes** | **pnpm** | Ya lo tienes instalado (v10.33). Rápido y eficiente en disco. |
 
@@ -111,7 +111,7 @@ CRM/
 │   ├── lib/                      # Utilidades, validadores Zod, helpers
 │   └── styles/
 ├── drizzle/                      # Migraciones SQL generadas
-├── tests/                        # Vitest + Playwright
+├── tests/                        # Playwright e2e
 ├── .env.local                    # Secretos (NUNCA al repo)
 ├── .env.example                  # Plantilla de variables (SÍ al repo)
 └── package.json
@@ -129,7 +129,7 @@ CRM/
 | **Google Cloud Console** | OAuth + Gmail API | Fase 0 (login) / Fase 3 (Gmail) | Gratis |
 | **Inngest** | Motor de jobs/workflows | Fase 0 | Gratis |
 | **Resend** | Envío masivo de email | Fase 4 | Gratis (3.000/mes) |
-| **Anthropic (Claude API)** | Funciones de IA | Fase 8 | De pago por uso (barato) |
+| **Proveedor IA elegido** | Funciones de IA (`AI_PROVIDER`, `AI_API_KEY`, modelos) | Fase 8 | Opcional; puede ser gratis/local o de pago |
 | **Dominio propio** | Envío de campañas (SPF/DKIM) | Fase 4 | ~10 €/año (ya tienes seestem.eu) |
 
 ## 6. Variables de entorno (irán en `.env.example`)
@@ -154,8 +154,12 @@ RESEND_API_KEY=
 RESEND_WEBHOOK_SECRET=
 EMAIL_SENDING_DOMAIN=
 
-# Claude (Fase 8)
-ANTHROPIC_API_KEY=
+# IA (Fase 8)
+AI_PROVIDER=disabled
+AI_BASE_URL=
+AI_API_KEY=
+AI_MODEL=
+AI_MODEL_FAST=
 
 # App
 NEXT_PUBLIC_APP_URL=
@@ -166,8 +170,8 @@ NEXT_PUBLIC_APP_URL=
 - **Fases 0–3:** 0 €/mes (Vercel + Supabase + Inngest + Gmail, todo free).
 - **Fase 4+:** sigue 0 € hasta superar 3.000 emails/mes en Resend; el dominio ya lo
   tienes. Si creces mucho, se migra el masivo a Amazon SES (~0,10 €/1.000).
-- **Fase 8 (IA):** pago por uso de Claude API; con cachés y modelos adecuados,
-  céntimos por operación. Controlable y opcional.
+- **Fase 8 (IA):** coste según proveedor. Puede empezar desactivada, gratis/local o
+  con pago por uso; la app degrada con elegancia si falta configuración.
 
 ---
 

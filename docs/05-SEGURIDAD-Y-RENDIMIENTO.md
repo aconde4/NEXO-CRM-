@@ -75,7 +75,8 @@ herramientas/builds, y se añadió suite e2e Playwright para los flujos crítico
 - [ ] **UI optimista** en acciones frecuentes (crear/editar/mover) → respuesta
       instantánea, se confirma en segundo plano.
 - [ ] **Estados de carga con skeletons** (no spinners en blanco) y `Suspense`.
-- [ ] **TanStack Query** para cachear e invalidar datos en vistas interactivas.
+- [ ] **Caché cliente específica** (SWR/TanStack Query) solo en vistas interactivas
+      que lo pidan.
 - [ ] **Imágenes optimizadas** (`next/image`) y fuentes con `display: swap` (hecho).
 
 ### Trabajos en segundo plano

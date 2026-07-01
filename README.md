@@ -1,14 +1,14 @@
 # CRM (proyecto personal estilo Pipedrive, mejorado)
 
 CRM personal y autoalojado, inspirado en Pipedrive pero más potente: gestión de
-contactos y empresas, embudos visuales de ventas, envío de correos 1:1 y campañas
-masivas, secuencias/drip, un motor de automatizaciones visual y IA integrada
-(Claude) en todo el flujo.
+contactos y empresas, embudos visuales de ventas, correo 1:1, campañas masivas,
+secuencias/drip, automatizaciones visuales, reporting, documentos, presupuestos,
+PWA e IA agnóstica configurable.
 
-> **Estado del proyecto:** FASE 0 (fundaciones) ~80% hecha — app Next.js con diseño,
-> app shell, base de datos y jobs ya montados y compilando. Falta conectar Supabase y
-> el login de Google (ver [`docs/SETUP.md`](docs/SETUP.md)). El plan completo está en
-> [`docs/`](docs/); retoma siempre por [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md).
+> **Estado del proyecto:** roadmap principal cerrado hasta Fase 10. Antes de construir
+> una nueva fase toca decidir el siguiente bloque: despliegue/operación real,
+> endurecimiento CSP/RLS/rotación de credenciales o nuevas funcionalidades. Retoma
+> siempre por [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md).
 
 ## 🚀 Arrancar en local
 
@@ -17,8 +17,8 @@ pnpm install
 pnpm dev        # http://localhost:3000
 ```
 
-Antes de conectar BD y login, copia `.env.example` a `.env.local` y rellena los
-valores siguiendo [`docs/SETUP.md`](docs/SETUP.md).
+Copia `.env.example` a `.env.local` y rellena los valores del entorno que vayas a
+usar siguiendo [`docs/SETUP.md`](docs/SETUP.md).
 
 ## 📚 Documentación (léela en este orden)
 
@@ -42,16 +42,16 @@ valores siguiendo [`docs/SETUP.md`](docs/SETUP.md).
 
 ## 🧭 Decisiones tomadas (16/06/2026)
 
-- **Modo de trabajo:** mixto, Claude construye y explica lo esencial.
+- **Modo de trabajo:** mixto, con asistentes de código y estado persistente en disco.
 - **Email:** secuencias 1:1 (vía Gmail) **y** campañas masivas (vía Resend) por igual.
 - **Hosting:** en la nube, 24/7, coste casi cero al inicio.
 - **Primer MVP:** Contactos + Pipeline.
 
 ## ⚡ Resumen del stack
 
-Next.js (App Router, TypeScript) · Tailwind + shadcn/ui · PostgreSQL (Supabase) ·
-Drizzle ORM · Auth.js (Google) · Inngest (motor de automatizaciones/colas) ·
-Gmail API (1:1) · Resend (masivo) · Claude API (IA) · Vercel (hosting).
+Next.js 16 (App Router, TypeScript) · Tailwind v4 + shadcn/ui (Base UI) ·
+PostgreSQL (Supabase) · Drizzle ORM · Auth.js (Google) · Inngest · Gmail API
+(1:1) · Resend (masivo) · IA agnóstica vía `AI_PROVIDER` · Vercel.
 
 Todo con plan gratuito al inicio. Detalles y justificación en
 [`docs/01-ARQUITECTURA-Y-STACK.md`](docs/01-ARQUITECTURA-Y-STACK.md).

@@ -159,24 +159,24 @@ export default async function DashboardPage() {
               <CircleDot className="text-primary size-4" />
               Estado del proyecto
             </CardTitle>
-            <CardDescription>Fase actual de construcción.</CardDescription>
+            <CardDescription>Roadmap principal cerrado.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Fase</span>
-              <span className="font-medium">3 · Email 1:1</span>
+              <span className="font-medium">10 · Completa</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Estado</span>
+              <span className="font-medium">Pulido final</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Siguiente</span>
-              <span className="font-medium">3.5 · Vista de hilo</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Login</span>
-              <span className="font-medium">Google + Gmail OAuth</span>
+              <span className="font-medium">Despliegue / nueva fase</span>
             </div>
             <p className="text-muted-foreground/80 border-t pt-3 text-xs">
-              El plan completo está en <code>docs/</code>. Retoma siempre por{" "}
-              <code>docs/ESTADO-ACTUAL.md</code>.
+              El estado vivo está en <code>docs/ESTADO-ACTUAL.md</code>. Antes
+              de ampliar, decide despliegue, operación o nuevas funciones.
             </p>
           </CardContent>
         </Card>

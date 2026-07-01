@@ -1,8 +1,7 @@
 # SETUP · Cuentas y credenciales (lo que tienes que hacer tú)
 
-Yo (Claude) ya he dejado todo el código listo. Faltan unas cuentas externas que
-solo puedes crear tú. Sigue estos pasos y pega los valores en `.env.local`. Cuando
-termines, dímelo y conecto la base de datos, el login y el despliegue.
+El código ya está preparado. Faltan algunas cuentas externas que debe crear o
+conectar el usuario. Sigue estos pasos y pega los valores en `.env.local`.
 
 > Todo tiene plan gratuito. Tiempo estimado: ~20-30 min.
 
@@ -21,7 +20,7 @@ termines, dímelo y conecto la base de datos, el login y el despliegue.
      migraciones; el Session pooler funciona por IPv4, evita errores de conexión.)
 4. Sustituye `[YOUR-PASSWORD]` por la contraseña que pusiste en el paso 1.
 
-## 2. Google OAuth (inicio de sesión + futuro Gmail) — necesario
+## 2. Google OAuth (inicio de sesión + Gmail) — necesario
 
 1. Entra en https://console.cloud.google.com → crea un proyecto (p. ej. "Nexo CRM").
 2. **APIs y servicios → Pantalla de consentimiento OAuth** → tipo **Externo** →
@@ -59,8 +58,8 @@ Sí se puede, y suele ser lo ideal. Depende de quién aloje ese correo:
   exactamente igual que con Gmail. Inicias sesión con esa cuenta y las **secuencias
   1:1** salen desde tu buzón de empresa (máxima entregabilidad). Solo añade tu
   correo de empresa a `ALLOWED_EMAILS`.
-- **Si es Microsoft 365 / Outlook:** se conecta con Microsoft Graph (equivalente a
-  la Gmail API). Lo añadimos como integración aparte cuando lleguemos a la Fase 3.
+- **Si es Microsoft 365 / Outlook:** se conectaría con Microsoft Graph (equivalente a
+  la Gmail API). No está implementado en el roadmap actual.
 - **Otro proveedor (IMAP/SMTP genérico, cPanel…):** se conecta por SMTP (envío) +
   IMAP (lectura). También se puede; requiere host/usuario/contraseña del correo.
 - **Campañas masivas** desde @miempresa.com: independientemente del correo, se
@@ -303,10 +302,13 @@ En CI, instala Chromium con `pnpm e2e:install`.
 
 ---
 
-## Cuando termines
+## Checklist para un entorno nuevo
 
-Dime **“ya tengo Supabase y Google”** y haré:
-- `pnpm db:push` para crear las tablas.
-- Conectar Auth.js (login con Google, allowlist, protección de rutas).
-- Probar el login en local.
-- Y cuando quieras, el despliegue en Vercel.
+1. Copia `.env.example` a `.env.local` y rellena `DATABASE_URL`, `DIRECT_URL`,
+   `AUTH_SECRET`, Google OAuth y `ALLOWED_EMAILS`.
+2. Aplica migraciones con `pnpm db:migrate`. Si cambias el esquema antes, genera la
+   migración con `pnpm db:generate` y revísala.
+3. Carga datos de ejemplo con `pnpm db:seed` si quieres probar la app con contenido.
+4. Arranca `pnpm dev` y entra con `/api/dev-login` o con Google OAuth.
+5. Antes de desplegar, replica las variables en Vercel y configura Inngest/Resend
+   solo si vas a usar jobs, campañas o tracking públicos.

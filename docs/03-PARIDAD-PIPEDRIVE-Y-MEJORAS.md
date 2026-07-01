@@ -36,16 +36,16 @@ Leyenda: ✅ incluido · 🔼 mejorado respecto a Pipedrive · 🆕 no existe en
 | **Chatbot / Live chat** | 💲 LeadBooster | ⏳ posible más adelante | 10 |
 | **Prospección de leads (Prospector)** | 💲 LeadBooster | ⏳ fuera de alcance inicial | — |
 | **Web Visitors (tracking de visitantes)** | 💲 add-on | ⏳ opcional | 10 |
-| **Documentos y firma electrónica** | 💲 add-on Smart Docs | ✅ planificado | 10 |
-| **Productos y presupuestos** | ✅ | ✅ planificado | 10 |
+| **Documentos y firma electrónica** | 💲 add-on Smart Docs | ✅ incluido | 10 |
+| **Productos y presupuestos** | ✅ | ✅ incluido | 10 |
 | **Ingresos recurrentes** | ✅ | ⏳ opcional | 10 |
 | **Reporting / dashboards / objetivos** | ✅ | ✅ | 9 |
 | **App móvil** | ✅ nativa | 🔼 PWA responsive (instalable) | 10 |
-| **IA de ventas** | ✅ asistente básico | 🆕 **Claude integrado en todo el flujo** | 8 |
+| **IA de ventas** | ✅ asistente básico | 🆕 **IA agnóstica integrada en todo el flujo** | 8 |
 
 ## 2. Nuestras mejoras clave (el "mejor que Pipedrive")
 
-### 🆕 1. IA (Claude) integrada de extremo a extremo
+### 🆕 1. IA agnóstica integrada de extremo a extremo
 No un "asistente" superficial, sino IA útil en cada pantalla:
 - **Redacción y respuestas** de correos en tu tono.
 - **Resumen del historial** de un contacto/negocio en 3 líneas.

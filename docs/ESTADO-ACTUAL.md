@@ -520,6 +520,17 @@ Tareas opcionales que quedaron fuera de la Fase 1 (retomar cuando convenga):
 
 ## 🗒️ Changelog por sesión
 
+### 2026-07-01 (102) — Pulido general post-roadmap
+- **Superficies visibles:** `/dashboard` ya no muestra la Fase 3 como fase actual y
+  `/inbox` describe Gmail como operativo en lugar de "base para Fase 3".
+- **Onboarding:** añadido `.env.example` sin secretos; `README.md`, `SETUP.md` y docs
+  de arquitectura/paridad/visión quedan alineados con Next.js 16, Base UI, Fase 10
+  cerrada e IA agnóstica.
+- **Migraciones:** eliminado el script `db:push` y sustituida la guía por
+  `pnpm db:generate` + `pnpm db:migrate`, tal como exige el protocolo del proyecto.
+- **Verificación:** `pnpm audit --prod`, `pnpm typecheck`, `pnpm lint`, `pnpm build` y
+  `PLAYWRIGHT_BASE_URL=http://localhost:3000 pnpm e2e` en verde.
+
 ### 2026-07-01 (101) — Fase 10.7: auditoría final, seguridad y e2e
 - **Decisión de producto:** **10.6 WhatsApp/SMS descartada** por el usuario; no se
   implementa. El roadmap continúa y cierra con 10.7.

@@ -308,18 +308,18 @@ export default async function InboxPage({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MailCheck className="text-primary size-4" />
-                Base para Fase 3
+                Gmail operativo
               </CardTitle>
               <CardDescription>
-                Lo que queda habilitado para las siguientes tareas.
+                Conexión lista para correo 1:1, sincronización y secuencias.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3 text-sm">
                 {[
                   "Enviar correo desde el buzón real del usuario.",
-                  "Sincronizar Gmail por Inngest y vincular mensajes por email.",
-                  "Mantener acceso mediante refresh token guardado en Auth.js.",
+                  "Sincronizar Gmail con Inngest y vincular mensajes por email.",
+                  "Parar secuencias automáticamente ante respuesta, baja o rebote.",
                 ].map((item) => (
                   <li key={item} className="flex gap-2">
                     <CheckCircle2 className="mt-0.5 size-4 text-emerald-600" />
